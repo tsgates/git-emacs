@@ -1,0 +1,2215 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- Created by htmlize-1.34 in css mode. -->
+<html>
+  <head>
+    <title>git-emacs.el</title>
+    <style type="text/css">
+    <!--
+      body {
+        color: #000000;
+        background-color: #ffffff;
+      }
+      .builtin {
+        /* font-lock-builtin-face */
+        color: #da70d6;
+      }
+      .comment {
+        /* font-lock-comment-face */
+        color: #b22222;
+      }
+      .comment-delimiter {
+        /* font-lock-comment-delimiter-face */
+        color: #b22222;
+      }
+      .constant {
+        /* font-lock-constant-face */
+        color: #5f9ea0;
+      }
+      .doc {
+        /* font-lock-doc-face */
+        color: #bc8f8f;
+      }
+      .function-name {
+        /* font-lock-function-name-face */
+        color: #0000ff;
+      }
+      .keyword {
+        /* font-lock-keyword-face */
+        color: #a020f0;
+      }
+      .negation-char {
+      }
+      .regexp-grouping-backslash {
+        /* font-lock-regexp-grouping-backslash */
+        font-weight: bold;
+      }
+      .regexp-grouping-construct {
+        /* font-lock-regexp-grouping-construct */
+        font-weight: bold;
+      }
+      .string {
+        /* font-lock-string-face */
+        color: #bc8f8f;
+      }
+      .type {
+        /* font-lock-type-face */
+        color: #228b22;
+      }
+      .variable-name {
+        /* font-lock-variable-name-face */
+        color: #b8860b;
+      }
+      .warning {
+        /* font-lock-warning-face */
+        color: #ff0000;
+        font-weight: bold;
+      }
+
+      a {
+        color: inherit;
+        background-color: inherit;
+        font: inherit;
+        text-decoration: inherit;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    -->
+    </style>
+  </head>
+  <body>
+    <pre>
+<span class="comment-delimiter">;;; </span><span class="comment">git-emacs (v.1.0) : yet another git emacs mode for newbies
+</span><span class="comment-delimiter">;;</span><span class="comment">
+</span><span class="comment-delimiter">;; </span><span class="comment">Copyright (C) 2008  TSKim (tsgatesv@gmail.com)
+</span><span class="comment-delimiter">;;</span><span class="comment">
+</span><span class="comment-delimiter">;; </span><span class="comment">Authors    : TSKim : Kim Taesoo(tsgatesv@gmail.com)
+</span><span class="comment-delimiter">;; </span><span class="comment">Created    : 24 March 2007
+</span><span class="comment-delimiter">;; </span><span class="comment">License    : GPL
+</span><span class="comment-delimiter">;; </span><span class="comment">Keywords   : git, version control, release management
+</span><span class="comment-delimiter">;;</span><span class="comment">
+</span><span class="comment-delimiter">;; </span><span class="comment">Compatibility: Emacs22 and EmacsCVS (developed on 23.0.60.2)
+</span><span class="comment-delimiter">;;                </span><span class="comment">Git 1.5 and up
+</span>
+<span class="comment-delimiter">;; </span><span class="comment">This file is *NOT* part of GNU Emacs.
+</span><span class="comment-delimiter">;; </span><span class="comment">This file is distributed under the same terms as GNU Emacs.
+</span>
+<span class="comment-delimiter">;; </span><span class="comment">This program is free software; you can redistribute it and/or
+</span><span class="comment-delimiter">;; </span><span class="comment">modify it under the terms of the GNU General Public License as
+</span><span class="comment-delimiter">;; </span><span class="comment">published by the Free Software Foundation; either version 2 of
+</span><span class="comment-delimiter">;; </span><span class="comment">the License, or (at your option) any later version.
+</span>
+<span class="comment-delimiter">;; </span><span class="comment">This program is distributed in the hope that it will be
+</span><span class="comment-delimiter">;; </span><span class="comment">useful, but WITHOUT ANY WARRANTY; without even the implied
+</span><span class="comment-delimiter">;; </span><span class="comment">warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+</span><span class="comment-delimiter">;; </span><span class="comment">PURPOSE.  See the GNU General Public License for more details.
+</span>
+<span class="comment-delimiter">;; </span><span class="comment">You should have received a copy of the GNU General Public
+</span><span class="comment-delimiter">;; </span><span class="comment">License along with this program; if not, write to the Free
+</span><span class="comment-delimiter">;; </span><span class="comment">Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+</span><span class="comment-delimiter">;; </span><span class="comment">MA 02111-1307 USA
+</span>
+<span class="comment-delimiter">;; </span><span class="comment">http://tsgates.cafe24.com/git/git-emacs.html
+</span>
+<span class="comment-delimiter">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;</span><span class="comment">
+</span><span class="comment-delimiter">;;</span><span class="comment">
+</span><span class="comment-delimiter">;;; </span><span class="comment">Commentary:
+</span><span class="comment-delimiter">;;</span><span class="comment">
+</span><span class="comment-delimiter">;; </span><span class="comment">I referenced a lot of codes such as under
+</span><span class="comment-delimiter">;;   </span><span class="comment">- psvn.el (Stefan Reichoer)
+</span><span class="comment-delimiter">;;   </span><span class="comment">- vc-git.el (Alexandre Julliard)
+</span><span class="comment-delimiter">;;   </span><span class="comment">- git.el (Alexandre Julliard)
+</span><span class="comment-delimiter">;;   </span><span class="comment">- ido.el (Kim F. Storm)
+</span><span class="comment-delimiter">;;   </span><span class="comment">- ... 
+</span><span class="comment-delimiter">;;   </span><span class="comment">
+</span><span class="comment-delimiter">;;; </span><span class="comment">Installation
+</span><span class="comment-delimiter">;; </span><span class="comment">
+</span><span class="comment-delimiter">;; </span><span class="comment">(add-to-list 'load-path "/home/tsgates/Skills/git/git-emacs")
+</span><span class="comment-delimiter">;; </span><span class="comment">(require 'git-emacs)
+</span><span class="comment-delimiter">;;</span><span class="comment">
+</span><span class="comment-delimiter">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;</span><span class="comment">
+</span><span class="comment-delimiter">;;</span><span class="comment">
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : delete temporary log file
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : separate branch-mode &amp; status-view-mode to other files
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : fetching 
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : regular exp selecting
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : enhance config! &amp; tag!
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : save -&gt; status-view update
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : git-log -&gt; C-u command :=&gt; cmd
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : remote branch list
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : status-mode function -&gt; add status prefix
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : git set config
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : () -&gt; fording/unfording for detail
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : show ignored files
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : locally flyspell
+</span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : C-x v b -&gt; branch
+</span><span class="comment-delimiter">;; </span><span class="comment">
+</span>
+(<span class="keyword">eval-when-compile</span> (<span class="keyword">require</span> '<span class="constant">cl</span>))
+
+(<span class="keyword">require</span> '<span class="constant">ewoc</span>)                         <span class="comment-delimiter">; </span><span class="comment">view
+</span>(<span class="keyword">require</span> '<span class="constant">vc-git</span>)                       <span class="comment-delimiter">; </span><span class="comment">vc-git advises
+</span>(<span class="keyword">require</span> '<span class="constant">ido</span>)                          <span class="comment-delimiter">; </span><span class="comment">ido readline
+</span>(<span class="keyword">require</span> '<span class="constant">electric</span>)                     <span class="comment-delimiter">; </span><span class="comment">branch mode
+</span>(<span class="keyword">require</span> '<span class="constant">time-stamp</span>)                   <span class="comment-delimiter">; </span><span class="comment">today
+</span>
+(<span class="keyword">require</span> '<span class="constant">git-blame</span>)                    <span class="comment-delimiter">; </span><span class="comment">git blame
+</span>(<span class="keyword">require</span> '<span class="constant">git-modeline</span>)                 <span class="comment-delimiter">; </span><span class="comment">modeline dot
+</span>
+(<span class="keyword">defalias</span> '<span class="function-name">electric-pop-up-window</span> 'Electric-pop-up-window)
+(<span class="keyword">defalias</span> '<span class="function-name">electric-command-loop</span>  'Electric-command-loop)
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">faces
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defgroup</span> <span class="type">git</span> nil
+  <span class="doc">"A user interface for the git versioning system."</span>
+  <span class="builtin">:group</span> 'tools)
+
+(<span class="keyword">defmacro</span> <span class="function-name">git--face</span> (name fore1 prop1 fore2 prop2)
+  `(<span class="keyword">defface</span> ,(intern (concat <span class="string">"git--"</span> (symbol-name name) <span class="string">"-face"</span>))
+     '((((class color) (background light)) (<span class="builtin">:foreground</span> ,fore1 ,@prop1))
+       (((class color) (background dark))  (<span class="builtin">:foreground</span> ,fore2 ,@prop2)))
+    ,(concat <span class="string">"git "</span> (symbol-name name) <span class="string">" face in status buffer mode"</span>)
+    <span class="builtin">:group</span> 'git))
+
+(git--face mark       <span class="string">"red"</span>    (<span class="builtin">:bold</span> t) <span class="string">"tomato"</span> (<span class="builtin">:bold</span> t))
+(git--face mark-tree  <span class="string">"blue"</span>   (<span class="builtin">:bold</span> t) <span class="string">"yellow"</span> (<span class="builtin">:bold</span> t))
+(git--face mark-blob  <span class="string">"black"</span>  () <span class="string">"white"</span> ())
+(git--face unknown    <span class="string">"black"</span>  (<span class="builtin">:bold</span> t) <span class="string">"white"</span>  (<span class="builtin">:bold</span> t))
+(git--face ignored    <span class="string">"gray"</span>   (<span class="builtin">:bold</span> t) <span class="string">"gray"</span>   (<span class="builtin">:bold</span> t))
+(git--face bold       <span class="string">"tomato"</span> (<span class="builtin">:bold</span> t) <span class="string">"tomato"</span> (<span class="builtin">:bold</span> t))
+(git--face modified   <span class="string">"tomato"</span> (<span class="builtin">:bold</span> t) <span class="string">"tomato"</span> (<span class="builtin">:bold</span> t))
+(git--face unmerged   <span class="string">"red"</span>    (<span class="builtin">:bold</span> t) <span class="string">"tomato"</span> (<span class="builtin">:bold</span> t))
+(git--face uptodate   <span class="string">"gray"</span>   (<span class="builtin">:bold</span> t) <span class="string">"tomato"</span> (<span class="builtin">:bold</span> t))
+(git--face added      <span class="string">"tomato"</span> (<span class="builtin">:bold</span> t) <span class="string">"tomato"</span> (<span class="builtin">:bold</span> t))
+(git--face deleted    <span class="string">"red"</span>    (<span class="builtin">:bold</span> t) <span class="string">"tomato"</span> (<span class="builtin">:bold</span> t))
+(git--face log-line   <span class="string">"gray"</span>   (<span class="builtin">:bold</span> t <span class="builtin">:italic</span> t) <span class="string">"gray"</span>(<span class="builtin">:bold</span> t <span class="builtin">:italic</span> t))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--bold-face</span> (str) (propertize str 'face 'git--bold-face))
+
+(<span class="keyword">defconst</span> <span class="variable-name">git--msg-error</span>     (propertize <span class="string">"Error"</span> 'face 'git--bold-face))
+(<span class="keyword">defconst</span> <span class="variable-name">git--msg-critical</span>  (propertize <span class="string">"Critical Error"</span> 'face 'git--bold-face))
+(<span class="keyword">defconst</span> <span class="variable-name">git--msg-failed</span>    (propertize <span class="string">"Failed"</span> 'face 'git--bold-face))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">internal variable
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defvar</span> <span class="variable-name">git--commit-log-buffer</span> <span class="string">"*git-log*"</span>)
+(<span class="keyword">defvar</span> <span class="variable-name">git--log-flyspell-mode</span> t <span class="doc">"enable flyspell-mode when editing log"</span>)
+(<span class="keyword">defvar</span> <span class="variable-name">git--repository-bookmarks</span>
+  '(<span class="string">"~/Skills/git/checkouttest"</span>
+    <span class="string">"git://git.kernel.org/pub/scm/git/git.git"</span>
+    <span class="string">"git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git"</span>
+    )
+  <span class="doc">"repository bookmarks"</span>)
+
+(<span class="keyword">defvar</span> <span class="variable-name">git--repository-history</span> nil)
+(<span class="keyword">defvar</span> <span class="variable-name">git--status-mode-hook</span>   nil)
+(<span class="keyword">defvar</span> <span class="variable-name">git--status-mode-map</span>    nil)
+(<span class="keyword">defvar</span> <span class="variable-name">git--status-view</span>        nil)
+
+(<span class="keyword">defconst</span> <span class="variable-name">git--repository-dir</span> <span class="string">".git"</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--status-header-format</span> <span class="string">"     %-2s %-10s %-5s %-5s %s"</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--status-line-column</span> 30)
+
+(<span class="keyword">defconst</span> <span class="variable-name">git--reg-space</span>   <span class="string">" "</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--reg-status</span>  <span class="string">"</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">(</span></span><span class="string">[A-Z?]</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">)</span></span><span class="string">"</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--reg-tab</span>     <span class="string">"\t"</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--reg-blank</span>   <span class="string">"[\t\0 ]+"</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--reg-eof</span>     <span class="string">"\0"</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--reg-perm</span>    <span class="string">"</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">(</span></span><span class="string">[0-7]\\{6\\}</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">)</span></span><span class="string">"</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--reg-type</span>    <span class="string">"</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">(</span></span><span class="string">[</span><span class="string"><span class="negation-char">^</span></span><span class="string"> ]+</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">)</span></span><span class="string">"</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--reg-sha1</span>    <span class="string">"</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">(</span></span><span class="string">[0-9a-f]\\{40\\}</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">)</span></span><span class="string">"</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--reg-file</span>    <span class="string">"</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">(</span></span><span class="string">[</span><span class="string"><span class="negation-char">^</span></span><span class="string">\0]+</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">)</span></span><span class="string">"</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--reg-branch</span>  <span class="string">"</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">(</span></span><span class="string">[</span><span class="string"><span class="negation-char">^</span></span><span class="string">\n]+</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">)</span></span><span class="string">"</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--reg-stage</span>   <span class="string">"</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">(</span></span><span class="string">[0-9]+</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">)</span></span><span class="string">"</span>)
+
+(<span class="keyword">defconst</span> <span class="variable-name">git--log-sep-line</span>
+  <span class="string">"# ----------------------------- log -----------------------------"</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--log-file-line</span>
+  <span class="string">"# ---------------------------- files ----------------------------"</span>)
+(<span class="keyword">defconst</span> <span class="variable-name">git--log-header-line</span>
+  <span class="string">"# ----------------------------- info ----------------------------"</span>)
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-header</span> ()
+  (format (concat <span class="string">" "</span> git--status-header-format)
+          <span class="string">"M"</span> <span class="string">"STATUS"</span> <span class="string">"PERM"</span> <span class="string">"SIZE"</span> <span class="string">"FILE"</span>))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">fork git process
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defsubst</span> <span class="function-name">git--exec</span> (cmd outbuf inbuf <span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute 'git' clumsily"</span>
+
+  (apply #'call-process
+         (concat <span class="string">"git-"</span> cmd)            <span class="comment-delimiter">; </span><span class="comment">cmd
+</span>         inbuf                          <span class="comment-delimiter">; </span><span class="comment">in buffer
+</span>         outbuf                         <span class="comment-delimiter">; </span><span class="comment">out buffer
+</span>         nil                            <span class="comment-delimiter">; </span><span class="comment">display
+</span>         args))                         <span class="comment-delimiter">; </span><span class="comment">args
+</span>
+(<span class="keyword">defun</span> <span class="function-name">git--exec-pipe</span> (cmd input <span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute 'echo input | git cmd args' and return result string"</span>
+
+  (<span class="keyword">with-output-to-string</span>
+    (<span class="keyword">with-current-buffer</span> standard-output
+      (<span class="keyword">let</span> ((tmp (make-temp-file <span class="string">"git-tmp"</span>)))
+        (<span class="keyword">with-temp-buffer</span>
+          (insert input)
+          (write-file tmp)
+
+          <span class="comment-delimiter">;; </span><span class="comment">tricky hide write to file message
+</span>          (message <span class="string">""</span>))
+        (apply #'git--exec cmd t tmp args)))))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--exec-buffer</span> (cmd <span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute 'git' within the buffer"</span>
+  
+  (apply #'git--exec cmd t nil args))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--exec-string</span> (cmd <span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute 'git' and return result string"</span>
+
+  (<span class="keyword">with-output-to-string</span>
+    (<span class="keyword">with-current-buffer</span> standard-output
+      (apply #'git--exec-buffer cmd args))))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--exec-cmd</span> (cmd)
+  <span class="doc">"Execute 'git-cmd' with args which comes from user"</span>
+
+  (apply #'git--exec-string
+         cmd
+         (split-string (read-from-minibuffer (concat <span class="string">"&gt;&gt; git "</span> cmd <span class="string">" "</span>)))))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">utilities
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defsubst</span> <span class="function-name">git--trim-string</span> (str)
+  <span class="doc">"Trim the front and rear part of the string"</span>
+  
+  (<span class="keyword">let</span> ((begin 0) (end (- (length str) 1)))
+
+    <span class="comment-delimiter">;; </span><span class="comment">trim front
+</span>    (<span class="keyword">while</span> (and (&lt; begin end)
+                (memq (aref str begin) '(? ?\n)))
+      (incf begin))
+
+    <span class="comment-delimiter">;; </span><span class="comment">trim rear
+</span>    (<span class="keyword">while</span> (and (&lt;= begin end)
+                (memq (aref str end) '(? ?\n)))
+      (decf end))
+
+    (substring str begin (+ end 1))))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--trim-tail</span> (str)
+  <span class="doc">"Trim only the tail of the string"</span>
+  
+  (<span class="keyword">let</span> ((end (- (length str) 1)))
+
+    (<span class="keyword">while</span> (and (&lt; 0 end)
+                (memq (aref str end) '(? ?\n)))
+      (decf end))
+
+    (substring str 0 (+ end 1))))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--join</span> (seq <span class="type">&amp;optional</span> sep)
+  <span class="doc">"' '.join( seq ) in python"</span>
+
+  (mapconcat #'identity seq (<span class="keyword">if</span> sep sep <span class="string">" "</span>)))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--concat-path-only</span> (path added)
+  <span class="doc">"Concatenate the path with proper separator"</span>
+  
+  (concat (file-name-as-directory path) added))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--concat-path</span> (path added)
+  (expand-file-name (git--concat-path-only path added)))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--expand-to-repository-dir</span> (dir)
+  (git--concat-path dir git--repository-dir))
+
+(<span class="keyword">defun</span> <span class="function-name">git--quit-buffer</span> ()
+  <span class="doc">"Delete the window and kill the current buffer"</span>
+
+  (interactive)
+  (<span class="keyword">let</span> ((buffer (current-buffer)))
+    (delete-window)
+    (kill-buffer buffer)))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--select-from-user</span> (prompt choices)
+  <span class="doc">"Select from choices"</span>
+
+  (ido-completing-read prompt choices))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">git execute command
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">git--init</span> (dir)
+  <span class="doc">"Execute 'git-init' at 'dir' directory"</span>
+  
+  (<span class="keyword">with-temp-buffer</span>
+    (<span class="keyword">when</span> dir (cd dir))
+    (git--exec-string <span class="string">"init"</span>)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--checkout</span> (<span class="type">&amp;rest</span> args)
+  <span class="doc">"git checkout 'git-checkout' with 'args'"</span>
+
+  (apply #'git--exec-string <span class="string">"checkout"</span> args))
+
+(<span class="keyword">defun</span> <span class="function-name">git--clone-sentinal</span> (proc stat)
+  <span class="doc">"git clone process sentinal"</span>
+  
+  (<span class="keyword">let</span> ((cmd (git--join (process-command proc))))
+    (<span class="keyword">cond</span> ((string= stat <span class="string">"finished\n"</span>)
+           (message <span class="string">"%s : %s"</span> (git--bold-face <span class="string">"Cloned"</span>) cmd))
+          <span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : popup or state
+</span>          ((string= stat <span class="string">"killed\n"</span>)
+           (message <span class="string">"%s : %s"</span> git--msg-failed cmd))
+          (t
+           (message <span class="string">"%s : %s"</span> git--msg-critical cmd)))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--clone</span> (<span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute 'git-clone' with 'args' and set sentinal
+and finally 'git--clone-sentinal' is called"</span>
+
+  (<span class="keyword">let</span> ((proc (apply #'start-process <span class="string">"git-clone"</span> nil <span class="string">"git-clone"</span> args)))
+    (set-process-sentinel proc 'git--clone-sentinal)
+    (message <span class="string">"%s : %s"</span>
+             (git--bold-face <span class="string">"Run"</span>)
+             (git--join (process-command proc)))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--commit</span> (msg <span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute 'git-commit' with 'args' and pipe the 'msg' string"</span>
+
+  (git--trim-string
+   (apply #'git--exec-pipe <span class="string">"commit"</span> msg <span class="string">"-F"</span> <span class="string">"-"</span> args)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--reset</span> (<span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute 'git-rest' with 'args' and return the result as string"</span>
+  
+  (apply #'git--exec-string <span class="string">"reset"</span> args))
+
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--config</span> (<span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute git-config with args"</span>
+
+  (git--trim-string (apply #'git--exec-string <span class="string">"config"</span> args)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--add</span> (files)
+  <span class="doc">"Execute git-add for each files"</span>
+  
+  (<span class="keyword">when</span> (stringp files) (setq files (list files)))
+  (apply #'git--exec-string <span class="string">"add"</span> files))
+
+(<span class="keyword">defun</span> <span class="function-name">git--mv</span> (src dst)
+  <span class="doc">"Execute git-mv for src and dst"</span>
+
+  (<span class="keyword">let</span> ((msg (git--exec-string <span class="string">"mv"</span> src dst)))
+    (<span class="keyword">unless</span> (string-match <span class="string">""</span> (git--trim-string msg))
+      (<span class="warning">error</span> msg))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--rm</span> (file)
+  <span class="doc">"Execute git-rm for file"</span>
+
+  (<span class="keyword">let</span> ((msg (git--exec-string <span class="string">"rm"</span> <span class="string">"--quiet"</span> file)))
+    (<span class="keyword">unless</span> (string-match <span class="string">""</span> (git--trim-string msg))
+      (<span class="warning">error</span> msg))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--tag</span> (<span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute 'git-tag' with 'args' and return the result as string"</span>
+
+  (apply #'git--exec-string <span class="string">"tag"</span> args))
+
+(<span class="keyword">defalias</span> '<span class="function-name">git-snapshot</span> 'git-tag)
+(<span class="keyword">defun</span> <span class="function-name">git-tag</span> (name)
+  <span class="doc">"Make the new git same as 'git-snapshot"</span>
+
+  (interactive <span class="string">"sNew Tag Name &gt;&gt; "</span>)
+
+  (<span class="keyword">let</span> ((msg (git--trim-string (git--tag name))))
+    (<span class="keyword">if</span> (string= <span class="string">""</span> msg)
+        (message <span class="string">"Success to make %s"</span> (git--bold-face name))
+      (<span class="warning">error</span> msg))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--tag-list</span> ()
+  <span class="doc">"Get the tag list"</span>
+
+  (split-string (git--tag <span class="string">"-l"</span>) <span class="string">"\n"</span> t))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--diff-index</span> (<span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute 'git-diff' with 'args' at current buffer"</span>
+  
+  (apply #'git--exec-buffer <span class="string">"diff-index"</span> <span class="string">"-z"</span> <span class="string">"--full-index"</span> args))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-index</span> (<span class="type">&amp;rest</span> files)
+  <span class="doc">"Execute 'git-status-index' and return list of 'git--fileinfo'"</span>
+
+  <span class="comment-delimiter">;; </span><span class="comment">update fileinfo -&gt; unmerged index
+</span>  (<span class="keyword">let</span> ((fileinfo nil)
+        (unmerged-info (make-hash-table <span class="builtin">:test</span> 'equal))
+        (regexp (git--build-reg git--reg-status  <span class="comment-delimiter">; </span><span class="comment">matched-1
+</span>                                git--reg-eof
+                                git--reg-file))) <span class="comment-delimiter">; </span><span class="comment">matched-2
+</span>
+    (<span class="keyword">dolist</span> (fi (git--ls-unmerged))
+      (puthash (git--fileinfo-&gt;name fi)
+               (git--fileinfo-&gt;stat fi)
+               unmerged-info))
+
+    (<span class="keyword">with-temp-buffer</span>
+      (apply #'git--diff-index <span class="string">"--name-status"</span>  <span class="string">"HEAD"</span> <span class="string">"--"</span> files)
+
+      (goto-char (point-min))
+
+      (<span class="keyword">while</span> (re-search-forward regexp nil t)
+        (<span class="keyword">let</span> ((stat (git--interprete-to-state-symbol (match-string 1)))
+              (file (match-string 2)))
+
+          <span class="comment-delimiter">;; </span><span class="comment">if unmerged file
+</span>          (<span class="keyword">when</span> (gethash file unmerged-info) (setq stat 'unmerged))
+
+          <span class="comment-delimiter">;; </span><span class="comment">assume all listed elements are 'blob
+</span>          (push (git--create-fileinfo file 'blob nil nil nil stat) fileinfo))))
+
+    fileinfo))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--symbolic-ref</span> (arg)
+  <span class="doc">"Execute git-symbolic-ref with 'arg' and return sha1 string"</span>
+
+  (car (split-string (git--exec-string <span class="string">"symbolic-ref"</span> arg) <span class="string">"\n"</span>)))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--current-branch</span> ()
+  <span class="doc">"Execute git-symbolic-ref of 'HEAD' and return branch name string"</span>
+
+  (<span class="keyword">let</span> ((branch (git--symbolic-ref <span class="string">"HEAD"</span>)))
+    (<span class="keyword">if</span> (string-match <span class="string">"^refs/heads/"</span> branch)
+        (substring branch (match-end 0))
+      branch)))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--rev-list</span> (<span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute git-rev-list with 'arg' and print the result to the current buffer"</span>
+  
+  (apply #'git--exec-buffer <span class="string">"rev-list"</span> args))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--log</span> (<span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute git-log with 'arg' and return result string"</span>
+
+  (apply #'git--exec-string <span class="string">"log"</span> <span class="string">"-z"</span> args))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--last-log</span> ()
+  <span class="doc">"Get the last log"</span>
+  
+  (git--log <span class="string">"--max-count=1"</span> <span class="string">"--pretty=full"</span>))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--last-log-short</span> ()
+  <span class="doc">"Get the last log as short form"</span>
+  
+  (git--trim-string (git--log <span class="string">"--max-count=1"</span> <span class="string">"--pretty=oneline"</span>)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--refresh-desc</span> ()
+  <span class="doc">"Refresh the git-status-mode header description"</span>
+  
+  (ewoc-set-hf git--status-view
+               (concat (git--bold-face <span class="string">"Directory"</span>) <span class="string">" : "</span> default-directory     <span class="string">"\n"</span>
+                       (git--bold-face <span class="string">"Branch   "</span>) <span class="string">" : "</span> (git--current-branch) <span class="string">"\n"</span>
+                       (git--bold-face <span class="string">"Last Log "</span>) <span class="string">" : "</span> (git--last-log-short) <span class="string">"\n"</span>)
+               <span class="string">""</span>))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--rev-parse</span> (<span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute 'git-rev-parse' with args and return as string"</span>
+
+  (apply #'git--exec-string <span class="string">"rev-parse"</span> args))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--get-top-dir</span> (dir)
+  <span class="doc">"Get the top directory of the current git repository"</span>
+  
+  (<span class="keyword">with-temp-buffer</span>
+    (cd dir)
+    (<span class="keyword">let</span> ((cdup (git--rev-parse <span class="string">"--show-cdup"</span>)))
+      (git--concat-path dir (car (split-string cdup <span class="string">"\n"</span>))))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--ls-unmerged</span> ()
+  <span class="doc">"Get the list of 'git--fileinfo' of the unmerged files"</span>
+  
+  (<span class="keyword">let</span> (fileinfo)
+    (<span class="keyword">with-temp-buffer</span>
+      (git--exec-buffer <span class="string">"ls-files"</span> <span class="string">"-t"</span> <span class="string">"-u"</span> <span class="string">"-z"</span>)
+      (goto-char (point-min))
+
+      (<span class="keyword">let</span> ((regexp (git--build-reg git--reg-perm    <span class="comment-delimiter">; </span><span class="comment">matched-1
+</span>                                    git--reg-space
+                                    git--reg-sha1    <span class="comment-delimiter">; </span><span class="comment">matched-2
+</span>                                    git--reg-blank
+                                    git--reg-stage   <span class="comment-delimiter">; </span><span class="comment">matched-3
+</span>                                    git--reg-blank
+                                    git--reg-file))) <span class="comment-delimiter">; </span><span class="comment">matched-4
+</span>
+        (<span class="keyword">while</span> (re-search-forward regexp nil t)
+          (<span class="keyword">let</span> ((perm (match-string 1))
+                (sha1 (match-string 2))
+                (file (match-string 4)))
+
+            (<span class="keyword">unless</span> (and fileinfo
+                         (string= file (git--fileinfo-&gt;name (car (last fileinfo)))))
+              (push (git--create-fileinfo file 'blob sha1 perm nil 'unmerged)
+                    fileinfo))))))
+    (sort fileinfo 'git--fileinfo-lessp)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--ls-files</span> (<span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute 'git-ls-files' with 'args' and return the list of the 'git--fileinfo'"</span>
+
+  (<span class="keyword">let</span> (fileinfo)
+    (<span class="keyword">with-temp-buffer</span>
+      (apply #'git--exec-buffer <span class="string">"ls-files"</span> <span class="string">"-t"</span> <span class="string">"-z"</span> args)
+      (goto-char (point-min))
+
+      (<span class="keyword">let</span> ((regexp (git--build-reg git--reg-status <span class="comment-delimiter">; </span><span class="comment">matched-1
+</span>                                    git--reg-blank
+                                    git--reg-file))) <span class="comment-delimiter">; </span><span class="comment">matched-2
+</span>
+        (<span class="keyword">while</span> (re-search-forward regexp nil t)
+          (<span class="keyword">let</span> ((stat (match-string 1))
+                (file (match-string 2)))
+
+            (push (git--create-fileinfo file 'blob nil nil nil
+                                        (<span class="keyword">case</span> (string-to-char stat)
+                                          (?H 'uptodate )
+                                          (?M 'unmerged )
+                                          (?R 'deleted  )
+                                          (?C 'modified )
+                                          (?K 'killed   )
+                                          (?? 'unknown  )
+                                          (t nil        )))
+                  fileinfo)))))
+    (sort fileinfo 'git--fileinfo-lessp)))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--to-type-sym</span> (type)
+  <span class="doc">"Change string symbol type to 'blob or 'tree"</span>
+  
+  (<span class="keyword">cond</span> ((string= type <span class="string">"blob"</span>) 'blob)
+        ((string= type <span class="string">"tree"</span>) 'tree)
+        (t (<span class="warning">error</span> <span class="string">"strange type : %s"</span> type))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--ls-tree</span> (<span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute git-ls-tree with args and return the result as the list of 'git--fileinfo'"</span>
+  
+  (<span class="keyword">let</span> (fileinfo)
+    (<span class="keyword">with-temp-buffer</span>
+      (apply #'git--exec-buffer <span class="string">"ls-tree"</span> <span class="string">"-z"</span> args)
+      (goto-char (point-min))
+
+      (<span class="keyword">let</span> ((regexp (git--build-reg git--reg-perm    <span class="comment-delimiter">; </span><span class="comment">matched-1
+</span>                                    git--reg-space
+                                    git--reg-type    <span class="comment-delimiter">; </span><span class="comment">matched-2
+</span>                                    git--reg-space
+                                    git--reg-sha1    <span class="comment-delimiter">; </span><span class="comment">matched-3
+</span>                                    git--reg-tab
+                                    git--reg-file))) <span class="comment-delimiter">; </span><span class="comment">matched-4
+</span>
+        (<span class="keyword">while</span> (re-search-forward regexp nil t)
+          (<span class="keyword">let</span> ((perm (match-string 1))
+                (type (match-string 2))
+                (sha1 (match-string 3))
+                (file (match-string 4)))
+
+            (push (git--create-fileinfo file
+                                        (git--to-type-sym type)
+                                        sha1
+                                        perm
+                                        nil
+                                        'uptodate)
+                  fileinfo)))))
+    (sort fileinfo 'git--fileinfo-lessp)))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-buffer-name</span> (dir)
+  (format <span class="string">"*git-status on %s*"</span> (expand-file-name dir)))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--create-status-buffer</span> (dir)
+  (<span class="keyword">let*</span> ((status-buffer-name (git--status-buffer-name dir))
+         (status-buffer (get-buffer status-buffer-name)))
+    (or status-buffer (get-buffer-create status-buffer-name))))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--kill-status-buffer</span> (dir)
+  (kill-buffer (git--status-buffer-name dir)))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--revert</span> (<span class="type">&amp;rest</span> args)
+  (apply #'git--exec-string <span class="string">"revert"</span> args))
+
+(<span class="keyword">defun</span> <span class="function-name">git--merge</span> (<span class="type">&amp;rest</span> args)
+  (apply #'git--exec-string <span class="string">"merge"</span> args))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--branch</span> (<span class="type">&amp;rest</span> args)
+  (apply #'git--exec-string <span class="string">"branch"</span> args))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">status miscellaneous
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defsubst</span> <span class="function-name">git--today</span> ()
+  (time-stamp-string <span class="string">"%:y-%02m-%02d %02H:%02M:%02S"</span>))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--interprete-to-state-symbol</span> (stat)
+  <span class="doc">"Interpret git state string to state symbol"</span>
+
+  (<span class="keyword">case</span> (string-to-char stat)
+    (?M 'modified )
+    (?? 'unknown  )
+    (?A 'added    )
+    (?D 'deleted  )
+    (?U 'unmerged )
+    (?T 'modified )
+    (t nil)))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--interprete-state-mode-color</span> (stat)
+  <span class="doc">"Interpret git state symbol to mode line color"</span>
+
+  (<span class="keyword">case</span> stat
+    ('modified <span class="string">"tomato"</span>      )
+    ('unknown  <span class="string">"gray"</span>        )
+    ('added    <span class="string">"blue"</span>        )
+    ('deleted  <span class="string">"red"</span>         )
+    ('unmerged <span class="string">"purple"</span>      )
+    ('uptodate <span class="string">"GreenYellow"</span> )
+    (t <span class="string">"red"</span>)))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">status view &amp; render
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+<span class="comment-delimiter">;; </span><span class="comment">status view on one node
+</span><span class="comment-delimiter">;;            </span><span class="comment">+-&gt; perm     +-&gt; name
+</span><span class="comment-delimiter">;; </span><span class="comment">M STATUS   PERM   SIZE  FILE
+</span><span class="comment-delimiter">;; </span><span class="comment">+-&gt; mark          +-&gt; size
+</span><span class="comment-delimiter">;;   </span><span class="comment">+-&gt; stat
+</span><span class="comment-delimiter">;;                   </span><span class="comment">
+</span><span class="comment-delimiter">;; </span><span class="comment">* Modified 100644 4564 |test.c
+</span><span class="comment-delimiter">;; </span><span class="comment">* New      100644 4564  test.c
+</span>
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-node-mark</span> (info)
+  <span class="doc">"Render status view node mark"</span>
+
+  (propertize (<span class="keyword">if</span> (git--fileinfo-&gt;marked info) <span class="string">"*"</span> <span class="string">" "</span>)
+              'face
+              'git--mark-face))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-node-stat</span> (info)
+  <span class="doc">"Render status view node state"</span>
+  
+  (<span class="keyword">let</span> ((stat (git--fileinfo-&gt;stat info)))
+    (propertize (capitalize (symbol-name stat))
+                'face
+                (<span class="keyword">case</span> stat
+                  ('modified 'git--modified-face )
+                  ('uptodate 'git--uptodate-face )
+                  ('unknown  'git--unknown-face  )
+                  ('added    'git--added-face    )
+                  ('deleted  'git--deleted-face  )
+                  ('unmerged 'git--unmerged-face )
+                  (t nil)))))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-node-perm</span> (info)
+  <span class="doc">"Render status view node permission"</span>
+  
+  (or (git--fileinfo-&gt;perm info) <span class="string">"------"</span>))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-node-size</span> (info)
+  <span class="doc">"Render status view node size"</span>
+
+  (<span class="keyword">let</span> ((size (git--fileinfo-&gt;size info)))
+    (<span class="keyword">if</span> (numberp size)
+        (number-to-string size)
+      <span class="string">""</span>)))
+      
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-node-name</span> (info)
+  <span class="doc">"Render status view node name"</span>
+  
+  (<span class="keyword">let</span> ((name (git--fileinfo-&gt;name info))
+        (type (git--fileinfo-&gt;type info)))
+
+    (setq name (replace-regexp-in-string <span class="string">"[</span><span class="string"><span class="negation-char">^</span></span><span class="string">/]+/"</span> <span class="string">"    "</span> name))
+    (propertize name 'face
+                (<span class="keyword">case</span> type
+                  ('tree 'git--mark-tree-face)
+                  ('blob 'git--mark-blob-face)
+                  (t (<span class="warning">error</span> <span class="string">"Can't be!"</span>))))))
+                  
+(<span class="keyword">defun</span> <span class="function-name">git--render-file-status</span> (info)
+  <span class="doc">"Render status view node, call in order
+ mark       : 'git--status-node-mark
+ state      : 'git--status-node-stat
+ permission : 'git--status-node-perm
+ size       : 'git--status-node-size
+ name       : 'git--status-node-name"</span>
+  
+  (insert (format git--status-header-format
+                  (git--status-node-mark info)
+                  (git--status-node-stat info)
+                  (git--status-node-perm info)
+                  (git--status-node-size info)
+                  (git--status-node-name info))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-mode</span> ()
+  <span class="doc">"git-status mode for editing state-view for git"</span>
+  
+  (kill-all-local-variables)
+  (buffer-disable-undo)
+
+  <span class="comment-delimiter">;; </span><span class="comment">set major mode
+</span>  (setq mode-name <span class="string">"git status"</span>)
+  (setq major-mode 'git-status-mode)
+
+  (use-local-map git--status-mode-map)
+
+  (setq buffer-read-only t)
+  (setq header-line-format (git--status-header))
+
+  <span class="comment-delimiter">;; </span><span class="comment">create ewoc for current git-status buffer
+</span>  (set (make-local-variable 'git--status-view)
+       (ewoc-create 'git--render-file-status <span class="string">""</span> <span class="string">""</span>))
+
+  (set (make-local-variable 'revert-buffer-function)
+       'git--status-mode-revert-buffer)
+
+  (run-hooks 'git--status-mode-hook))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-mode-revert-buffer</span> (ignore-auto noconfirm)
+  <span class="doc">"Revert buffer to refresh!"</span>
+
+  <span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> refresh status-mode-buffer
+</span>  (git--status-new)
+  (git--status-view-first-line))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">fileinfo in view
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defsubst</span> <span class="function-name">git--build-reg</span> (<span class="type">&amp;rest</span> args)
+  (apply #'concat (add-to-list 'args <span class="string">"\0"</span> t)))
+
+<span class="comment-delimiter">;; </span><span class="comment">ewoc file info structure for each list element
+</span>(<span class="keyword">defstruct</span> (<span class="type">git--fileinfo</span> 
+            (<span class="builtin">:copier</span> nil)
+            (<span class="builtin">:constructor</span> git--create-fileinfo-core
+                          (name type <span class="type">&amp;optional</span> sha1 perm marked stat size refresh lessp))
+            (<span class="builtin">:conc-name</span> git--fileinfo-&gt;))
+  marked   <span class="comment-delimiter">;; </span><span class="comment">t/nil
+</span>  expanded <span class="comment-delimiter">;; </span><span class="comment">t/nil
+</span>  refresh  <span class="comment-delimiter">;; </span><span class="comment">t/nil
+</span>  lessp    <span class="comment-delimiter">;; </span><span class="comment">sort priority (tree=3, sub=2, blob=1)
+</span>  stat     <span class="comment-delimiter">;; </span><span class="comment">'unknown/'modified/'uptodate
+</span>  type     <span class="comment-delimiter">;; </span><span class="comment">'blob/'tree
+</span>  name     <span class="comment-delimiter">;; </span><span class="comment">filename
+</span>  size     <span class="comment-delimiter">;; </span><span class="comment">size
+</span>  perm     <span class="comment-delimiter">;; </span><span class="comment">permission
+</span>  sha1)    <span class="comment-delimiter">;; </span><span class="comment">sha1
+</span>
+(<span class="keyword">defsubst</span> <span class="function-name">git--create-fileinfo</span> (name type <span class="type">&amp;optional</span> sha1 perm marked stat size refresh)
+  <span class="doc">"Create fileinfo through this function instead using 'git--create-fileinfo-core'"</span>
+  
+  (git--create-fileinfo-core name type sha1 perm marked stat size refresh
+                             (<span class="keyword">if</span> (eq type 'tree) 3 (<span class="keyword">if</span> (string-match <span class="string">"/"</span> name) 2 1))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--fileinfo-lessp</span> (info1 info2)
+  <span class="doc">"Sorting rules of 'git--fileinfo' ref to 'git--create-fileinfo'"</span>
+
+  (<span class="keyword">let</span> ((info1-level (git--fileinfo-&gt;lessp info1))
+        (info2-level (git--fileinfo-&gt;lessp info2)))
+
+    (<span class="keyword">if</span> (eq info1-level info2-level)
+        (string-lessp (git--fileinfo-&gt;name info1)
+                      (git--fileinfo-&gt;name info2))
+      (&gt; info1-level info2-level))))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">git-status-view features
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defsubst</span> <span class="function-name">git--clear-status</span> ()
+  <span class="doc">"Clear the git-status-view"</span>
+
+  (ewoc-filter git--status-view #'(<span class="keyword">lambda</span> (info) nil))
+  (ewoc-refresh git--status-view)
+  (<span class="keyword">let</span> ((buffer-read-only nil)) (erase-buffer)))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-tree</span> () (git--ls-tree <span class="string">"HEAD"</span>))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-map</span> (node pred)
+  <span class="doc">"Iterating 'git--status-view' by using 'ewoc-next and return the next node.
+The predicate function should get 'node and 'data arguments and it return 't or nil.
+If predicate return nil continue to scan, otherwise stop and return the node"</span>
+  
+  (<span class="keyword">let</span> ((data nil)
+        (cont t))
+
+    (<span class="keyword">while</span> (and node cont)
+      (setq data (ewoc-data node))
+      (setq cont (not (funcall pred node data)))
+      (setq node (ewoc-next git--status-view node)))
+
+    node))
+
+<span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> -&gt; binary search
+</span>(<span class="keyword">defun</span> <span class="function-name">git--status-view-dumb-update-element</span> (fi)
+  <span class="doc">"Add update 'fi' to 'git--status-view' thoughtlessly!"</span>
+  
+  (<span class="keyword">unless</span> (git--status-map (ewoc-nth git--status-view 0)
+                           #'(<span class="keyword">lambda</span> (node data)
+                               (<span class="keyword">when</span> (git--fileinfo-lessp fi data)
+                                 (ewoc-enter-before git--status-view node fi))))
+    (ewoc-enter-last git--status-view fi)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-update-state</span> (fileinfo)
+  <span class="doc">"Update the state-view elements in fileinfo"</span>
+
+  (<span class="keyword">let</span> ((hashed-info (make-hash-table <span class="builtin">:test</span> 'equal <span class="builtin">:size</span> (length fileinfo))))
+    (<span class="keyword">dolist</span> (fi fileinfo)
+      (puthash (git--fileinfo-&gt;name fi) fi hashed-info))
+
+    (ewoc-collect git--status-view
+                  #'(<span class="keyword">lambda</span> (node)
+                      (<span class="keyword">let*</span> ((name (git--fileinfo-&gt;name node))
+                             (fi (gethash name hashed-info)))
+                        (<span class="keyword">when</span> fi
+                          (setf (git--fileinfo-&gt;stat node)
+                                (git--fileinfo-&gt;stat fi))
+                          (remhash name hashed-info)))))
+
+    (maphash #'(<span class="keyword">lambda</span> (k v) (git--status-view-dumb-update-element v)) hashed-info)))
+
+<span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : need refactoring
+</span>(<span class="keyword">defun</span> <span class="function-name">git--status-view-update-expand-tree</span> (fileinfo)
+  <span class="doc">"Expand the interesting tree nodes containing one of fileinfos"</span>
+
+  (<span class="keyword">let</span> ((node (ewoc-nth git--status-view 0)))
+    
+    (<span class="keyword">dolist</span> (fi fileinfo)
+      (<span class="keyword">let*</span> ((paths (split-string (git--fileinfo-&gt;name fi) <span class="string">"/"</span>))
+             (matched-name nil))
+
+        (<span class="keyword">when</span> (&lt; 1 (length paths))
+
+          (setq matched-name (car paths))
+          (setq paths (cdr paths))
+
+          (setq node (git--status-map node
+                                      (<span class="keyword">lambda</span> (cur-node data)
+                                        (<span class="keyword">when</span> (and (eq (git--fileinfo-&gt;type data) 'tree)
+                                                   (string= (git--fileinfo-&gt;name data) matched-name))
+
+                                          (git--expand-tree cur-node)
+                                          (<span class="keyword">if</span> paths
+                                              (<span class="keyword">progn</span>
+                                                (setq matched-name (concat matched-name <span class="string">"/"</span> (car paths)))
+                                                (setq paths (cdr paths))
+                                                nil)
+                                            t))))))))))
+                                          
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-update</span> ()
+  <span class="doc">"Friendly update view function"</span>
+  
+  (<span class="keyword">let</span> ((fileinfo (git--status-index)))
+    (git--status-view-update-expand-tree fileinfo)
+    (git--status-view-update-state fileinfo)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-new</span> ()
+  <span class="doc">"Create new status-view buffer in current buffer"</span>
+
+  (git--clear-status)
+  (git--refresh-desc)
+
+  <span class="comment-delimiter">;; </span><span class="comment">add new file infos
+</span>  (<span class="keyword">dolist</span> (info (git--status-tree)) (ewoc-enter-last git--status-view info))
+
+  <span class="comment-delimiter">;; </span><span class="comment">add modified/renamed etc file infos
+</span>  (git--status-view-update)
+
+  <span class="comment-delimiter">;; </span><span class="comment">add unknown file
+</span>  (<span class="keyword">let</span> ((fileinfo (git--ls-files <span class="string">"-o"</span> <span class="string">"--exclude-per-directory=.gitignore"</span>
+                                 <span class="string">"--exclude-from=.git/info/exclude"</span>)))
+    
+    (git--status-view-update-expand-tree fileinfo)
+
+    (<span class="keyword">let</span> ((iter (ewoc-nth git--status-view 0)))
+      (<span class="keyword">dolist</span> (fi fileinfo)
+        (setq iter (git--status-map iter (<span class="keyword">lambda</span> (node data)
+                                           (<span class="keyword">when</span> (git--fileinfo-lessp fi data)
+                                             (ewoc-enter-before git--status-view node fi))))))))
+  (git--status-refresh))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-delete</span> (node)
+  
+  (<span class="keyword">let</span> ((buffer-read-only nil)) 
+    (ewoc-delete git--status-view node)))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-refresh</span> ()
+  (<span class="keyword">let</span> ((pos (point)))
+    (ewoc-refresh git--status-view)
+    (goto-char pos)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-delete-afer-regex</span> (node regex)
+  (<span class="keyword">while</span> node
+    (<span class="keyword">let</span> ((next-node (ewoc-next git--status-view node))
+          (node-data (ewoc-data node)))
+
+      (<span class="keyword">if</span> (string-match regex (git--fileinfo-&gt;name node-data))
+          (git--status-delete node)
+        <span class="comment-delimiter">;; </span><span class="comment">finish if not matched
+</span>        (setq next-node nil))
+
+      (setq node next-node)))
+  (git--status-refresh))
+
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">key/menu map
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">unless</span> git--status-mode-map
+  (<span class="keyword">let</span> ((map (make-keymap)))
+    (suppress-keymap map)
+
+    (define-key map <span class="string">"n"</span> 'git--status-view-next-line)
+    (define-key map <span class="string">"p"</span> 'git--status-view-prev-line)
+    (define-key map <span class="string">"N"</span> 'git--status-view-next-meaningfull-line)
+    (define-key map <span class="string">"P"</span> 'git--status-view-prev-meaningfull-line)
+    (define-key map <span class="string">"m"</span> 'git--status-view-mark-and-next)
+    (define-key map <span class="string">"u"</span> 'git--status-view-unmark-and-next)
+    (define-key map <span class="string">" "</span> 'git--status-view-toggle-and-next)
+    (define-key map <span class="string">"q"</span> 'git--status-view-quit)
+    (define-key map <span class="string">"&lt;"</span> 'git--status-view-first-line)
+    (define-key map <span class="string">"&gt;"</span> 'git--status-view-last-line)
+
+    (define-key map <span class="string">"e"</span> 'git--status-view-expand-tree-toggle)
+    (define-key map <span class="string">"v"</span> 'git--status-view-view-file)
+    (define-key map <span class="string">"o"</span> 'git--status-view-open-file)
+    (define-key map <span class="string">"="</span> 'git--status-view-diff-file)
+    (define-key map <span class="string">"b"</span> 'git--status-view-switch-branch)
+    (define-key map <span class="string">"!"</span> 'git--status-view-resolve-merge)
+    (define-key map <span class="string">"."</span> 'git--status-view-git-cmd)
+    (define-key map <span class="string">"k"</span> 'git--status-view-gitk)
+    (define-key map <span class="string">"g"</span> 'git--status-view-refresh)
+    (define-key map <span class="string">"a"</span> 'git--status-view-add)
+    (define-key map <span class="string">"i"</span> 'git--status-view-add-ignore)
+    (define-key map <span class="string">"r"</span> 'git--status-view-rename)
+    (define-key map <span class="string">"?"</span> 'git--status-view-blame)
+    (define-key map <span class="string">"d"</span> 'git--status-view-rm)
+    (define-key map <span class="string">"*"</span> 'git--status-view-mark-reg)
+    (define-key map <span class="string">"s"</span> 'git--status-view-summary)
+
+    <span class="comment-delimiter">;; </span><span class="comment">ok for commiting
+</span>    (define-key map <span class="string">"c"</span> 'git-commit-all)
+    
+    (define-key map <span class="string">"\C-m"</span> 'git--status-view-do-propriate)
+
+    (setq git--status-mode-map map)))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">status view tree expanding
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">git--expand-tree</span> (node)
+  <span class="doc">"Expand 'node' in 'git--status-view', but node-&gt;type should be 'tree"</span>
+
+  (<span class="keyword">let*</span> ((data (ewoc-data node))
+         (name (git--fileinfo-&gt;name data))
+         (type (git--fileinfo-&gt;type data))
+         (fileinfo (git--ls-tree (git--fileinfo-&gt;sha1 data))))
+
+    (<span class="keyword">unless</span> (eq type 'tree) (<span class="warning">error</span> <span class="string">"type should be 'tree"</span>))
+
+    (<span class="keyword">unless</span> (git--fileinfo-&gt;expanded data)
+
+      (<span class="keyword">dolist</span> (fi fileinfo)
+        (<span class="keyword">let</span> ((fi-name (git--fileinfo-&gt;name fi)))
+          <span class="comment-delimiter">;; </span><span class="comment">update fileinfo name as "path/name"
+</span>          (setf (git--fileinfo-&gt;name fi)
+                (git--concat-path-only name fi-name))
+
+          <span class="comment-delimiter">;; </span><span class="comment">update lessp by force
+</span>          (setf (git--fileinfo-&gt;lessp fi) 2)
+
+          (setq node (ewoc-enter-after git--status-view node fi))))
+    
+      (setf (git--fileinfo-&gt;expanded data) t))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--shrink-tree</span> (node)
+  <span class="doc">"Shrink 'node' in 'git--status-view', but node-&gt;type should be 'tree"</span>
+  
+  (<span class="keyword">let*</span> ((data (ewoc-data node))
+         (type (git--fileinfo-&gt;type data))
+         (name (git--fileinfo-&gt;name data)))
+
+    (<span class="keyword">unless</span> (eq type 'tree) (<span class="warning">error</span> <span class="string">"type should be 'tree"</span>))
+  
+    (<span class="keyword">when</span> (git--fileinfo-&gt;expanded data)
+      <span class="comment-delimiter">;; </span><span class="comment">make regexp "node-&gt;name/"
+</span>      (git--status-delete-afer-regex (ewoc-next git--status-view node)
+                                     (file-name-as-directory name))
+      (setf (git--fileinfo-&gt;expanded data) nil))))
+
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-expand-tree-toggle</span> ()
+  <span class="doc">"Expand if tree is not expanded otherwise close the tree"</span>
+
+  (interactive)
+
+  (<span class="keyword">let*</span> ((node (ewoc-locate git--status-view))
+         (node-info (ewoc-data node)))
+    (<span class="keyword">when</span> (and node node-info
+               (eq (git--fileinfo-&gt;type node-info) 'tree))
+      (<span class="keyword">if</span> (git--fileinfo-&gt;expanded node-info)
+          (git--shrink-tree node)
+        (git--expand-tree node)))))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">status view moving
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-forward-line</span> (n)
+  <span class="doc">"Move to forward on the status view item"</span>
+
+  (interactive <span class="string">"p"</span>)
+  
+  (<span class="keyword">let</span> ((dir (/ n (abs n))))
+    (forward-line n)
+
+    (<span class="keyword">while</span> (or (looking-at <span class="string">"^[\n\t ]+$"</span>)
+               (looking-at <span class="string">"^[</span><span class="string"><span class="negation-char">^</span></span><span class="string"> ]"</span>))
+      (forward-line dir)))
+
+  (move-to-column git--status-line-column))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-first-line</span> ()
+  <span class="doc">"Move to the first item"</span>
+  
+  (interactive)
+  (goto-char (point-min))
+  (git--status-view-forward-line 1))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-last-line</span> ()
+  <span class="doc">"Move to the last item"</span>
+  
+  (interactive)
+  (goto-char (point-max))
+  (git--status-view-forward-line -1))
+
+(<span class="keyword">defun</span> <span class="function-name">git--forward-meaningfull-line</span> (move)
+  <span class="doc">"Implementation of forward meaningful line"</span>
+
+  (<span class="keyword">let</span> ((start-node (ewoc-locate git--status-view)))
+    (funcall move 1)
+
+    (<span class="keyword">while</span> (and (eq 'uptodate
+                    (git--fileinfo-&gt;stat (ewoc-data (ewoc-locate git--status-view))))
+                (not (eq start-node (ewoc-locate git--status-view))))
+      (funcall move 1))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-next-line</span> (<span class="type">&amp;optional</span> n)
+  <span class="doc">"Move to the next line"</span>
+
+  (interactive <span class="string">"p"</span>)
+
+  (<span class="keyword">if</span> (eql (ewoc-locate git--status-view)
+           (ewoc-nth git--status-view -1))
+      (git--status-view-first-line)
+    (git--status-view-forward-line 1)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-next-meaningfull-line</span> ()
+  <span class="doc">"Move to the meaningful next line"</span>
+
+  (interactive)
+  (git--forward-meaningfull-line 'git--status-view-next-line))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-prev-line</span> (<span class="type">&amp;optional</span> n)
+  <span class="doc">"Move to the previous line"</span>
+  
+  (interactive <span class="string">"p"</span>)
+
+  (<span class="keyword">if</span> (eql (ewoc-locate git--status-view)
+           (ewoc-nth git--status-view 0))
+      (git--status-view-last-line)
+    (git--status-view-forward-line -1)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-prev-meaningfull-line</span> ()
+  <span class="doc">"Move the the meaningful previous line"</span>
+  
+  (interactive)
+  (git--forward-meaningfull-line 'git--status-view-prev-line))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">status view marking
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">git--mark-line</span> (marked)
+  <span class="doc">"Implementation of marking"</span>
+
+  (<span class="keyword">let</span> ((node (ewoc-locate git--status-view)))
+    (setf (git--fileinfo-&gt;marked (ewoc-data node)) marked)
+    (ewoc-invalidate git--status-view node)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-mark-and-next</span> ()
+  <span class="doc">"Mark and go to the next line"</span>
+
+  (interactive)
+  (git--mark-line t)
+  (git--status-view-next-line))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-unmark-and-next</span> ()
+  <span class="doc">"Unmark and go to the next line"</span>
+  
+  (interactive)
+  (git--mark-line nil)
+  (git--status-view-next-line))
+
+(<span class="keyword">defun</span> <span class="function-name">git--toggle-line</span> ()
+  <span class="doc">"Implementation of toggle line"</span>
+  
+  (<span class="keyword">let*</span> ((node (ewoc-locate git--status-view))
+         (data (ewoc-data node))
+         (mark (git--fileinfo-&gt;marked data)))
+    (setf (git--fileinfo-&gt;marked data) (not mark))
+    (ewoc-invalidate git--status-view node)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-toggle-and-next</span> ()
+  <span class="doc">"Toggle the mark and go to next line"</span>
+
+  (interactive)
+  (git--toggle-line)
+  (git--status-view-next-line))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">status view independent command
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-quit</span> ()
+  <span class="doc">"Quit"</span>
+
+  (interactive)
+  (kill-buffer (current-buffer)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-switch-branch</span> ()
+  <span class="doc">"Switch branch"</span>
+
+  (interactive)
+  (call-interactively 'git-switch-branch))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-git-cmd</span> ()
+  <span class="doc">"Direct git command"</span>
+
+  (interactive)
+  (call-interactively 'git-cmd))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-gitk</span> ()
+  <span class="doc">"Launch gitk"</span>
+
+  (interactive)
+  (call-interactively 'gitk))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-refresh</span> ()
+  <span class="doc">"Refresh view"</span>
+
+  (interactive)
+  (revert-buffer))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-mark-reg</span> (reg)
+  <span class="doc">"Mark with regular expression"</span>
+
+  (interactive <span class="string">"sRegexp &gt;&gt; "</span>)
+  (ewoc-collect git--status-view
+                #'(<span class="keyword">lambda</span> (data)
+                    (<span class="keyword">when</span> (string-match reg (git--fileinfo-&gt;name data))
+                      (setf (git--fileinfo-&gt;marked data) t))))
+
+  (ewoc-refresh git--status-view)
+  (git--status-view-first-line)
+  (git--status-view-next-meaningfull-line))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-summary</span> ()
+  <span class="doc">"To the summary mode with occur"</span>
+  
+  (interactive)
+  (occur <span class="string">"[\t* ]+</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">(</span></span><span class="string">Deleted</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">|</span></span><span class="string">Modified</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">|</span></span><span class="string">Unknown</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">|</span></span><span class="string">Added</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">)</span></span><span class="string">"</span>)
+  
+  (message <span class="string">"Move with 'next-error and 'previous-error"</span>))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">status view for one selected file
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-view-select-filename</span> ()
+  <span class="doc">"Return current filename of view item"</span>
+
+  (git--fileinfo-&gt;name (ewoc-data (ewoc-locate git--status-view))))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-view-select-type</span> ()
+  <span class="doc">"Return current type of view item"</span>
+
+  (git--fileinfo-&gt;type (ewoc-data (ewoc-locate git--status-view))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-view-file</span> ()
+  <span class="doc">"View the selected file"</span>
+
+  (interactive)
+  (view-file (git--status-view-select-filename)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-open-file</span> ()
+  <span class="doc">"Open the selected file"</span>
+
+  (interactive)
+  (find-file (git--status-view-select-filename)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-diff-file</span> ()
+  <span class="doc">"Diff the selected file"</span>
+
+  (interactive)
+  (git-diff-cmd (git--status-view-select-filename)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-resolve-merge</span> ()
+  <span class="doc">"Resolve the conflict if necessary"</span>
+  
+  (interactive)
+
+  (<span class="keyword">let</span> ((file (git--status-view-select-filename)))
+    (<span class="keyword">if</span> (eq 'unmerged (git--status-file file))
+        (<span class="keyword">progn</span>
+          (find-file (git--status-view-select-filename))
+          (git--resolve-merge-buffer (current-buffer)))
+      (<span class="warning">error</span> <span class="string">"Selected file is not unmerged state"</span>))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-do-propriate</span> ()
+  <span class="doc">"If 'tree selected -&gt; expand or un-expand otherwise open it"</span>
+
+  (interactive)
+
+  (<span class="keyword">case</span> (git--status-view-select-type)
+    ('tree (git--status-view-expand-tree-toggle))
+    ('blob (git--status-view-open-file))
+    (t (<span class="warning">error</span> <span class="string">"Not supported type"</span>))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-blame</span> ()
+  <span class="doc">"Open the file as blame-mode"</span>
+
+  (interactive)
+
+  (<span class="keyword">when</span> (eq (git--status-view-select-type) 'blob)
+    (find-file (git--status-view-select-filename))
+    (git-blame-mode t)))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">status view for all marked files or selected
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-view-marked-files</span> ()
+  <span class="doc">"Scrap the all marked files"</span>
+
+  (<span class="keyword">let</span> (files)
+    (ewoc-collect git--status-view
+                  #'(<span class="keyword">lambda</span> (node)
+                      (<span class="keyword">when</span> (git--fileinfo-&gt;marked node)
+                        (push (git--fileinfo-&gt;name node) files))))
+    files))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--status-view-makred-or-file</span> ()
+  <span class="doc">"If not marked -&gt; rename for current file"</span>
+
+  (<span class="keyword">let</span> ((files (git--status-view-marked-files)))
+    (<span class="keyword">when</span> (null files)
+      (setq files (list (git--status-view-select-filename))))
+    files))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-rm</span> ()
+  <span class="doc">"Delete the whole marked files"</span>
+
+  (interactive)
+
+  (<span class="keyword">let*</span> ((files (git--status-view-makred-or-file))
+         (msg (format <span class="string">"total %s files including '%s'"</span>
+                      (length files)
+                      (file-name-nondirectory (car files)))))
+    
+    (<span class="keyword">unless</span> (y-or-n-p (format <span class="string">"Really want to %s %s?"</span>
+                              (git--bold-face <span class="string">"delete"</span>)
+                              msg))
+      (<span class="warning">error</span> <span class="string">"Aborted deletion"</span>))
+                      
+    (<span class="keyword">dolist</span> (file files)
+      (git--rm file)))
+
+  (revert-buffer))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-rename</span> ()
+  <span class="doc">"Renamed the whole marked files"</span>
+
+  (interactive)
+
+  (<span class="keyword">let</span> ((files (git--status-view-makred-or-file)))
+    (<span class="keyword">dolist</span> (src files)
+      (<span class="keyword">let</span> ((msg (format <span class="string">"%s '%s' to &gt;&gt; "</span> (git--bold-face <span class="string">"Rename"</span>) src)))
+        (git--mv src (file-relative-name (read-from-minibuffer msg src))))))
+
+  (revert-buffer))
+  
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-add</span> ()
+  <span class="doc">"Add the selected files"</span>
+
+  (interactive)
+  (git--add (git--status-view-makred-or-file))
+  (revert-buffer))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-view-add-ignore</span> ()
+  <span class="doc">"Add the selected file to .gitignore"</span>
+
+  (interactive)
+
+  (<span class="keyword">let</span> ((files (git--status-view-marked-files)))
+    (<span class="keyword">unless</span> files (list (read-from-minibuffer <span class="string">"Add Ignore &gt;&gt; "</span>)))
+
+    (<span class="keyword">dolist</span> (file files)
+      (git-ignore file)))
+
+  (revert-buffer))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">git application
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defsubst</span> <span class="function-name">git--managed-on-git?</span> ()
+  <span class="doc">"Check see if vc-git mode is on the vc-git"</span>
+
+  (not (string-match <span class="string">"fatal: Not a git repository"</span>
+                     (git--rev-parse <span class="string">"HEAD"</span>))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--status-file</span> (file)
+  <span class="doc">"Return the status of the file"</span>
+  
+  (<span class="keyword">let</span> ((fileinfo (git--status-index file)))
+    (<span class="keyword">unless</span> fileinfo (setq fileinfo (git--ls-files file)))
+    (<span class="keyword">when</span> (= 1 (length fileinfo))
+      (git--fileinfo-&gt;stat (car fileinfo)))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--branch-list</span> ()
+  <span class="doc">"Get branch list"</span>
+
+  (<span class="keyword">let</span> ((branchs)
+        (regexp (concat <span class="string">"[ *]+"</span> git--reg-branch <span class="string">"\n"</span>)))
+    
+    (<span class="keyword">with-temp-buffer</span>
+      (git--exec-buffer <span class="string">"branch"</span> <span class="string">"-l"</span>)
+      (goto-char (point-min))
+
+      (<span class="keyword">while</span> (re-search-forward regexp nil t)
+        (<span class="keyword">let</span> ((branch (match-string 1)))
+          (<span class="keyword">unless</span> (string= branch <span class="string">"(no branch)"</span>)
+            (push branch branchs)))))
+
+
+    branchs))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--select-branch</span> (<span class="type">&amp;rest</span> excepts)
+  <span class="doc">"Select the branch"</span>
+
+  (<span class="keyword">let</span> ((branchs (git--branch-list)))
+    (git--select-from-user <span class="string">"Select Branch : "</span>
+                           (remove-if (<span class="keyword">lambda</span> (b) (member b excepts)) branchs))))
+                         
+(<span class="keyword">defsubst</span> <span class="function-name">git--select-tag</span> ()
+  <span class="doc">"Select the tag"</span>
+
+  (git--select-from-user <span class="string">"Select Tag : "</span> (git--tag-list)))
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--select-revision</span> ()
+  <span class="doc">"Select the revision"</span>
+  
+  (git--select-from-user <span class="string">"Select : "</span> (append (git--branch-list)
+                                             (git--tag-list))))
+
+(<span class="keyword">defvar</span> <span class="variable-name">git--switch-branch-auto-msg</span> nil <span class="doc">"confirm the auto-generated message"</span>)
+
+(<span class="keyword">defun</span> <span class="function-name">git--switch-branch</span> (branch)
+  <span class="doc">"Implementation of switch-branch"</span>
+  
+  (<span class="keyword">let*</span> ((current (git--current-branch))
+         (msg (format <span class="string">"Switch from '%s' to '%s'"</span> current branch)))
+
+    (<span class="keyword">unless</span> git--switch-branch-auto-msg
+      (setq msg (read-from-minibuffer <span class="string">"Commit Log &gt;&gt; "</span> msg)))
+
+    <span class="comment-delimiter">;; </span><span class="comment">commit with a automatically generated msg
+</span>    (git--commit msg <span class="string">"-a"</span>)
+
+    <span class="comment-delimiter">;; </span><span class="comment">switch to different branch
+</span>    (git-checkout branch)))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">vc-git integration
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">git--update-modeline</span> ()
+  <span class="doc">"Update modeline state dot mark properly"</span>
+  
+  <span class="comment-delimiter">;; </span><span class="comment">mark depending on the fileinfo state
+</span>  (<span class="keyword">when</span> (and buffer-file-name (git--in-vc-mode?))
+    (git--update-state-mark
+     (git--interprete-state-mode-color
+      (git--status-file (file-relative-name buffer-file-name))))))
+
+<span class="comment-delimiter">;; </span><span class="comment">simple highlighting for log view
+</span>(font-lock-add-keywords 'vc-git-log-view-mode
+                        '((<span class="string">"^</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">(</span></span><span class="string">[Aa]uthor</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">|</span></span><span class="string">[Cc]ommit</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">|</span></span><span class="string">[Dd]ate</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">)</span></span><span class="string">"</span>
+                           1 font-lock-keyword-face prepend)))
+
+(<span class="keyword">defun</span> <span class="function-name">git-log</span> ()
+  <span class="doc">"Launch the git log view for the file you opened"</span>
+
+  (interactive)
+
+  (<span class="keyword">if</span> (git--in-vc-mode?)
+      (<span class="keyword">progn</span>
+        <span class="comment-delimiter">;; </span><span class="comment">call vc-log
+</span>        (call-interactively 'vc-print-log)
+
+        <span class="comment-delimiter">;; </span><span class="comment">close window with key 'q'
+</span>        (local-set-key <span class="string">"q"</span> 'git--quit-buffer))
+    (git-log-all)))
+  
+(<span class="keyword">defvar</span> <span class="variable-name">git--log-view-buffer</span> <span class="string">"*git-log-view*"</span>)
+
+(<span class="keyword">defun</span> <span class="function-name">git-log-all</span> ()
+  <span class="doc">"Launch the git log view for the whole project"</span>
+  
+  <span class="comment-delimiter">;; </span><span class="comment">vc-git-log-view-mode
+</span>  (interactive)
+
+  (<span class="keyword">let</span> ((buffer (get-buffer-create git--log-view-buffer)))
+    (<span class="keyword">with-current-buffer</span> buffer
+      (<span class="keyword">let</span> ((buffer-read-only nil)) (erase-buffer))
+
+      (local-set-key <span class="string">"q"</span> 'git--quit-buffer)
+
+      (vc-git-log-view-mode)
+
+      (<span class="keyword">save-excursion</span> 
+        (git--rev-list <span class="string">"--pretty=full"</span> <span class="string">"HEAD"</span>))
+
+      (message <span class="string">"Please 'q' to quit"</span>))
+    (pop-to-buffer buffer)))
+
+(<span class="keyword">defalias</span> '<span class="function-name">git-history</span> 'git-log-all)
+
+(<span class="keyword">defsubst</span> <span class="function-name">git--in-vc-mode?</span> ()
+  <span class="doc">"Check see if in vc-git is under vc-git"</span>
+  
+  (and vc-mode (string-match <span class="string">"^ Git"</span> (substring-no-properties vc-mode))))
+
+(<span class="keyword">defadvice</span> <span class="function-name">vc-find-file-hook</span> (after git--vc-git-find-file-hook activate)
+  <span class="doc">"vc-find-file-hook advice for synchronizing with vc-git interface"</span>
+
+  (<span class="keyword">when</span> (git--in-vc-mode?) (git--update-modeline)))
+
+(<span class="keyword">defadvice</span> <span class="function-name">vc-after-save</span> (after git--vc-git-after-save activate)
+  <span class="doc">"vc-after-save advice for synchronizing when saving buffer"</span>
+
+  (<span class="keyword">when</span> (git--in-vc-mode?) (git--update-modeline)))
+
+(<span class="keyword">defadvice</span> <span class="function-name">vc-next-action</span> (around git--vc-git-next-action activate)
+  <span class="doc">"vc-next-action advice for synchronizing when committing"</span>
+
+  <span class="comment-delimiter">;; </span><span class="comment">vc-mode if nil -&gt; fork git and ask
+</span>  <span class="comment-delimiter">;;         </span><span class="comment">else try to parse git -&gt; if "git" -&gt; ok
+</span>  <span class="comment-delimiter">;;                                  </span><span class="comment">else -&gt; no
+</span>
+  (<span class="keyword">let</span> ((on-git? (or (git--in-vc-mode?)
+                     (<span class="keyword">unless</span> vc-mode (git--managed-on-git?))))
+        (filename <span class="string">""</span>))
+
+    (<span class="keyword">when</span> buffer-file-name
+      (setq filename (file-relative-name buffer-file-name)))
+
+    (<span class="keyword">if</span> on-git?
+      (<span class="keyword">case</span> (git--status-file filename)
+        ('modified (git-commit-all))    <span class="comment-delimiter">; </span><span class="comment">modified -&gt; commit
+</span>        ('unknown (git--add filename))  <span class="comment-delimiter">; </span><span class="comment">unknown  -&gt; add
+</span>        ('unmerged (git--add filename)) <span class="comment-delimiter">; </span><span class="comment">unmerged -&gt; add
+</span>        (t (git--add filename)))        <span class="comment-delimiter">; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : add more
+</span>      ad-do-it)))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">public functions
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defun</span> <span class="function-name">git--config-get-author</span> ()
+  <span class="doc">"Find appropriate user.name"</span>
+
+  (<span class="keyword">let</span> ((config-user-name (git--config <span class="string">"user.name"</span>)))
+      (or (and (not (string= config-user-name <span class="string">""</span>)) config-user-name)
+          (and (fboundp 'user-full-name) (user-full-name))
+          (and (boundp  'user-full-name) user-full-name))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--config-get-email</span> ()
+  <span class="doc">"Find appropriate user.email"</span>
+  
+  (<span class="keyword">let</span> ((config-user-email (git--config <span class="string">"user.email"</span>)))
+    (or (and (not (string= config-user-email <span class="string">""</span>)) config-user-email)
+        (and (fboundp 'user-mail-address) (user-mail-address))
+        (and (boundp 'user-mail-address) user-mail-address))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--insert-log-header-info</span> ()
+  <span class="doc">"Insert the log header to the buffer"</span>
+
+  (insert (propertize git--log-header-line 'face 'git--log-line-face)  <span class="string">"\n"</span>
+          (git--bold-face <span class="string">"# Branch  : "</span>) (git--current-branch)        <span class="string">"\n"</span>
+          (git--bold-face <span class="string">"# Author  : "</span>) (git--config-get-author)     <span class="string">"\n"</span>
+          (git--bold-face <span class="string">"# Email   : "</span>) (git--config-get-email)      <span class="string">"\n"</span>
+          (git--bold-face <span class="string">"# Date    : "</span>) (git--today)                 <span class="string">"\n"</span>))
+
+(<span class="keyword">defun</span> <span class="function-name">git--insert-log-files-status</span> ()
+  <span class="doc">"Insert log file status to the buffer"</span>
+  
+  (insert (propertize git--log-file-line 'face 'git--log-line-face) <span class="string">"\n"</span>)
+
+  (<span class="keyword">dolist</span> (fi (git--status-index))
+    (insert (format <span class="string">"#  %-15s : %s\n"</span>
+                    (git--status-node-stat fi)
+                    (git--fileinfo-&gt;name fi)))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--insert-log-status</span> ()
+  <span class="doc">"Insert log status to the buffer"</span>
+  
+  (insert (propertize git--log-sep-line 'face 'git--log-line-face) <span class="string">"\n"</span>)
+  (git--exec-buffer <span class="string">"status"</span>))
+
+(<span class="keyword">defun</span> <span class="function-name">git--commit-buffer</span> ()
+  <span class="doc">"When you press C-cC-c after editing log, this function is called
+Trim the buffer log and commit"</span>
+  
+  (interactive)
+
+  <span class="comment-delimiter">;; </span><span class="comment">check buffer
+</span>  (<span class="keyword">unless</span> (string= (buffer-name (current-buffer))
+                   git--commit-log-buffer)
+    (<span class="warning">error</span> <span class="string">"Execute git commit on %s buffer"</span> git--commit-log-buffer))
+
+  <span class="comment-delimiter">;; </span><span class="comment">trail and commit
+</span>  (<span class="keyword">save-excursion</span>
+    (goto-char (point-min))
+
+    (<span class="keyword">let</span> ((begin (search-forward git--log-sep-line nil t))
+          (end   (search-forward git--log-sep-line nil t)))
+      (<span class="keyword">when</span> (and begin end)
+        (setq end (- end (length git--log-sep-line)))
+        <span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> sophisticated message
+</span>        (message (git--commit (git--trim-string (buffer-substring begin end)) <span class="string">"-a"</span>)))))
+
+  <span class="comment-delimiter">;; </span><span class="comment">close window
+</span>  (delete-window)
+  (kill-buffer git--commit-log-buffer)
+
+  <span class="comment-delimiter">;; </span><span class="comment">update
+</span>  (git--update-modeline))
+
+(<span class="keyword">defun</span> <span class="function-name">git--resolve-fill-buffer</span> (template side)
+  <span class="doc">"Make the new buffer based on the conflicted template on each side(working and checkedin)"</span>
+
+  (<span class="keyword">let*</span> ((filename (file-relative-name (buffer-file-name template)))
+         (buffer-name (concat <span class="string">"*"</span> filename <span class="string">": "</span> (capitalize (symbol-name side)) <span class="string">"*"</span>))
+         (buffer (get-buffer-create buffer-name))
+         (msg <span class="string">"Malformed conflict marker"</span>))
+
+    (<span class="keyword">with-current-buffer</span> buffer
+      (<span class="keyword">let</span> ((buffer-read-only nil) (erase-buffer)))
+      (insert-buffer-substring template)
+
+      <span class="comment-delimiter">;; </span><span class="comment">find first mark
+</span>      (goto-char (point-min))
+      (<span class="keyword">while</span> (re-search-forward <span class="string">"^&lt;&lt;&lt;&lt;&lt;&lt;&lt; </span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">(</span></span><span class="string">[</span><span class="string"><span class="negation-char">^</span></span><span class="string">\n]+</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">)</span></span><span class="string">\n"</span> nil t)
+        (replace-match <span class="string">""</span>)
+
+        (<span class="keyword">let</span> (conflict-begin conflict-sep conflict-end)
+          (setq conflict-begin (match-beginning 0))
+
+          <span class="comment-delimiter">;; </span><span class="comment">find mid mark
+</span>          (<span class="keyword">unless</span> (re-search-forward <span class="string">"^=======\n"</span> nil t) (<span class="warning">error</span> msg))
+          (replace-match <span class="string">""</span>)
+
+          (setq conflict-sep (match-beginning 0))
+
+          <span class="comment-delimiter">;; </span><span class="comment">find last mark
+</span>          (<span class="keyword">unless</span> (re-search-forward <span class="string">"^&gt;&gt;&gt;&gt;&gt;&gt;&gt; </span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">(</span></span><span class="string">[</span><span class="string"><span class="negation-char">^</span></span><span class="string">\n]+</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">)</span></span><span class="string">\n"</span> nil t) (<span class="warning">error</span> msg))
+          (replace-match <span class="string">""</span>)
+
+          (setq conflict-end (match-beginning 0))
+
+          (<span class="keyword">case</span> side
+            ('workfile (delete-region conflict-sep conflict-end))
+            ('checked-in (delete-region conflict-begin conflict-sep))
+            (t (<span class="warning">error</span> <span class="string">"Side argument have to be one of 'workfile or 'checked-in"</span>))))))
+    buffer-name))
+
+(<span class="keyword">defun</span> <span class="function-name">git-merge</span> ()
+  <span class="doc">"Git merge"</span>
+
+  (interactive)
+
+  (<span class="keyword">let</span> ((branch (git--select-branch (git--current-branch))))
+    (git--merge branch)
+    (git-status <span class="string">"."</span>)))
+
+(<span class="keyword">defvar</span> <span class="variable-name">git--resolve-window-config</span>)
+(<span class="keyword">defvar</span> <span class="variable-name">git--resolve-buffer</span>)
+
+(<span class="keyword">defun</span> <span class="function-name">git--resolve-merge-buffer</span> (result-buffer)
+  <span class="doc">"Implementation of resolving conflicted buffer"</span>
+
+  (setq result-buffer (current-buffer))
+  
+  (interactive)
+  (<span class="keyword">let*</span> ((filename (file-relative-name buffer-file-name))
+         (your-buffer (git--resolve-fill-buffer result-buffer 'workfile))
+         (other-buffer (git--resolve-fill-buffer result-buffer 'checked-in))
+         (config (current-window-configuration))
+         (ediff-default-variant 'default-B))
+
+    <span class="comment-delimiter">;; </span><span class="comment">set merge buffer first
+</span>    (set-buffer (ediff-merge-buffers your-buffer other-buffer))
+
+    (set (make-local-variable 'git--resolve-buffer) result-buffer)
+    (set (make-local-variable 'git--resolve-window-config) config)
+    (set (make-local-variable 'ediff-quit-hook)
+         #'(<span class="keyword">lambda</span> ()
+             (<span class="keyword">let</span> ((buffer-A ediff-buffer-A)
+                   (buffer-B ediff-buffer-B)
+                   (buffer-C ediff-buffer-C)
+                   (windows git--resolve-window-config)
+                   (result git--resolve-buffer))
+               (ediff-cleanup-mess)
+               (set-buffer result)
+               (erase-buffer)
+               (insert-buffer-substring buffer-C)
+               (kill-buffer buffer-A)
+               (kill-buffer buffer-B)
+               (kill-buffer buffer-C)
+               (set-window-configuration windows)
+               (message <span class="string">"Conflict resolution finished, you may save the buffer"</span>))))
+    (message <span class="string">"Please resolve conflicts now, exit ediff when done"</span>)))
+
+(<span class="keyword">defun</span> <span class="function-name">git-resolve-merge</span> ()
+  <span class="doc">"Resolve merge for the current buffer"</span>
+  
+  (interactive)
+  (git--resolve-merge-buffer (current-buffer)))
+
+(<span class="keyword">defun</span> <span class="function-name">git-commit-all</span> ()
+  <span class="doc">"git commit -a like commit command"</span>
+
+  (interactive)
+  
+  (<span class="keyword">let</span> ((cur-pos nil)
+        (buffer (get-buffer-create git--commit-log-buffer)))
+    (<span class="keyword">with-current-buffer</span> buffer
+      (local-set-key <span class="string">"\C-c\C-c"</span> 'git--commit-buffer)
+      (erase-buffer)
+
+      <span class="comment-delimiter">;; </span><span class="comment">insert info
+</span>      (git--insert-log-header-info)
+      (git--insert-log-files-status)
+
+      <span class="comment-delimiter">;; </span><span class="comment">real log space
+</span>      (insert (propertize git--log-sep-line 'face 'git--log-line-face) <span class="string">"\n"</span>)
+
+      (insert <span class="string">"\n"</span>)
+      (setq cur-pos (point))
+      (insert <span class="string">"\n\n"</span>)
+
+      <span class="comment-delimiter">;; </span><span class="comment">git status
+</span>      (git--insert-log-status)
+      
+      <span class="comment-delimiter">;; </span><span class="comment">set cursor 
+</span>      (goto-char cur-pos)
+
+      <span class="comment-delimiter">;; </span><span class="comment">flyspell-mode
+</span>      (<span class="keyword">when</span> git--log-flyspell-mode (flyspell-mode t))
+
+      <span class="comment-delimiter">;; </span><span class="comment">hello~
+</span>      (message <span class="string">"Please 'C-cC-c' to commit"</span>))
+    (pop-to-buffer buffer)))
+
+(<span class="keyword">defun</span> <span class="function-name">git-init</span> (dir)
+  <span class="doc">"Initialize the git repository"</span>
+
+  (interactive <span class="string">"DGit Repository: "</span>)
+  (message (git--trim-string (git--init dir)))
+  (git-config-init))
+
+(<span class="keyword">defun</span> <span class="function-name">git-init-from-archive</span> (file)
+  <span class="doc">"Initialize the git repository based on the archive"</span>
+  
+  (interactive <span class="string">"fSelect archive: "</span>)
+
+  <span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> dirty enough
+</span>  <span class="comment-delimiter">;; </span><span class="comment">simple rule to uncompress -&gt; dired-compress not working propery
+</span>  (<span class="keyword">with-temp-buffer</span>
+    (cd (file-name-directory file))
+    
+    (<span class="keyword">when</span> (file-exists-p file)
+      (<span class="keyword">let</span> ((ext (file-name-extension file)))
+        (<span class="keyword">cond</span>
+         ((string= ext <span class="string">"tar"</span>)
+          (shell-command (format <span class="string">"tar xf \"%s\""</span> (file-relative-name file))))
+         ((string= ext <span class="string">"gz"</span>)
+          (shell-command (format <span class="string">"tar xzf \"%s\""</span> (file-relative-name file))))
+         (t (<span class="warning">error</span> (concat ext <span class="string">" is not supported"</span>))))))
+
+    (<span class="keyword">let</span> ((dir (file-name-sans-extension
+                (file-name-sans-extension file))))
+      <span class="comment-delimiter">;; </span><span class="comment">move to git repository
+</span>      (cd dir)
+
+      <span class="comment-delimiter">;; </span><span class="comment">init
+</span>      (git-init dir)
+      (git--add <span class="string">"."</span>)
+      (git-commit-all))))
+
+(<span class="keyword">defun</span> <span class="function-name">git-clone</span> (dir)
+  <span class="doc">"Clone from repository"</span>
+  
+  (interactive <span class="string">"DLocal Directory : "</span>)
+  (<span class="keyword">let</span> ((repository (ido-completing-read <span class="string">"Repository : "</span>
+                                         git--repository-bookmarks
+                                         nil
+                                         nil
+                                         <span class="string">""</span>
+                                         git--repository-history)))
+    (<span class="keyword">with-temp-buffer</span>
+      (cd dir)
+      (git--clone repository))))
+
+(<span class="keyword">defun</span> <span class="function-name">git-reset-hard</span> (<span class="type">&amp;rest</span> args)
+  <span class="doc">"Reset hard"</span>
+
+  (interactive)
+  (message (git--trim-string (git--reset <span class="string">"--hard"</span> (git--select-tag)))))
+
+(<span class="keyword">defun</span> <span class="function-name">git-revert</span> ()
+  <span class="doc">"Revert to other revision"</span>
+
+  (interactive)
+  (message (git--trim-string (git--revert (git--select-revision))))
+
+  <span class="comment-delimiter">;; </span><span class="comment">revert buffer
+</span>  (revert-buffer))
+
+(<span class="keyword">defun</span> <span class="function-name">gitk</span> ()
+  <span class="doc">"Launch gitk in emacs"</span>
+
+  (interactive)
+  (start-process <span class="string">"gitk"</span> nil <span class="string">"gitk"</span>))
+    
+(<span class="keyword">defun</span> <span class="function-name">git-checkout</span> (<span class="type">&amp;optional</span> rev)
+  <span class="doc">"Checkout from 'tag' &amp; 'branch' list when 'rev' is null"</span>
+
+  (interactive)
+  (<span class="keyword">unless</span> rev (setq rev (git--select-revision)))
+
+  <span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : sophisticated message control
+</span>  (message (git--trim-string (git--checkout rev))))
+
+(<span class="keyword">defalias</span> '<span class="function-name">git-create-branch</span> 'git-checkout-to-new-branch)
+
+(<span class="keyword">defun</span> <span class="function-name">git-checkout-to-new-branch</span> (branch)
+  <span class="doc">"Checkout to new list based on tag"</span>
+
+  (interactive <span class="string">"sNew Branch : "</span>)
+  (<span class="keyword">let*</span> ((tag (git--select-revision))
+         (msg (git--checkout <span class="string">"-b"</span> branch tag)))
+    (<span class="keyword">if</span> (string-match <span class="string">"^Switched"</span> msg)
+        (message <span class="string">"%s to the new branch '%s'"</span>
+                 (git--bold-face <span class="string">"Switched"</span>)
+                 (git--bold-face branch))
+      (message <span class="string">"%s on creating '%s' from '%s'"</span>
+               git--msg-critical
+               (git--bold-face branch)
+               (git--bold-face tag))))
+
+  <span class="comment-delimiter">;; </span><span class="comment">refresh buffer content
+</span>  (revert-buffer))
+
+
+(<span class="keyword">defun</span> <span class="function-name">git-delete-branch</span> (<span class="type">&amp;optional</span> branch)
+  <span class="doc">"Delete branch after selecting branch"</span>
+
+  (interactive)
+
+  <span class="comment-delimiter">;; </span><span class="comment">select branch if not assigned
+</span>  (<span class="keyword">unless</span> branch (setq branch (git--select-branch <span class="string">"master"</span>)))
+  
+  (<span class="keyword">let*</span> ((msg (git--branch <span class="string">"-d"</span> branch)))
+    (<span class="keyword">if</span> (string-match <span class="string">"^Deleted"</span> msg)
+        (message <span class="string">"%s '%s' branch"</span> (git--bold-face <span class="string">"Deleted"</span>) branch)
+      (message <span class="string">"%s on %s '%s' branch in '%s' branch"</span>
+               git--msg-critical
+               (git--bold-face <span class="string">"deleting"</span>)
+               (git--bold-face branch)
+               (git--current-branch)))))
+
+(<span class="keyword">defun</span> <span class="function-name">git-delete-tag</span> ()
+  <span class="doc">"Delete tag after selecting tag"</span>
+  
+  (interactive)
+  (<span class="keyword">let</span> ((tag (git--select-tag)))
+    (<span class="keyword">if</span> (string-match <span class="string">"^Deleted"</span> (git--tag <span class="string">"-d"</span> tag))
+        (message <span class="string">"%s '%s' Tag"</span> (git--bold-face <span class="string">"Deleted"</span>) tag)
+      (message <span class="string">"%s on %s '%s' Tag"</span>
+               git--msg-critical
+               (git--bold-face <span class="string">"deleting"</span>)
+               tag))))
+
+(<span class="keyword">defun</span> <span class="function-name">git-status</span> (dir)
+  <span class="doc">"Launch git-status mode at the directory if it is under 'git'"</span>
+
+  (interactive <span class="string">"DSelect directory: "</span>)
+
+  (setq dir (git--get-top-dir dir))
+  (<span class="keyword">if</span> (file-directory-p (git--expand-to-repository-dir dir))
+      (<span class="keyword">progn</span>
+        (switch-to-buffer (git--create-status-buffer dir))
+        (cd dir)
+        (git--status-mode)
+        (git--status-new)
+        (git--status-view-first-line))
+    <span class="comment-delimiter">;; </span><span class="comment">(add-hook 'after-save-hook 'git-update-saved-file)))
+</span>    (message <span class="string">"%s is not a git working tree."</span> dir)))
+
+(<span class="keyword">defun</span> <span class="function-name">git-regression</span> ()
+  <span class="doc">"Regression tests on git-emacs, but have to enhance it!"</span>
+
+  (interactive)
+
+  <span class="comment-delimiter">;; </span><span class="comment">git exec
+</span>  (<span class="warning">assert</span> (string= <span class="string">"\n"</span> (git--exec-string <span class="string">"rev-parse"</span> <span class="string">"--show-cdup"</span>)))
+  (<span class="warning">assert</span> (string= (expand-file-name <span class="string">"./"</span>) (git--get-top-dir <span class="string">"."</span>)))
+
+  <span class="comment-delimiter">;; </span><span class="comment">create status buffer
+</span>  (<span class="warning">assert</span> (string= (buffer-name (git--create-status-buffer <span class="string">"."</span>))
+                   (git--status-buffer-name <span class="string">"."</span>)))
+
+  <span class="comment-delimiter">;; </span><span class="comment">open status buffer
+</span>  (<span class="warning">assert</span> (string= (buffer-name (git--create-status-buffer <span class="string">"."</span>))
+                   (git--status-buffer-name <span class="string">"."</span>)))
+
+  (git--kill-status-buffer <span class="string">"."</span>)
+
+  <span class="comment-delimiter">;; </span><span class="comment">testing
+</span>  (<span class="warning">assert</span> (null (string-match <span class="string">"asdf/"</span> <span class="string">"asdf"</span>))))
+
+(<span class="keyword">defun</span> <span class="function-name">git-cmd</span> (str)
+  <span class="doc">"git-cmd for user"</span>
+
+  (interactive <span class="string">"s&gt;&gt; git "</span>)
+  (message (git--trim-tail
+            (apply #'git--exec-string (split-string str)))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--cat-file</span> (file <span class="type">&amp;rest</span> args)
+  <span class="doc">"Execute git-cat-file and return the buffer with the file content"</span>
+  
+  (<span class="keyword">let</span> ((buffer (get-buffer-create file)))
+    (<span class="keyword">with-current-buffer</span> buffer
+      <span class="comment-delimiter">;; </span><span class="comment">set buffer writable
+</span>      (setq buffer-read-only nil)
+      (erase-buffer)
+
+      <span class="comment-delimiter">;; </span><span class="comment">set tricky auto mode for highlighting
+</span>      (<span class="keyword">let</span> ((buffer-file-name file)) (set-auto-mode))
+
+      <span class="comment-delimiter">;; </span><span class="comment">ok cat file to buffer
+</span>      (apply #'git--exec-buffer <span class="string">"cat-file"</span> args)
+
+      <span class="comment-delimiter">;; </span><span class="comment">set buffer readonly &amp; quit
+</span>      (setq buffer-read-only t)
+
+      <span class="comment-delimiter">;; </span><span class="comment">check see if failed
+</span>      (goto-char (point-min))
+      (<span class="keyword">when</span> (looking-at <span class="string">"^</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">(</span></span><span class="string">[Ff]atal</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">|</span></span><span class="string">[Ff]ailed</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">|</span></span><span class="string">[Ee]rror</span><span class="string"><span class="regexp-grouping-backslash">\\</span></span><span class="string"><span class="regexp-grouping-construct">)</span></span><span class="string">:"</span>)
+        (<span class="keyword">let</span> ((msg (buffer-string)))
+          (kill-buffer nil)
+          (setq buffer nil)
+          (<span class="warning">error</span> (git--trim-tail msg)))))
+    buffer))
+
+(<span class="keyword">defvar</span> <span class="variable-name">git--diff-buffer</span> nil <span class="doc">"locally saved buffer for ediffing"</span>)
+(<span class="keyword">defvar</span> <span class="variable-name">git--diff-window</span> nil <span class="doc">"locally saved windows for ediffing"</span>)
+
+(<span class="keyword">defun</span> <span class="function-name">git--diff</span> (file rev <span class="type">&amp;rest</span> args)
+  <span class="doc">"Implementation of git-diff, it should be called with file and revision"</span>
+
+  (setq file (file-relative-name file))
+  (setq rev (concat rev file))
+  
+  (<span class="keyword">let</span> ((buf1 (find-file-noselect file))
+        (buf2 (git--cat-file rev <span class="string">"blob"</span> rev))
+        (config (current-window-configuration)))
+
+    <span class="comment-delimiter">;; </span><span class="comment">set ediff type
+</span>    (setq ediff-split-window-function 'split-window-horizontally)
+    (set-buffer (ediff-buffers buf1 buf2))
+ 
+    (set (make-local-variable 'git--diff-buffer) buf2)
+    (set (make-local-variable 'git--diff-window) config)
+    (set (make-local-variable 'ediff-quit-hook)
+         #'(<span class="keyword">lambda</span> ()
+             (<span class="keyword">let</span> ((buffer git--diff-buffer)
+                   (window git--diff-window))
+               
+               (ediff-cleanup-mess)               
+               (set-buffer buffer)
+               (kill-buffer buffer)
+               (set-window-configuration window))))))
+
+(<span class="keyword">defun</span> <span class="function-name">git-diff-head</span> (file)
+  <span class="doc">"Simple diffing with the previous HEAD"</span>
+  
+  (interactive <span class="string">"fSelect Diff Target : "</span>)
+  (git--diff file <span class="string">"HEAD:"</span>))
+
+(<span class="keyword">defun</span> <span class="function-name">git-diff</span> (file)
+  <span class="doc">"Diffing with the target file and revision user selected"</span>
+
+  (interactive <span class="string">"fSelect Diff Target : "</span>)
+
+  (<span class="keyword">let</span> ((prompt (format <span class="string">"git diff [rev]:%s &gt;&gt; "</span> (file-relative-name file))))
+    (git--diff file (concat (read-from-minibuffer prompt <span class="string">"HEAD"</span>) <span class="string">":"</span>))))
+
+(<span class="keyword">defun</span> <span class="function-name">git-config-init</span> ()
+  <span class="doc">"Set initial configuration, it query the logined user information"</span>
+
+  (interactive)
+
+  (<span class="keyword">let</span> ((name (git--trim-string (git--config <span class="string">"user.name"</span>)))
+        (email (git--trim-string (git--config <span class="string">"user.email"</span>))))
+
+    (<span class="keyword">when</span> (or (null name) (string= <span class="string">""</span> name))
+      (setq name (read-from-minibuffer <span class="string">"User Name : "</span>
+                                       (git--config-get-author)))
+
+      (git--config <span class="string">"--global"</span> <span class="string">"user.name"</span> name))
+    
+    (<span class="keyword">when</span> (or (null email) (string= <span class="string">""</span> email))
+      (setq email (read-from-minibuffer <span class="string">"User Email : "</span>
+                                        (git--config-get-email)))
+
+      (git--config <span class="string">"--global"</span> <span class="string">"user.email"</span> email))
+
+    (message <span class="string">"Set user.name(%s) and user.email(%s)"</span> name email)))
+
+(<span class="keyword">defun</span> <span class="function-name">git-ignore</span> (ignored-opt)
+  <span class="doc">"Add ignore file"</span>
+  
+  (interactive <span class="string">"sIgnore Option : "</span>)
+
+  (<span class="keyword">with-temp-buffer</span>
+    (insert ignored-opt <span class="string">"\n"</span>)
+    (append-to-file (point-min) (point-max) <span class="string">".gitignore"</span>)))
+  
+(<span class="keyword">defun</span> <span class="function-name">git-switch-branch</span> ()
+  <span class="doc">"Git switch branch, user have to select the branch which you will move on"</span>
+  
+  (interactive)
+  (git--switch-branch (git--select-branch (git--current-branch)))
+  (revert-buffer))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span><span class="comment-delimiter">;; </span><span class="comment">branch mode
+</span><span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">defvar</span> <span class="variable-name">git--branch-mode-map</span> nil)
+(<span class="keyword">defvar</span> <span class="variable-name">git--branch-mode-hook</span> nil)
+
+(<span class="keyword">unless</span> git--branch-mode-map
+  (<span class="keyword">let</span> ((map (make-keymap)))
+    (suppress-keymap map)
+
+    (define-key map <span class="string">"q"</span>     'git--branch-mode-quit)
+    (define-key map <span class="string">"n"</span>     'next-line)
+    (define-key map <span class="string">"p"</span>     'previous-line)
+
+    (define-key map <span class="string">"d"</span>     'git--branch-mode-delete)
+    (define-key map <span class="string">"c"</span>     'git--branch-mode-checkout)
+    (define-key map <span class="string">"s"</span>     'git--branch-mode-switch)
+    (define-key map <span class="string">"\C-m"</span>  'git--branch-mode-switch)
+
+    (setq git--branch-mode-map map)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--branch-mode-throw</span> (data)
+  <span class="doc">"Git branch mode template to exit buffer"</span>
+
+  (<span class="keyword">let</span> ((branch (buffer-substring (point) (line-end-position))))
+    (<span class="keyword">throw</span> '<span class="constant">git--branch-mode-selected</span> (cons data branch))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--branch-mode-quit</span> ()
+  <span class="doc">"Git branch mode quit"</span>
+
+  (interactive)
+  (<span class="keyword">throw</span> '<span class="constant">git--branch-mode-selected</span> nil))
+
+(<span class="keyword">defun</span> <span class="function-name">git--branch-mode-delete</span> ()
+  <span class="doc">"Git branch mode delete"</span>
+
+  (interactive)
+  (git--branch-mode-throw 'delete))
+
+(<span class="keyword">defun</span> <span class="function-name">git--branch-mode-switch</span> ()
+  <span class="doc">"Git branch mode switch"</span>
+
+  (interactive)
+  (git--branch-mode-throw 'switch))
+
+(<span class="keyword">defun</span> <span class="function-name">git--branch-mode-checkout</span> ()
+  <span class="doc">"Git branch mode checkout"</span>
+
+  (interactive)
+  (git--branch-mode-throw 'checkout))
+
+(<span class="keyword">defun</span> <span class="function-name">git--branch-mode</span> ()
+  <span class="doc">"Set current buffer as branch-mode"</span>
+  
+  (kill-all-local-variables)
+  (buffer-disable-undo)
+
+  <span class="comment-delimiter">;; </span><span class="comment">set major mode
+</span>  (setq mode-name <span class="string">"git branch"</span>)
+  (setq major-mode 'git-branch-mode)
+
+  (use-local-map git--branch-mode-map)
+
+  <span class="comment-delimiter">;; </span><span class="comment">delete buffer
+</span>  (<span class="keyword">let</span> ((buffer-read-only nil)) (erase-buffer))
+
+  (setq buffer-read-only t)
+  (setq header-line-format <span class="string">"Branch List"</span>)
+
+  (run-hooks 'git--branch-mode-hook))
+
+<span class="comment-delimiter">;; </span><span class="comment">copied from electric buffer
+</span>(<span class="keyword">defvar</span> <span class="variable-name">git--branch-mode-overlay</span> nil)
+(<span class="keyword">defun</span> <span class="function-name">git--branch-mode-highlight</span> ()
+  <span class="doc">"Highlight the one line, it is copied from electric buffer"</span>
+  
+  (<span class="keyword">when</span> (eq major-mode 'git-branch-mode)
+    (or git--branch-mode-overlay
+        (<span class="keyword">progn</span>
+          (make-local-variable 'git--branch-mode-overlay)
+          (setq git--branch-mode-overlay (make-overlay (point) (point)))))
+
+    (move-overlay git--branch-mode-overlay
+                  (<span class="keyword">save-excursion</span> (beginning-of-line) (point))
+                  (<span class="keyword">save-excursion</span> (end-of-line) (+ 1 (point))))
+
+    (overlay-put git--branch-mode-overlay 'face 'highlight)))
+
+(<span class="keyword">defun</span> <span class="function-name">git--branch-mode-view</span> ()
+  <span class="doc">"Display the branch list to branch-mode buffer and return the end mark of the buffer"</span>
+  
+  <span class="comment-delimiter">;; </span><span class="comment">beginning of buffer name position
+</span>  (setq goal-column 3)
+
+  (<span class="keyword">let</span> ((current-branch (git--current-branch))
+        (branch-list (git--branch-list))
+        (buffer-read-only nil))
+
+    (<span class="keyword">dolist</span> (branch branch-list)
+      (insert (format <span class="string">"%2s %s\n"</span>
+                      (<span class="keyword">if</span> (string= current-branch branch)
+                          (git--bold-face <span class="string">"*"</span>) <span class="string">" "</span>)
+                      branch)))
+
+    (goto-char (point-min))
+    (length branch-list)))
+
+(<span class="keyword">defun</span> <span class="function-name">git-branch</span> ()
+  <span class="doc">"Launch git-branch mode"</span>
+
+  (interactive)
+
+  (<span class="keyword">let</span> ((selected-branch nil)
+        (buffer (get-buffer-create <span class="string">"*git-branch*"</span>))
+        (windows (current-window-configuration))
+        (nbranchs 0))
+
+    (<span class="keyword">with-current-buffer</span> buffer
+      <span class="comment-delimiter">;; </span><span class="comment">set branch mode 
+</span>      (git--branch-mode)
+
+      <span class="comment-delimiter">;; </span><span class="comment">set branch mode view
+</span>      (setq nbranchs (git--branch-mode-view))
+
+      <span class="comment-delimiter">;; </span><span class="comment">pop up
+</span>      (electric-pop-up-window buffer)
+      (git--branch-mode-loop nbranchs nil)
+      
+      (<span class="keyword">unwind-protect</span>
+          (setq selected-branch
+                (<span class="keyword">catch</span> '<span class="constant">git--branch-mode-selected</span>
+                  (electric-command-loop 'git--branch-mode-selected
+                                         nil
+                                         t
+                                         'git--branch-mode-loop
+                                         nbranchs))))
+
+      <span class="comment-delimiter">;; </span><span class="comment">exit buffer and restore configuration of the windows
+</span>      (set-window-configuration windows)
+      (kill-buffer buffer)
+
+      <span class="comment-delimiter">;; </span><span class="comment">interpret command 
+</span>      (git--branch-mode-interprete selected-branch))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--branch-mode-interprete</span> (selected-branch)
+  <span class="doc">"git-branch command interpreter,
+if 'delete -&gt; call 'git-delete-branch
+if 'switch -&gt; call 'git-switch-branch
+if 'checkout -&gt; call git-checkout-to-new-branch"</span>
+
+  (<span class="keyword">when</span> selected-branch
+    (<span class="keyword">let</span> ((command (car selected-branch))
+          (branch (cdr selected-branch)))
+    (<span class="keyword">case</span> command
+      ('delete
+       (<span class="keyword">when</span> (y-or-n-p (format <span class="string">"Would you like to %s the branch, %s? "</span>
+                               (git--bold-face <span class="string">"delete"</span>)
+                               (git--bold-face branch)))
+         (git-delete-branch branch)))
+      ('switch
+       (<span class="keyword">when</span> (y-or-n-p (format <span class="string">"Would you like to %s from %s to %s branch? "</span>
+                               (git--bold-face <span class="string">"switch"</span>)
+                               (git--bold-face (git--current-branch))
+                               (git--bold-face branch)))
+         (git--switch-branch branch)
+         (revert-buffer)))
+      ('checkout (call-interactively 'git-checkout-to-new-branch))))))
+
+(<span class="keyword">defun</span> <span class="function-name">git--branch-mode-loop</span> (stat cond)
+  <span class="doc">"git-branch mode loop interpreter, update the highlight"</span>
+
+  (interactive)
+
+  <span class="comment-delimiter">;; </span><span class="comment">adjust when end of the branches
+</span>  (<span class="keyword">if</span> (&gt; (line-number-at-pos) stat)
+      (previous-line))
+
+  <span class="comment-delimiter">;; </span><span class="comment">adjust column
+</span>  (beginning-of-line)
+  (forward-char goal-column)
+
+  <span class="comment-delimiter">;; </span><span class="comment">highlight
+</span>  (git--branch-mode-highlight))
+
+<span class="comment-delimiter">;;</span><span class="comment">-----------------------------------------------------------------------------
+</span>
+(<span class="keyword">provide</span> '<span class="constant">git-emacs</span>)</pre>
+  </body>
+</html>

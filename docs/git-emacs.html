@@ -1,0 +1,1020 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+  <head>
+    <title>A Guided Tour of emacs-git (by TSKim)</title>
+    <meta name="generator" content="muse.el">
+    <meta http-equiv="Content-Type"
+          content="text/html; charset=utf-8">
+  </head>
+  <body>
+    <h1>A Guided Tour of emacs-git (by TSKim)</h1>
+    <!-- Page published by Emacs Muse begins here -->
+<div class="contents">
+<dl>
+<dt>
+<a href="#sec1">Installation</a>
+</dt>
+<dt>
+<a href="#sec2">Configuration</a>
+</dt>
+<dt>
+<a href="#sec3">Cloning</a>
+</dt>
+<dd>
+<dl>
+<dt>
+<a href="#sec4">1. Run 'git-clone'</a>
+</dt>
+<dt>
+<a href="#sec5">2. Select local directory</a>
+</dt>
+<dt>
+<a href="#sec6">3. Select repository</a>
+</dt>
+<dt>
+<a href="#sec7">4. All things done</a>
+</dt>
+</dl>
+</dd>
+<dt>
+<a href="#sec8">Importing</a>
+</dt>
+<dd>
+<dl>
+<dt>
+<a href="#sec9">1. run 'git-init-from-archive'</a>
+</dt>
+<dt>
+<a href="#sec10">2. Select archive file</a>
+</dt>
+<dt>
+<a href="#sec11">3. If necessary, set config user.name and user.email</a>
+</dt>
+<dt>
+<a href="#sec12">4. Initial commit</a>
+</dt>
+<dt>
+<a href="#sec13">5. Commited result</a>
+</dt>
+</dl>
+</dd>
+<dt>
+<a href="#sec14">Making changes</a>
+</dt>
+<dd>
+<dl>
+<dt>
+<a href="#sec15">1. Open the file which is under the git</a>
+</dt>
+<dt>
+<a href="#sec16">2. Editing sources and saving the changes</a>
+</dt>
+<dt>
+<a href="#sec17">3. Commit your changes with 'C-x v v' key or 'git-commit-all'</a>
+</dt>
+<dt>
+<a href="#sec18">4. All things done</a>
+</dt>
+</dl>
+</dd>
+<dt>
+<a href="#sec19">Viewing project history</a>
+</dt>
+<dd>
+<dl>
+<dt>
+<a href="#sec20">1. Run 'git-history' for project or 'git-log' for each file</a>
+</dt>
+<dt>
+<a href="#sec21">2. 'vc-log' history browser with fancy color</a>
+</dt>
+</dl>
+</dd>
+<dt>
+<a href="#sec22">Managing Branches</a>
+</dt>
+<dd>
+<dl>
+<dt>
+<a href="#sec23">1. Show branchs with 'git-branch'</a>
+</dt>
+<dt>
+<a href="#sec24">2. Create new branch with 'c' in git-branch buffer</a>
+</dt>
+<dt>
+<a href="#sec25">3. Select the base branch</a>
+</dt>
+<dt>
+<a href="#sec26">4. All things done</a>
+</dt>
+<dt>
+<a href="#sec27">5. Topic : Switch to other branch</a>
+</dt>
+<dt>
+<a href="#sec28">6. Topic : Delete branches</a>
+</dt>
+<dt>
+<a href="#sec29">7. Topic : gitk</a>
+</dt>
+</dl>
+</dd>
+<dt>
+<a href="#sec30">Tagging</a>
+</dt>
+<dd>
+<dl>
+<dt>
+<a href="#sec31">1. Create new tag 'git-tag' or 'git-snapshot'</a>
+</dt>
+<dt>
+<a href="#sec32">2. Input the tag</a>
+</dt>
+<dt>
+<a href="#sec33">3.  All things done</a>
+</dt>
+<dt>
+<a href="#sec34">4. Checking out</a>
+</dt>
+<dt>
+<a href="#sec35">5. Checking out to new branch</a>
+</dt>
+</dl>
+</dd>
+<dt>
+<a href="#sec36">Diffing</a>
+</dt>
+<dd>
+<dl>
+<dt>
+<a href="#sec37">1.  Run  'git-diff'</a>
+</dt>
+<dt>
+<a href="#sec38">2. Select diffing target</a>
+</dt>
+<dt>
+<a href="#sec39">3. Select diffing revision</a>
+</dt>
+<dt>
+<a href="#sec40">4. Ediff</a>
+</dt>
+</dl>
+</dd>
+<dt>
+<a href="#sec41">Merging</a>
+</dt>
+<dd>
+<dl>
+<dt>
+<a href="#sec42">1. Try to merge from other branch with 'git-merge'</a>
+</dt>
+<dt>
+<a href="#sec43">2. Select target branch</a>
+</dt>
+<dt>
+<a href="#sec44">3. After merge</a>
+</dt>
+<dt>
+<a href="#sec45">4. 3 way merge</a>
+</dt>
+<dt>
+<a href="#sec46">5. After resolving conflicts</a>
+</dt>
+</dl>
+</dd>
+<dt>
+<a href="#sec47">Checking the status of the project</a>
+</dt>
+<dd>
+<dl>
+<dt>
+<a href="#sec48">Run 'git-status'</a>
+</dt>
+<dt>
+<a href="#sec49">Inspecting Directory</a>
+</dt>
+<dt>
+<a href="#sec50">Naive command on git with '.'</a>
+</dt>
+<dt>
+<a href="#sec51">Rename with 'r'</a>
+</dt>
+<dt>
+<a href="#sec52">Marking with '*'</a>
+</dt>
+<dt>
+<a href="#sec53">Add .gitignore with 'i'</a>
+</dt>
+<dt>
+<a href="#sec54">Switching branch with 'b'</a>
+</dt>
+<dt>
+<a href="#sec55">Sarcastic blame! with '?'</a>
+</dt>
+<dt>
+<a href="#sec56">Summary mode with 's'</a>
+</dt>
+</dl>
+</dd>
+</dl>
+</div>
+
+
+<h2><a name="sec1" id="sec1"></a>
+Installation</h2>
+
+<ul>
+<li><a href="./git-emacs-1.0.tar.gz">Download git-emacs-1.0.tar.gz</a></li>
+<li><a href="./git-emacs.el.html">git-emacs.el</a>/<a href="./git-emacs.el">raw</a></li>
+<li><a href="./git-modeline.el.html">git-modeline.el</a>/<a href="./git-modeline.el">raw</a></li>
+<li><a href="./git-blame.el.html">git-blame.el</a>/<a href="./git-blame.el">raw</a></li>
+</ul>
+
+<pre class="src">
+(add-to-list 'load-path <span style="color: #bc8f8f;">"/home/tsgates/Skills/git/git-emacs-1.0"</span>)
+(<span style="color: #a020f0;">require</span> '<span style="color: #5f9ea0;">git-emacs</span>)
+</pre>
+
+
+<h2><a name="sec2" id="sec2"></a>
+Configuration</h2>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./config-init.png" alt="git-config-init command"></td></tr>
+  <tr><td align="center" class="image-caption">git-config-init command</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./config-init2.png" alt="Automatically set current user.name &amp; user.email"></td></tr>
+  <tr><td align="center" class="image-caption">Automatically set current user.name &amp; user.email</td></tr>
+</table>
+
+<ul>
+<li>Set <u>user.name</u> &amp; <u>user.email</u> if it is not set yet</li>
+<li>But, git-emacs recommends the <u>full name</u> and <u>email address</u> of the <u>user logged in</u></li>
+</ul>
+
+
+<h2><a name="sec3" id="sec3"></a>
+Cloning</h2>
+
+<h3><a name="sec4" id="sec4"></a>
+1. Run 'git-clone'</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./clone0.png" alt="Run 'git-clone'"></td></tr>
+  <tr><td align="center" class="image-caption">Run 'git-clone'</td></tr>
+</table>
+
+<ul>
+<li>Run 'git-clone'</li>
+</ul>
+
+
+<h3><a name="sec5" id="sec5"></a>
+2. Select local directory</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./clone1.png" alt="Move directory"></td></tr>
+  <tr><td align="center" class="image-caption">Move directory</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./clone2.png" alt="Select the directory to be cloned"></td></tr>
+  <tr><td align="center" class="image-caption">Select the directory to be cloned</td></tr>
+</table>
+
+<ul>
+<li>With <em>'ido'</em> interface, you can change directory</li>
+<li>Create directory with <em>'C-m'</em> (<em>'M-n'</em>, <em>'M-p'</em> to search history, reference to <em>'ido'</em>)</li>
+</ul>
+
+
+<h3><a name="sec6" id="sec6"></a>
+3. Select repository</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./clone3.png" alt="Select repository"></td></tr>
+  <tr><td align="center" class="image-caption">Select repository</td></tr>
+</table>
+
+<ul>
+<li>Select repositories from <u>history</u> and your <u>bookmarks</u> or type new one</li>
+</ul>
+
+
+<h3><a name="sec7" id="sec7"></a>
+4. All things done</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./clone4.png" alt="Start to clone from repository"></td></tr>
+  <tr><td align="center" class="image-caption">Start to clone from repository</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./clone5.png" alt="All things done"></td></tr>
+  <tr><td align="center" class="image-caption">All things done</td></tr>
+</table>
+
+<ul>
+<li>Support <u>asynchronous</u> downloading from the repository</li>
+<li>All things ok, you can see message <em>&quot;Cloned&quot;</em>!</li>
+</ul>
+
+
+
+<h2><a name="sec8" id="sec8"></a>
+Importing</h2>
+
+<h3><a name="sec9" id="sec9"></a>
+1. run 'git-init-from-archive'</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./init-archive1.png" alt="Init from archive"></td></tr>
+  <tr><td align="center" class="image-caption">Init from archive</td></tr>
+</table>
+
+<ul>
+<li>Run 'git-init-from-archive'</li>
+</ul>
+
+
+<h3><a name="sec10" id="sec10"></a>
+2. Select archive file</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./init-archive2.png" alt="Selecting archive file"></td></tr>
+  <tr><td align="center" class="image-caption">Selecting archive file</td></tr>
+</table>
+
+<ul>
+<li>Select the project file</li>
+<li>And then create git repository</li>
+</ul>
+
+
+<h3><a name="sec11" id="sec11"></a>
+3. If necessary, set config user.name and user.email</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./init-archive3.png" alt="Then, setting config user.name and user.email"></td></tr>
+  <tr><td align="center" class="image-caption">Then, setting config user.name and user.email</td></tr>
+</table>
+
+<ul>
+<li>It comes from OS user information</li>
+</ul>
+
+
+<h3><a name="sec12" id="sec12"></a>
+4. Initial commit</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./init-archive4.png" alt="Inital commit log"></td></tr>
+  <tr><td align="center" class="image-caption">Inital commit log</td></tr>
+</table>
+
+<ul>
+<li><em>'C-cC-c'</em> to actually commit the revisions</li>
+</ul>
+
+
+<h3><a name="sec13" id="sec13"></a>
+5. Commited result</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./init-archive5.png" alt="After commiting"></td></tr>
+  <tr><td align="center" class="image-caption">After commiting</td></tr>
+</table>
+
+
+
+<h2><a name="sec14" id="sec14"></a>
+Making changes</h2>
+
+<h3><a name="sec15" id="sec15"></a>
+1. Open the file which is under the git</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./commit1.png" alt="Open the file"></td></tr>
+  <tr><td align="center" class="image-caption">Open the file</td></tr>
+</table>
+
+<ul>
+<li>The <strong>green</strong> dot in the modeline indicates the state of this source file is <u>uptodate</u>
+(<strong>gray</strong> : <u>unknown</u>, <strong>tomato</strong> : <u>modified</u>, <strong>red</strong> : <u>deleted</u>, <strong>purple</strong> : <u>unmerged</u>)</li>
+
+<li>As you saw in the <em>modeline</em>, <em>'vc-git'</em> is still working also</li>
+</ul>
+
+
+<h3><a name="sec16" id="sec16"></a>
+2. Editing sources and saving the changes</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./commit2.png" alt="After saving the changes"></td></tr>
+  <tr><td align="center" class="image-caption">After saving the changes</td></tr>
+</table>
+
+<ul>
+<li>After saving the changes, the state of the file also change from <u>uptodate</u> to <u>modified</u>
+(<strong>tomato</strong> dot in the modeline)</li>
+</ul>
+
+
+<h3><a name="sec17" id="sec17"></a>
+3. Commit your changes with <strong>'C-x v v'</strong> key or <strong>'git-commit-all'</strong></h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./commit3.png" alt="Commit your changes after editing log"></td></tr>
+  <tr><td align="center" class="image-caption">Commit your changes after editing log</td></tr>
+</table>
+
+<ul>
+<li>Of course <strong>'C-x v v'</strong> key is well-known <strong><em>'next action'</em></strong> in <em>vc-mode</em> in emacs</li>
+<li>It works depending on the state of the file you are editing
+<blockquote>
+<p class="quoted">&nbsp;&nbsp;(&quot;<u>modified</u> -&gt; commmit&quot; &amp; &quot;<u>unmerged</u> -&gt; merge&quot; &amp; &quot;<u>unknown</u> -&gt; add&quot;, etc)</p>
+</blockquote></li>
+<li>Edit your log and then press <em>'C-c C-c'</em> in <strong><em>git-log</em></strong> buffer</li>
+</ul>
+
+
+<h3><a name="sec18" id="sec18"></a>
+4. All things done</h3>
+
+<blockquote>
+<p class="quoted">&nbsp;&nbsp;<table class="image" width="100%">
+  <tr><td align="center"><img src="./commit4.png" alt="After commit"></td></tr>
+  <tr><td align="center" class="image-caption">After commit</td></tr>
+</table></p>
+</blockquote>
+
+<ul>
+<li>The state of the buffer turns to <u>uptodate</u> also</li>
+</ul>
+
+
+
+<h2><a name="sec19" id="sec19"></a>
+Viewing project history</h2>
+
+<h3><a name="sec20" id="sec20"></a>
+1. Run 'git-history' for project or 'git-log' for each file</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./history1.png" alt="History view"></td></tr>
+  <tr><td align="center" class="image-caption">History view</td></tr>
+</table>
+
+<ul>
+<li>Run <em>'git-history'</em></li>
+</ul>
+
+
+<h3><a name="sec21" id="sec21"></a>
+2. 'vc-log' history browser with fancy color</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./history2.png" alt="History browsing"></td></tr>
+  <tr><td align="center" class="image-caption">History browsing</td></tr>
+</table>
+
+<ul>
+<li>Actually, it is <em>'vc-log'</em> with fancy <em>advises</em></li>
+<li><em>'p'</em>, <em>'n'</em> with a convenient per log up/down moving</li>
+<li><em>'q'</em> with a simple quit</li>
+</ul>
+
+
+
+<h2><a name="sec22" id="sec22"></a>
+Managing Branches</h2>
+
+<h3><a name="sec23" id="sec23"></a>
+1. Show branchs with 'git-branch'</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./branch1.png" alt="Display branch list"></td></tr>
+  <tr><td align="center" class="image-caption">Display branch list</td></tr>
+</table>
+
+<ul>
+<li>Since we did not create any buffers, we are simply in the <strong><em>master</em></strong> branch (marked with a asterisk, '<em>')</li>
+<li>If you want simply checkout only, run </em>'git-checkout'* instead</li>
+</ul>
+
+
+<h3><a name="sec24" id="sec24"></a>
+2. Create new branch with 'c' in <em>git-branch</em> buffer</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./branch2.png" alt="After pressing 'c', input the new name of the branch"></td></tr>
+  <tr><td align="center" class="image-caption">After pressing 'c', input the new name of the branch</td></tr>
+</table>
+
+<ul>
+<li>run <em>'git-create-branch'</em> or <em>'git-checkout-to-new-branch'</em> if you are not in <strong><em>'git branch'</em></strong> buffer</li>
+</ul>
+
+
+<h3><a name="sec25" id="sec25"></a>
+3. Select the base branch</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./branch3.png" alt="Select the branch you want to base on"></td></tr>
+  <tr><td align="center" class="image-caption">Select the branch you want to base on</td></tr>
+</table>
+
+<ul>
+<li>Only <strong>master</strong> branch exists</li>
+</ul>
+
+
+<h3><a name="sec26" id="sec26"></a>
+4. All things done</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./branch4.png" alt="Reload current buffer"></td></tr>
+  <tr><td align="center" class="image-caption">Reload current buffer</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./branch5.png" alt="Check see if switched to the new branch"></td></tr>
+  <tr><td align="center" class="image-caption">Check see if switched to the new branch</td></tr>
+</table>
+
+<ul>
+<li>Everything seems to be fine, and <em>modeline</em> in the &quot;test.c&quot; also changed to <em>'new-branch'</em>!</li>
+</ul>
+
+
+<h3><a name="sec27" id="sec27"></a>
+5. Topic : Switch to other branch</h3>
+
+<blockquote>
+<p class="quoted">&nbsp;&nbsp;<table class="image" width="100%">
+  <tr><td align="center"><img src="./branch6.png" alt="Switch to other branch after selecting branch"></td></tr>
+  <tr><td align="center" class="image-caption">Switch to other branch after selecting branch</td></tr>
+</table></p>
+</blockquote>
+
+<blockquote>
+<p class="quoted">&nbsp;&nbsp;<table class="image" width="100%">
+  <tr><td align="center"><img src="./branch7.png" alt="Generate automatic commit log"></td></tr>
+  <tr><td align="center" class="image-caption">Generate automatic commit log</td></tr>
+</table></p>
+</blockquote>
+
+<blockquote>
+<p class="quoted">&nbsp;&nbsp;<table class="image" width="100%">
+  <tr><td align="center"><img src="./branch8.png" alt="Finally switched to 'mater'"></td></tr>
+  <tr><td align="center" class="image-caption">Finally switched to 'mater'</td></tr>
+</table></p>
+</blockquote>
+
+<ul>
+<li>With a <em>'RET'</em> key in <strong>'git-branch'</strong>, you can switch to selected other branch</li>
+<li>If this buffer is not <u>uptodate</u>, commit with a <u>automatically generated log</u></li>
+</ul>
+
+
+<h3><a name="sec28" id="sec28"></a>
+6. Topic : Delete branches</h3>
+
+<blockquote>
+<p class="quoted">&nbsp;&nbsp;<table class="image" width="100%">
+  <tr><td align="center"><img src="./branch9.png" alt="Delete 'new-branch' in 'git-branch'"></td></tr>
+  <tr><td align="center" class="image-caption">Delete 'new-branch' in 'git-branch'</td></tr>
+</table></p>
+</blockquote>
+
+<blockquote>
+<p class="quoted">&nbsp;&nbsp;<table class="image" width="100%">
+  <tr><td align="center"><img src="./branch10.png" alt="Finally delete a 'new-branch'"></td></tr>
+  <tr><td align="center" class="image-caption">Finally delete a 'new-branch'</td></tr>
+</table></p>
+</blockquote>
+
+<ul>
+<li>Isn't it simple?</li>
+</ul>
+
+
+<h3><a name="sec29" id="sec29"></a>
+7. Topic : gitk</h3>
+
+<blockquote>
+<p class="quoted">&nbsp;&nbsp;<table class="image" width="100%">
+  <tr><td align="center"><img src="./branch11.png" alt="Launching gitk in emacs"></td></tr>
+  <tr><td align="center" class="image-caption">Launching gitk in emacs</td></tr>
+</table></p>
+</blockquote>
+
+<ul>
+<li>Run <em>gitk</em> with a <em>'gitk'</em> command in the buffer!</li>
+</ul>
+
+
+
+<h2><a name="sec30" id="sec30"></a>
+Tagging</h2>
+
+<h3><a name="sec31" id="sec31"></a>
+1. Create new tag 'git-tag' or 'git-snapshot'</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./tag1.png" alt="Create new tag"></td></tr>
+  <tr><td align="center" class="image-caption">Create new tag</td></tr>
+</table>
+
+<ul>
+<li>Run <em>'git-tag'</em> or <em>'git-snapshot'</em></li>
+</ul>
+
+
+<h3><a name="sec32" id="sec32"></a>
+2. Input the tag</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./tag2.png" alt="Input tag name"></td></tr>
+  <tr><td align="center" class="image-caption">Input tag name</td></tr>
+</table>
+
+<ul>
+<li>Input new tag name</li>
+</ul>
+
+
+<h3><a name="sec33" id="sec33"></a>
+3.  All things done</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./tag3.png" alt="All things done"></td></tr>
+  <tr><td align="center" class="image-caption">All things done</td></tr>
+</table>
+
+<ul>
+<li>ok</li>
+</ul>
+
+
+<h3><a name="sec34" id="sec34"></a>
+4. Checking out</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./tag4.png" alt="Checking out"></td></tr>
+  <tr><td align="center" class="image-caption">Checking out</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./tag5.png" alt="Checking out to new branch"></td></tr>
+  <tr><td align="center" class="image-caption">Checking out to new branch</td></tr>
+</table>
+
+<ul>
+<li>Checking out may cause the branch to be dangle</li>
+<li>Better to checkout to new branch</li>
+</ul>
+
+
+<h3><a name="sec35" id="sec35"></a>
+5. Checking out to new branch</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./tag6.png" alt="Checking out to new branch"></td></tr>
+  <tr><td align="center" class="image-caption">Checking out to new branch</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./tag7.png" alt="Input the new branch name"></td></tr>
+  <tr><td align="center" class="image-caption">Input the new branch name</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./tag8.png" alt="Based on what?"></td></tr>
+  <tr><td align="center" class="image-caption">Based on what?</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./tag9.png" alt="Ok on new 'wild-idea' branch"></td></tr>
+  <tr><td align="center" class="image-caption">Ok on new 'wild-idea' branch</td></tr>
+</table>
+
+<ul>
+<li>You can make new branch based on tags and other branches!</li>
+</ul>
+
+
+
+<h2><a name="sec36" id="sec36"></a>
+Diffing</h2>
+
+<h3><a name="sec37" id="sec37"></a>
+1.  Run  'git-diff'</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./diff1.png" alt="Run 'git-diff'"></td></tr>
+  <tr><td align="center" class="image-caption">Run 'git-diff'</td></tr>
+</table>
+
+<ul>
+<li>Run 'git-diff'</li>
+</ul>
+
+
+<h3><a name="sec38" id="sec38"></a>
+2. Select diffing target</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./diff2.png" alt="Select diffing target"></td></tr>
+  <tr><td align="center" class="image-caption">Select diffing target</td></tr>
+</table>
+
+<ul>
+<li>Select the target</li>
+</ul>
+
+
+<h3><a name="sec39" id="sec39"></a>
+3. Select diffing revision</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./diff3.png" alt="Select revision"></td></tr>
+  <tr><td align="center" class="image-caption">Select revision</td></tr>
+</table>
+
+<ul>
+<li><strong>HEAD</strong> means diffing against <u>HEAD</u> vs <u>cached file</u> you selected at step 2</li>
+<li><strong>HEAD~2</strong> means diffing against <u>second parent of HEAD</u> (referencing to git manual)</li>
+</ul>
+
+
+<h3><a name="sec40" id="sec40"></a>
+4. Ediff</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./diff4.png" alt="Diffing with ediff"></td></tr>
+  <tr><td align="center" class="image-caption">Diffing with ediff</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./diff5.png" alt="Diffing against HEAD~2"></td></tr>
+  <tr><td align="center" class="image-caption">Diffing against HEAD~2</td></tr>
+</table>
+
+<ul>
+<li>Move with <em>'p'</em>, <em>'n'</em> keys to the next/previous different region</li>
+<li>Of course <em>'q'</em> to quit and restore previous windows</li>
+</ul>
+
+
+
+<h2><a name="sec41" id="sec41"></a>
+Merging</h2>
+
+<h3><a name="sec42" id="sec42"></a>
+1. Try to merge from other branch with 'git-merge'</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./merge1.png" alt="Run 'git-merge'"></td></tr>
+  <tr><td align="center" class="image-caption">Run 'git-merge'</td></tr>
+</table>
+
+<ul>
+<li>Run 'git-merge'</li>
+</ul>
+
+
+<h3><a name="sec43" id="sec43"></a>
+2. Select target branch</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./merge2.png" alt="Select the branch to be merged"></td></tr>
+  <tr><td align="center" class="image-caption">Select the branch to be merged</td></tr>
+</table>
+
+<ul>
+<li>In <em>'git-merge'</em>, you can easily select with a <em>'ido'</em> interface you may be familiar</li>
+</ul>
+
+
+<h3><a name="sec44" id="sec44"></a>
+3. After merge</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./merge3.png" alt="After merge, it will launch git-status mode"></td></tr>
+  <tr><td align="center" class="image-caption">After merge, it will launch git-status mode</td></tr>
+</table>
+
+<ul>
+<li>As you see in above, there is a <u>conflict</u> in 'test.c'</li>
+<li>Try to resolve conflict(merged) with <em>'!'</em> key</li>
+</ul>
+
+
+<h3><a name="sec45" id="sec45"></a>
+4. 3 way merge</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./merge4.png" alt="3 way merge similar to famous 'psvn.el'"></td></tr>
+  <tr><td align="center" class="image-caption">3 way merge similar to famous 'psvn.el'</td></tr>
+</table>
+
+<ul>
+<li>ediff-merge works fantastically</li>
+</ul>
+
+
+<h3><a name="sec46" id="sec46"></a>
+5. After resolving conflicts</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./merge5.png" alt="Return to the merged 'test.c'"></td></tr>
+  <tr><td align="center" class="image-caption">Return to the merged 'test.c'</td></tr>
+</table>
+
+<ul>
+<li>But, as you know, you have to commit to reflect your changes with <em>'C-x v v'</em>
+(<u>purple</u> dot in modeline indicates 'test.c' is unmerged(conflict))</li>
+<li><u>Submit the commit log</u> to complete the job</li>
+</ul>
+
+
+
+<h2><a name="sec47" id="sec47"></a>
+Checking the status of the project</h2>
+
+<h3><a name="sec48" id="sec48"></a>
+Run 'git-status'</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./status1.png" alt="Git cloned directory right after cloning"></td></tr>
+  <tr><td align="center" class="image-caption">Git cloned directory right after cloning</td></tr>
+</table>
+
+<ul>
+<li>Display current status of tree!</li>
+<li><em>'m'</em>, <em>'u'</em> for selecting(marking) and unselecting and <em>'SPACE'</em> to toggle mark</li>
+</ul>
+
+
+<h3><a name="sec49" id="sec49"></a>
+Inspecting Directory</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./status4.png" alt="Expanding tree or open file"></td></tr>
+  <tr><td align="center" class="image-caption">Expanding tree or open file</td></tr>
+</table>
+
+<ul>
+<li><em>'q'</em>   : quit status mode</li>
+<li><em>'RET'</em> : open file/expand tree</li>
+<li><em>'v'</em>   : view file</li>
+<li><em>'n'</em>   : next item</li>
+<li><em>'p'</em>   : previous item</li>
+<li><em>'N'</em>   : next meaningful item</li>
+<li><em>'P'</em>   : previous meaningful item</li>
+<li>'&lt;'   : first item</li>
+<li>'&gt;'   : last item</li>
+<li>'g'   : refresh</li>
+<li><em>'='</em>   : diffing (ref.Diffing)</li>
+<li><em>'!'</em>   : resolving conflict (ref.Merging)</li>
+<li><em>'k'</em>   : gitk (ref. gitk)</li>
+</ul>
+
+
+<h3><a name="sec50" id="sec50"></a>
+Naive command on git with '.'</h3>
+
+<blockquote>
+<p class="quoted">&nbsp;&nbsp;<table class="image" width="100%">
+  <tr><td align="center"><img src="./status5.png" alt="Git naive command"></td></tr>
+  <tr><td align="center" class="image-caption">Git naive command</td></tr>
+</table>
+<ul>
+<li><em>'.'</em>   : git command</p>
+</blockquote></li>
+</ul>
+
+
+<h3><a name="sec51" id="sec51"></a>
+Rename with 'r'</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./status7.png" alt="Rename on marks or current item"></td></tr>
+  <tr><td align="center" class="image-caption">Rename on marks or current item</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./status8.png" alt="After renaming all!"></td></tr>
+  <tr><td align="center" class="image-caption">After renaming all!</td></tr>
+</table>
+
+<ul>
+<li>You can see the <u>newly added</u> test2.c</li>
+<li>In order to reflect the changes the repository, commit!</li>
+</ul>
+
+
+<h3><a name="sec52" id="sec52"></a>
+Marking with '*'</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./regexp-select1.png" alt="Regular expression marking"></td></tr>
+  <tr><td align="center" class="image-caption">Regular expression marking</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./regexp-select2.png" alt="After marking with regexp &quot;RegNotes.*&quot;"></td></tr>
+  <tr><td align="center" class="image-caption">After marking with regexp &quot;RegNotes.*&quot;</td></tr>
+</table>
+
+<ul>
+<li>Support regular expression marking with '<em>'</li>
+</ul>
+
+</em>* Deleting with 'd'
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./delete1.png" alt="Delete the selected files"></td></tr>
+  <tr><td align="center" class="image-caption">Delete the selected files</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./delete2.png" alt="After deleting"></td></tr>
+  <tr><td align="center" class="image-caption">After deleting</td></tr>
+</table>
+
+<ul>
+<li>Select the files to be deleted with <em>'d'</em></li>
+</ul>
+
+
+<h3><a name="sec53" id="sec53"></a>
+Add .gitignore with 'i'</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./status-ignore.png" alt="Select files you want to ignore"></td></tr>
+  <tr><td align="center" class="image-caption">Select files you want to ignore</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./status-ignore1.png" alt="After ignoring"></td></tr>
+  <tr><td align="center" class="image-caption">After ignoring</td></tr>
+</table>
+
+<ul>
+<li><u>Select the files</u> that you want to ignore</li>
+<li>Add the selected files or ask you the pattern to be ignored</li>
+</ul>
+
+
+<h3><a name="sec54" id="sec54"></a>
+Switching branch with 'b'</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./status2.png" alt="Switching branch"></td></tr>
+  <tr><td align="center" class="image-caption">Switching branch</td></tr>
+</table>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./status3.png" alt="After switching branch"></td></tr>
+  <tr><td align="center" class="image-caption">After switching branch</td></tr>
+</table>
+
+<ul>
+<li>You can switch to other branch with 'b' key</li>
+</ul>
+
+
+<h3><a name="sec55" id="sec55"></a>
+Sarcastic blame! with '?'</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./status6.png" alt="Open in blame mode"></td></tr>
+  <tr><td align="center" class="image-caption">Open in blame mode</td></tr>
+</table>
+
+<ul>
+<li>Git blame! from official git-blame.el(David Kågedal)</li>
+</ul>
+
+
+<h3><a name="sec56" id="sec56"></a>
+Summary mode with 's'</h3>
+
+<table class="image" width="100%">
+  <tr><td align="center"><img src="./status-summary.png" alt="Summary the view"></td></tr>
+  <tr><td align="center" class="image-caption">Summary the view</td></tr>
+</table>
+
+<ul>
+<li>Summary with <em>'Occur'</em></li>
+<li>Iterate with 'next-error and 'previous-error key binding</li>
+</ul>
+
+
+
+
+<!-- Page published by Emacs Muse ends here -->
+  </body>
+</html>

@@ -1,0 +1,340 @@
+#created 2008-03-23 [22:34]
+#date 2008-03-24 [21:24]
+#title A Guided Tour of emacs-git
+#author TSKim
+
+<contents>
+
+* Installation
+ - [[./git-emacs-1.0.tar.gz][Download git-emacs-1.0.tar.gz]]
+ - [[./git-emacs.el.html][git-emacs.el]]/[[./git-emacs.el][raw]]
+ - [[./git-modeline.el.html][git-modeline.el]]/[[./git-modeline.el][raw]]
+ - [[./git-blame.el.html][git-blame.el]]/[[./git-blame.el][raw]]
+ 
+<src lang="emacs-lisp">
+(add-to-list 'load-path "/home/tsgates/Skills/git/git-emacs-1.0")
+(require 'git-emacs)
+</src>
+
+* Configuration
+
+[[./config-init.png][git-config-init command]]
+
+[[./config-init2.png][Automatically set current user.name & user.email]]
+
+ - Set _user.name_ & _user.email_ if it is not set yet
+ - But, git-emacs recommends the _full name_ and _email address_ of the _user logged in_
+
+* Cloning
+
+** 1. Run 'git-clone'
+[[./clone0.png][Run 'git-clone']]
+
+ - Run 'git-clone'
+
+** 2. Select local directory
+[[./clone1.png][Move directory]]
+
+[[./clone2.png][Select the directory to be cloned]]
+
+ - With *'ido'* interface, you can change directory
+ - Create directory with *'C-m'* (*'M-n'*, *'M-p'* to search history, reference to *'ido'*)
+
+** 3. Select repository
+[[./clone3.png][Select repository]]
+
+ - Select repositories from _history_ and your _bookmarks_ or type new one
+
+** 4. All things done
+[[./clone4.png][Start to clone from repository]]
+
+[[./clone5.png][All things done]]
+
+ - Support _asynchronous_ downloading from the repository
+ - All things ok, you can see message *"Cloned"*!
+
+* Importing
+
+** 1. run 'git-init-from-archive'
+[[./init-archive1.png][Init from archive]]
+
+ - Run 'git-init-from-archive'
+
+** 2. Select archive file
+[[./init-archive2.png][Selecting archive file]]
+
+ - Select the project file
+ - And then create git repository
+
+** 3. If necessary, set config user.name and user.email
+[[./init-archive3.png][Then, setting config user.name and user.email]]
+
+ - It comes from OS user information
+
+** 4. Initial commit
+[[./init-archive4.png][Inital commit log]]
+
+ - *'C-cC-c'* to actually commit the revisions
+
+** 5. Commited result
+[[./init-archive5.png][After commiting]]
+
+* Making changes
+
+** 1. Open the file which is under the git
+[[./commit1.png][Open the file]]
+
+ - The **green** dot in the modeline indicates the state of this source file is _uptodate_
+   (**gray** : _unknown_, **tomato** : _modified_, **red** : _deleted_, **purple** : _unmerged_)
+
+ - As you saw in the *modeline*, *'vc-git'* is still working also
+
+** 2. Editing sources and saving the changes
+[[./commit2.png][After saving the changes]]
+
+ - After saving the changes, the state of the file also change from _uptodate_ to _modified_
+   (**tomato** dot in the modeline)
+
+** 3. Commit your changes with **'C-x v v'** key or **'git-commit-all'**
+[[./commit3.png][Commit your changes after editing log]]
+
+ - Of course **'C-x v v'** key is well-known ***'next action'*** in *vc-mode* in emacs
+ - It works depending on the state of the file you are editing
+    ("_modified_ -> commmit" & "_unmerged_ -> merge" & "_unknown_ -> add", etc)
+ - Edit your log and then press *'C-c C-c'* in ***git-log*** buffer
+
+** 4. All things done
+ [[./commit4.png][After commit]]
+
+ - The state of the buffer turns to _uptodate_ also
+
+* Viewing project history
+
+** 1. Run 'git-history' for project or 'git-log' for each file
+[[./history1.png][History view]]
+
+ - Run *'git-history'*
+
+** 2. 'vc-log' history browser with fancy color
+[[./history2.png][History browsing]]
+
+ - Actually, it is *'vc-log'* with fancy *advises*
+ - *'p'*, *'n'* with a convenient per log up/down moving
+ - *'q'* with a simple quit
+
+* Managing Branches
+** 1. Show branchs with 'git-branch'
+[[./branch1.png][Display branch list]]
+
+ - Since we did not create any buffers, we are simply in the ***master*** branch (marked with a asterisk, '*')
+ - If you want simply checkout only, run *'git-checkout'* instead
+
+** 2. Create new branch with 'c' in *git-branch* buffer
+[[./branch2.png][After pressing 'c', input the new name of the branch]]
+
+ - run *'git-create-branch'* or *'git-checkout-to-new-branch'* if you are not in ***'git branch'*** buffer
+
+** 3. Select the base branch
+[[./branch3.png][Select the branch you want to base on]]
+
+ - Only **master** branch exists
+
+** 4. All things done
+[[./branch4.png][Reload current buffer]]
+
+[[./branch5.png][Check see if switched to the new branch]]
+
+ - Everything seems to be fine, and *modeline* in the "test.c" also changed to *'new-branch'*!
+
+** 5. Topic : Switch to other branch
+
+ [[./branch6.png][Switch to other branch after selecting branch]]
+
+ [[./branch7.png][Generate automatic commit log]]
+
+ [[./branch8.png][Finally switched to 'mater']]
+ 
+ - With a *'RET'* key in **'git-branch'**, you can switch to selected other branch
+ - If this buffer is not _uptodate_, commit with a _automatically generated log_
+
+** 6. Topic : Delete branches
+ [[./branch9.png][Delete 'new-branch' in 'git-branch']]
+ 
+ [[./branch10.png][Finally delete a 'new-branch']]
+
+ - Isn't it simple?
+
+** 7. Topic : gitk
+ [[./branch11.png][Launching gitk in emacs]]
+
+ - Run *gitk* with a *'gitk'* command in the buffer!
+
+* Tagging
+
+** 1. Create new tag 'git-tag' or 'git-snapshot'
+[[./tag1.png][Create new tag]]
+
+ - Run *'git-tag'* or *'git-snapshot'*
+
+** 2. Input the tag
+[[./tag2.png][Input tag name]]
+
+ - Input new tag name
+
+** 3.  All things done
+[[./tag3.png][All things done]]
+
+ - ok
+
+** 4. Checking out
+[[./tag4.png][Checking out]]
+
+[[./tag5.png][Checking out to new branch]]
+
+ - Checking out may cause the branch to be dangle
+ - Better to checkout to new branch
+
+** 5. Checking out to new branch
+[[./tag6.png][Checking out to new branch]]
+
+[[./tag7.png][Input the new branch name]]
+
+[[./tag8.png][Based on what?]]
+
+[[./tag9.png][Ok on new 'wild-idea' branch]]
+
+ - You can make new branch based on tags and other branches!
+
+* Diffing
+
+** 1.  Run  'git-diff'
+[[./diff1.png][Run 'git-diff']]
+
+ - Run 'git-diff'
+
+** 2. Select diffing target
+[[./diff2.png][Select diffing target]]
+
+ - Select the target
+
+** 3. Select diffing revision
+[[./diff3.png][Select revision]]
+
+ - **HEAD** means diffing against _HEAD_ vs _cached file_ you selected at step 2
+ - **HEAD~2** means diffing against _second parent of HEAD_ (referencing to git manual)
+
+** 4. Ediff
+[[./diff4.png][Diffing with ediff]]
+
+[[./diff5.png][Diffing against HEAD~2]]
+
+ - Move with *'p'*, *'n'* keys to the next/previous different region
+ - Of course *'q'* to quit and restore previous windows
+
+* Merging
+
+** 1. Try to merge from other branch with 'git-merge'
+[[./merge1.png][Run 'git-merge']]
+
+ - Run 'git-merge'
+
+** 2. Select target branch
+[[./merge2.png][Select the branch to be merged]]
+
+ - In *'git-merge'*, you can easily select with a *'ido'* interface you may be familiar
+
+** 3. After merge
+[[./merge3.png][After merge, it will launch git-status mode]]
+
+ - As you see in above, there is a _conflict_ in 'test.c'
+ - Try to resolve conflict(merged) with *'!'* key
+
+** 4. 3 way merge
+[[./merge4.png][3 way merge similar to famous 'psvn.el']]
+
+ - ediff-merge works fantastically
+
+** 5. After resolving conflicts
+[[./merge5.png][Return to the merged 'test.c']]
+
+ - But, as you know, you have to commit to reflect your changes with *'C-x v v'*
+  (_purple_ dot in modeline indicates 'test.c' is unmerged(conflict))
+ - _Submit the commit log_ to complete the job
+
+* Checking the status of the project
+
+** Run 'git-status'
+[[./status1.png][Git cloned directory right after cloning]]
+
+ - Display current status of tree!
+ - *'m'*, *'u'* for selecting(marking) and unselecting and *'SPACE'* to toggle mark
+
+** Inspecting Directory
+[[./status4.png][Expanding tree or open file]]
+
+ - *'q'*   : quit status mode
+ - *'RET'* : open file/expand tree
+ - *'v'*   : view file
+ - *'n'*   : next item
+ - *'p'*   : previous item
+ - *'N'*   : next meaningful item
+ - *'P'*   : previous meaningful item
+ - '<'   : first item
+ - '>'   : last item
+ - 'g'   : refresh
+ - *'='*   : diffing (ref.Diffing)
+ - *'!'*   : resolving conflict (ref.Merging)
+ - *'k'*   : gitk (ref. gitk)
+
+** Naive command on git with '.'
+ [[./status5.png][Git naive command]]
+ - *'.'*   : git command
+
+** Rename with 'r'
+[[./status7.png][Rename on marks or current item]]
+
+[[./status8.png][After renaming all!]]
+
+ - You can see the _newly added_ test2.c
+ - In order to reflect the changes the repository, commit!
+
+** Marking with '*'
+[[./regexp-select1.png][Regular expression marking]]
+
+[[./regexp-select2.png][After marking with regexp "RegNotes.*"]]
+
+ - Support regular expression marking with '*'
+
+** Deleting with 'd'
+[[./delete1.png][Delete the selected files]]
+
+[[./delete2.png][After deleting]]
+
+ - Select the files to be deleted with *'d'*
+ 
+** Add .gitignore with 'i'
+[[./status-ignore.png][Select files you want to ignore]]
+
+[[./status-ignore1.png][After ignoring]]
+
+ - _Select the files_ that you want to ignore
+ - Add the selected files or ask you the pattern to be ignored
+
+** Switching branch with 'b'
+[[./status2.png][Switching branch]]
+
+[[./status3.png][After switching branch]]
+
+ - You can switch to other branch with 'b' key
+
+** Sarcastic blame! with '?'
+[[./status6.png][Open in blame mode]]
+
+ - Git blame! from official git-blame.el(David Kågedal)
+
+** Summary mode with 's'
+[[./status-summary.png][Summary the view]]
+
+ - Summary with *'Occur'*
+ - Iterate with 'next-error and 'previous-error key binding
+
