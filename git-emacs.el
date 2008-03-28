@@ -48,6 +48,11 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+;;; BUG FIXES
+;; 2008.03.28 : git-diff just work on git root
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 ;; TODO : delete temporary log file
 ;; TODO : separate branch-mode & status-view-mode to other files
 ;; TODO : fetching 
