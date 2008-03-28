@@ -1,4 +1,4 @@
-;;; git-emacs (v.1.0) : yet another git emacs mode for newbies
+;;; git-emacs (v.1.1) : yet another git emacs mode for newbies
 ;;
 ;; Copyright (C) 2008  TSKim (tsgatesv@gmail.com)
 ;;

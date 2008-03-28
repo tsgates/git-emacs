@@ -129,6 +129,11 @@
 </span><span class="comment-delimiter">;;</span><span class="comment">
 </span><span class="comment-delimiter">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;</span><span class="comment">
 </span><span class="comment-delimiter">;;</span><span class="comment">
+</span><span class="comment-delimiter">;;; </span><span class="comment">BUG FIXES
+</span><span class="comment-delimiter">;; </span><span class="comment">2008.03.28 : git-diff just work on git root
+</span><span class="comment-delimiter">;;</span><span class="comment">
+</span><span class="comment-delimiter">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;</span><span class="comment">
+</span><span class="comment-delimiter">;;</span><span class="comment">
 </span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : delete temporary log file
 </span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : separate branch-mode &amp; status-view-mode to other files
 </span><span class="comment-delimiter">;; </span><span class="comment"><span class="warning">TODO</span></span><span class="comment"> : fetching 
@@ -530,7 +535,8 @@ and finally 'git--clone-sentinal' is called"</span>
   <span class="doc">"Get the top directory of the current git repository"</span>
   
   (<span class="keyword">with-temp-buffer</span>
-    (cd dir)
+    (<span class="keyword">when</span> (stringp dir) (cd dir))
+
     (<span class="keyword">let</span> ((cdup (git--rev-parse <span class="string">"--show-cdup"</span>)))
       (git--concat-path dir (car (split-string cdup <span class="string">"\n"</span>))))))
 
@@ -1915,17 +1921,18 @@ Trim the buffer log and commit"</span>
   (message (git--trim-tail
             (apply #'git--exec-string (split-string str)))))
 
-(<span class="keyword">defun</span> <span class="function-name">git--cat-file</span> (file <span class="type">&amp;rest</span> args)
+(<span class="keyword">defun</span> <span class="function-name">git--cat-file</span> (buffer-name <span class="type">&amp;rest</span> args)
   <span class="doc">"Execute git-cat-file and return the buffer with the file content"</span>
   
-  (<span class="keyword">let</span> ((buffer (get-buffer-create file)))
+  (<span class="keyword">let</span> ((buffer (get-buffer-create buffer-name)))
     (<span class="keyword">with-current-buffer</span> buffer
+
       <span class="comment-delimiter">;; </span><span class="comment">set buffer writable
 </span>      (setq buffer-read-only nil)
       (erase-buffer)
 
       <span class="comment-delimiter">;; </span><span class="comment">set tricky auto mode for highlighting
-</span>      (<span class="keyword">let</span> ((buffer-file-name file)) (set-auto-mode))
+</span>      (<span class="keyword">let</span> ((buffer-file-name buffer-name)) (set-auto-mode))
 
       <span class="comment-delimiter">;; </span><span class="comment">ok cat file to buffer
 </span>      (apply #'git--exec-buffer <span class="string">"cat-file"</span> args)
@@ -1948,12 +1955,21 @@ Trim the buffer log and commit"</span>
 (<span class="keyword">defun</span> <span class="function-name">git--diff</span> (file rev <span class="type">&amp;rest</span> args)
   <span class="doc">"Implementation of git-diff, it should be called with file and revision"</span>
 
-  (setq file (file-relative-name file))
-  (setq rev (concat rev file))
+  (setq abspath (expand-file-name file))
   
-  (<span class="keyword">let</span> ((buf1 (find-file-noselect file))
-        (buf2 (git--cat-file rev <span class="string">"blob"</span> rev))
-        (config (current-window-configuration)))
+  (<span class="keyword">let*</span> ((buf1 (find-file-noselect file))
+     (buf2 nil)
+     (config (current-window-configuration)))
+  
+    <span class="comment-delimiter">;; </span><span class="comment">build buf2
+</span>    (<span class="keyword">with-temp-buffer</span> 
+      (<span class="keyword">let</span> ((abspath (expand-file-name file))
+        (filename nil))
+
+    <span class="comment-delimiter">;; </span><span class="comment">get relative to git root dir
+</span>    (cd (git--get-top-dir (file-name-directory file)))
+    (setq rev (concat rev (file-relative-name abspath)))
+    (setq buf2 (git--cat-file rev <span class="string">"blob"</span> rev))))
 
     <span class="comment-delimiter">;; </span><span class="comment">set ediff type
 </span>    (setq ediff-split-window-function 'split-window-horizontally)
