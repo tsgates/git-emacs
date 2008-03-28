@@ -449,7 +449,8 @@ and finally 'git--clone-sentinal' is called"
   "Get the top directory of the current git repository"
   
   (with-temp-buffer
-    (cd dir)
+    (when (stringp dir) (cd dir))
+
     (let ((cdup (git--rev-parse "--show-cdup")))
       (git--concat-path dir (car (split-string cdup "\n"))))))
 
@@ -1834,17 +1835,18 @@ Trim the buffer log and commit"
   (message (git--trim-tail
             (apply #'git--exec-string (split-string str)))))
 
-(defun git--cat-file (file &rest args)
+(defun git--cat-file (buffer-name &rest args)
   "Execute git-cat-file and return the buffer with the file content"
   
-  (let ((buffer (get-buffer-create file)))
+  (let ((buffer (get-buffer-create buffer-name)))
     (with-current-buffer buffer
+
       ;; set buffer writable
       (setq buffer-read-only nil)
       (erase-buffer)
 
       ;; set tricky auto mode for highlighting
-      (let ((buffer-file-name file)) (set-auto-mode))
+      (let ((buffer-file-name buffer-name)) (set-auto-mode))
 
       ;; ok cat file to buffer
       (apply #'git--exec-buffer "cat-file" args)
@@ -1867,12 +1869,21 @@ Trim the buffer log and commit"
 (defun git--diff (file rev &rest args)
   "Implementation of git-diff, it should be called with file and revision"
 
-  (setq file (file-relative-name file))
-  (setq rev (concat rev file))
+  (setq abspath (expand-file-name file))
   
-  (let ((buf1 (find-file-noselect file))
-        (buf2 (git--cat-file rev "blob" rev))
-        (config (current-window-configuration)))
+  (let* ((buf1 (find-file-noselect file))
+	 (buf2 nil)
+	 (config (current-window-configuration)))
+  
+    ;; build buf2
+    (with-temp-buffer 
+      (let ((abspath (expand-file-name file))
+	    (filename nil))
+
+	;; get relative to git root dir
+	(cd (git--get-top-dir (file-name-directory file)))
+	(setq rev (concat rev (file-relative-name abspath)))
+	(setq buf2 (git--cat-file rev "blob" rev))))
 
     ;; set ediff type
     (setq ediff-split-window-function 'split-window-horizontally)
