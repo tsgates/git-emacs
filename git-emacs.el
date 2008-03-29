@@ -1,7 +1,9 @@
-;;; git-emacs (v.1.1) : yet another git emacs mode for newbies
+;;; git-emacs (v.1.2) : yet another git emacs mode for newbies
 ;;
 ;; Copyright (C) 2008  TSKim (tsgatesv@gmail.com)
 ;;
+;; v.1.2 Modified by Con Digitalpit @ 29 March 2008
+;; 
 ;; Authors    : TSKim : Kim Taesoo(tsgatesv@gmail.com)
 ;; Created    : 24 March 2007
 ;; License    : GPL
@@ -49,10 +51,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;; BUG FIXES
-;; 2008.03.28 : git-diff just work on git root
+;;   2008.03.28 : git-diff just work on git root
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+;; TODO : status -> index
+;; TODO : pull/patch
 ;; TODO : delete temporary log file
 ;; TODO : separate branch-mode & status-view-mode to other files
 ;; TODO : fetching 
@@ -82,6 +86,11 @@
 
 (defalias 'electric-pop-up-window 'Electric-pop-up-window)
 (defalias 'electric-command-loop  'Electric-command-loop)
+
+;;-----------------------------------------------------------------------------
+;; prerequisite modes
+;;-----------------------------------------------------------------------------
+(ido-mode t)                            ; need this line under Emacs 22.2 Ubuntu
 
 ;;-----------------------------------------------------------------------------
 ;; faces
@@ -927,13 +936,51 @@ If predicate return nil continue to scan, otherwise stop and return the node"
     (define-key map "d" 'git--status-view-rm)
     (define-key map "*" 'git--status-view-mark-reg)
     (define-key map "s" 'git--status-view-summary)
+    (define-key map "z" 'git-branch)
 
     ;; ok for commiting
     (define-key map "c" 'git-commit-all)
     
     (define-key map "\C-m" 'git--status-view-do-propriate)
 
-    (setq git--status-mode-map map)))
+    (setq git--status-mode-map map))
+
+  (easy-menu-define gitemacs-menu git--status-mode-map
+    "Git"
+    `("Emacs-Git"
+      ["Refresh" git--status-view-refresh t]
+      ["First Line" git--status-view-first-line t]
+      ["Last Line" git--status-view-last-line t]
+      ["Next Line" git--status-view-next-line t]
+      ["Previous Line" git--status-view-prev-line t]
+      ["Next meaningful line" git--status-view-next-meaningfull-line t]
+      ["Previous meaningful line" git--status-view-prev-meaningfull-line t]
+      ["Expand Tree" git--status-view-expand-tree-toggle]
+       "----" 
+       ["Add File" git--status-view-add t]
+       ["Ignore File" git--status-view-add-ignore t]
+       ["Rename File" git--status-view-rename t]
+       ["Open File" git--status-view-open-file t]
+       ["View File" git--status-view-view-file t]
+       ["Diff File" git--status-view-diff-file t]
+       ["Remove File" git--status-view-rm]
+       ["View Summary" git--status-view-summary t]
+       ["Log" git-log t]
+       ["Mark" git--status-view-mark-and-next t]
+       ["Unmark" git--status-view-unmark-and-next t]
+       "----"
+      ["Branch Mode" git-branch t]
+      ["Switch to Branch..." git--status-view-switch-branch t]      
+      ["Commit All" git-commit-all t]
+      ["Resolve Merge" git--status-view-resolve-merge t]
+      ["Merge" git-merge t]
+      ["Revert" git-revert t]
+      "----"
+      ["Git Command" git--status-view-git-cmd t]
+      ["GitK" git--status-view-gitk t]
+      "----"
+      ["Quit" git--status-view-quit t])))
+
 
 ;;-----------------------------------------------------------------------------
 ;; status view tree expanding
@@ -1171,7 +1218,10 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 (defsubst git--status-view-select-filename ()
   "Return current filename of view item"
 
-  (git--fileinfo->name (ewoc-data (ewoc-locate git--status-view))))
+  (let ((filename (git--fileinfo->name (ewoc-data (ewoc-locate git--status-view)))))
+    (when (file-directory-p filename)
+      (error "Execute on file"))
+    filename))
 
 (defsubst git--status-view-select-type ()
   "Return current type of view item"
@@ -1194,7 +1244,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   "Diff the selected file"
 
   (interactive)
-  (git-diff-cmd (git--status-view-select-filename)))
+  (git-diff (expand-file-name (git--status-view-select-filename))))
 
 (defun git--status-view-resolve-merge ()
   "Resolve the conflict if necessary"
@@ -1978,7 +2028,18 @@ Trim the buffer log and commit"
     (define-key map "s"     'git--branch-mode-switch)
     (define-key map "\C-m"  'git--branch-mode-switch)
 
-    (setq git--branch-mode-map map)))
+    (setq git--branch-mode-map map))
+
+  (easy-menu-define gitemacs-menu-branch git--branch-mode-map
+    "Git-Branch"
+    `("Git-Branch"
+      ["Next Line" next-line t]
+      ["Previous Line" previous-line t]
+      ["Switch Branch" git--branch-mode-switch t]
+      ["CheckOut Branch" git--branch-mode-checkout t]
+      ["Delete Branch" git--branch-mode-delete]
+      ["Quit" git--branch-mode-quit t])))
+
 
 (defun git--branch-mode-throw (data)
   "Git branch mode template to exit buffer"
