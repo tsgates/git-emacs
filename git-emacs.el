@@ -109,7 +109,7 @@
 
 (git--face mark       "red"    (:bold t) "tomato" (:bold t))
 (git--face mark-tree  "blue"   (:bold t) "yellow" (:bold t))
-(git--face mark-blob  "black"  () "white" ())
+(git--face mark-blob  "black"  (:bold t) "white"  (:bold t))
 (git--face unknown    "black"  (:bold t) "white"  (:bold t))
 (git--face ignored    "gray"   (:bold t) "gray"   (:bold t))
 (git--face bold       "tomato" (:bold t) "tomato" (:bold t))
@@ -2203,7 +2203,5 @@ if 'checkout -> call git-checkout-to-new-branch"
 
   ;; highlight
   (git--branch-mode-highlight))
-
-;;-----------------------------------------------------------------------------
 
 (provide 'git-emacs)
