@@ -14,21 +14,28 @@
          (reel-buffer (get-buffer reel-buffer-name)))
     (or reel-buffer (get-buffer-create reel-buffer-name))))
 
+;; 
+;; git-reel -> git--reel-mode
+;;          -> git--reel-new
+;; 
 (defun git-reel (dir)
   "Launch git-status mode at the directory if it is under 'git'"
 
   (interactive "DSelect directory: ")
 
-  ;; (setq dir (git--get-top-dir dir))
+  ;; under git
   (if (file-directory-p (git--expand-to-repository-dir dir))
       (save-excursion
         (switch-to-buffer (git--create-reel-buffer dir))
         (setq default-directory dir)
         (git--reel-mode)
-        (git--reel-new))
+        (git--reel-new)
+        (goto-char (point-min)))
     (message "%s is not a git working tree." dir)))
 
 (defun git--reel-new ()
+  "Newly create the ewoc view"
+  
   (let ((buffer-read-only nil)) (erase-buffer))
 
   (dolist (info (git--get-reel))
@@ -36,6 +43,8 @@
   (ewoc-refresh git--reel-view))
 
 (defun git--render-type (info)
+  "Render the type column of each item in ewoc list"
+
   (let ((type (git--reel-info->type info)))
     (propertize (symbol-name type) 'face
                 (case type
@@ -45,10 +54,18 @@
                   (t 'git--ignored-face)))))
 
 (defun git--render-etc (info)
+  "Render the extra information column of each item"
+  
   (let ((etc (git--reel-info->etc info)))
     (if (stringp etc) etc "")))
 
+;; 
+;; git--render-reel -> git--reel-type
+;;                  -> git--reel-etc
+;;                  
 (defun git--render-reel (info)
+  "Render the each item"
+
   (insert (format "  % 11d % 7s  %11s %7s %s"
                   (git--reel-info->offset info)
                   (propertize (int-to-string (git--reel-info->size info)) 'face 'git--bold-face)
@@ -56,16 +73,24 @@
                   (git--render-type info)
                   (git--render-etc info))))
 
+;; mode map of git-reel, but, remain it on TODO list
 (defvar git--reel-mode-map nil)
 
+;; TODO : add convenient key bindings
 (unless git--reel-mode-map
   (let ((map (make-keymap)))
     (suppress-keymap map)
 
+    (define-key map "r" 'git-reel-play)
+    (define-key map "q" '(lambda () (interactive) (kill-buffer nil)))
+    (define-key map "n" 'next-line)
+    (define-key map "p" 'previous-line)
 
     (setq git--reel-mode-map map)))
 
 (defun git--reel-mode ()
+  "Git reel commit mode"
+  
   (kill-all-local-variables)
   (buffer-disable-undo)
 
@@ -76,12 +101,15 @@
   (setq major-mode 'git-reel-mode)
 
   (setq buffer-read-only t)
+
+  ;; set ewoc
   (setq header-line-format
         (format "V  %11s %7s  %-11s %7s %s" "offset" "size" "sha1" "type" "info"))
 
   (set (make-local-variable 'git--reel-view)
        (ewoc-create 'git--render-reel "" "")))
 
+;; commit info from the git-rev-list
 (defstruct (git--commit-info
             (:copier nil)
             (:constructor git--create-commit-info (commit tree parents date))
@@ -130,6 +158,39 @@
           (push (git--create-commit-info commit tree parents date) commits))))
 
     ;; sort by commit time not restricting topological order
+    ;;
+    ;; sha1 of commit(month/day)
+    ;;
+    ;; C0(4/3) -> C1(4/4) -> C2(4/6) -> C3(4/7)->C4(4/8)
+    ;;          \-> C5(4/5)->C6(4/6)
+    ;;
+    ;; maybe the result of –topo-order option
+    ;; C0/C1/C2/C3/C4/C5/C6
+    ;;
+    ;; reflecting the date of commitment and sha1
+    ;; C0/C1/C5/C2/C6/C3/C4       (C1(4/4) < C5(4/5) and C2 < C6)
+
+    ;; so,
+    ;; 
+    ;; 1. from c0 to c6 (simple)
+    ;; [C0], [C0/C1], ... , [C0/C2/C3/C4], 
+    ;;
+    ;; 2. for C5
+    ;; [C0/C1/C2/C3/C4]
+    ;;     |  |   | +-> C4(4/8) > C5(4/5)
+    ;;     |  |   +-> C3(4/7) > C5(4/5)
+    ;;     |  +-> C2(4/6) > C5(4/5)
+    ;;     +-> C1(4/4) < C5(4/5)
+    ;; 
+    ;; => [C0/C1/C5/C2/C3/C4]
+    ;;
+    ;; 3. for C6
+    ;; [C0/C1/C5/C2/C3/C4]
+    ;;           |
+    ;;           +-> C2 < C6 (sha1)
+    ;; 
+    ;; => [C0/C1/C5/C2/C6/C3/C4]
+
     (dolist (commit commits sorted)
 
       ;; 
@@ -144,10 +205,15 @@
             (prev-commit nil)
             (iter-commit sorted))
 
-        ;; insert commit
-        (while (not (or (null iter-commit)                                            ; if there is nothing to be remained
-                        (member (git--commit-info->commit (car iter-commit)) parents) ; if cur-commit is my parent
-                        (> (git--commit-info->date commit)                            ; or commit time is earlier
+        ;; insert commit to proper position
+        ;; 
+        ;;   1. if there is nothing to be remained
+        ;;   2. if cur-commit is my parent
+        ;;   3. or commit time is earlier
+        
+        (while (not (or (null iter-commit)                                            ; 1
+                        (member (git--commit-info->commit (car iter-commit)) parents) ; 2
+                        (> (git--commit-info->date commit)                            ; 3
                            (git--commit-info->date (car iter-commit)))))
 
           ;; TODO if commit dates are same -> check sha1
@@ -174,6 +240,9 @@
 (defun git--get-object-size (sha1)
   (string-to-int (git--exec-string "cat-file" "-s" sha1)))
 
+(defvar git--commit-reel-lookup nil)
+(defvar git--commit-reel-offset nil)
+
 (defun git--get-reel ()
   ;; for each commits
   (let ((prev-commit-tree nil)          ; for iterating
@@ -195,8 +264,10 @@
     ;;    1-1) for each different objects, process offset/size
     ;;  2) add tree object of the commit
     ;;  3) add commit object itself
-    
-    (dolist (commit commits)
+
+    ;; FIXME : to right order (need a discussion)
+
+    (dolist (commit (reverse commits))
       (let* ((size 0)
              (cur-commit-tree (git--commit-info->tree commit))
              (cur-commit-sha1 (git--commit-info->commit commit))
@@ -245,6 +316,23 @@
 
         ;; commit process count
         (incf commit-cnt)))
+
+    ;; init commit lookup table in order to search block
+    (setq git--commit-reel-lookup nil)
+    (setq git--commit-reel-offset offset)
+    
+    ;; flipping the offset & making commit lookup table
+    (dolist (reel reels)
+      (setf (git--reel-info->offset reel)
+            (- offset
+               (git--reel-info->offset reel)
+               (git--reel-info->size reel)))
+
+      ;; TODO : better to binary search on whole reel or commit list
+      (when (eq (git--reel-info->type reel) 'commit)
+        (push (cons (git--reel-info->offset reel)
+                    (git--reel-info->sha1 reel))
+              git--commit-reel-lookup)))
 
     (message "100%% Complete")
 
@@ -355,4 +443,36 @@
           ((stringp tree2) (git--reel-from-tree tree2 ""))
           (t nil))))
 
+;; TODO : able to optimize, extensively
+(defun git-reel-play (block-size block-num)
+  (interactive "nBlock Size >> \nnBlock Number >> ")
+
+  (let* ((offset git--commit-reel-offset)
+         (num-of-blocks (+ (/ offset block-size)
+                           (if (= (% offset block-size) 0) 0 1)))
+         (reel-offset (* block-num block-size))
+         (commit-reel nil)              ; the commit starting in the block
+         (excluded-commit nil))         ; the last commit out of block
+
+    (when (or (< num-of-blocks block-num)
+              (< offset reel-offset))
+      (error (format "Wrong block size(%d) and num(%d)" block-size block-num)))
+
+    ;; search the proper commit reel
+    (dolist (commit (reverse git--commit-reel-lookup))
+      (let ((block-beg reel-offset)
+            (block-end (+ reel-offset block-size))
+            (block-iter (car commit)))
+
+        (if (and (<= block-beg block-iter) (< block-iter block-end))
+            (add-to-list 'commit-reel commit)
+          (when (and (<= block-end block-iter) (null excluded-commit))
+            (setq excluded-commit commit)))))
+
+    (message "git-rev-list --objects-edge %s %s"
+             (mapconcat 'cdr commit-reel " ")
+             (if excluded-commit
+                 (concat "^" (cdr excluded-commit))
+               ""))))
+  
 (provide 'git-reel)

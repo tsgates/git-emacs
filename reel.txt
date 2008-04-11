@@ -1,0 +1,98 @@
+As Sam Vilain recommended, I wrote a reel mode in git-emacs.
+Stated below is the rough idea of the flows.
+
+1.get topologically sorted commit objects
+ 1-1. execute “git-rev-list –topo-order --pretty=’format:date %ct%ntree %T%nparents %P’ HEAD
+ 1-2. parse the sha1 of commit and tree, parents, and date of commitment
+ 1-3. sort the commits by RFC rules without restricting the topological order
+             
+   sha1 of commit(month/day)
+   C0(4/3) -> C1(4/4) -> C2(4/6) -> C3(4/7)->C4(4/8)
+           \-> C5(4/5)->C6(4/6)
+
+   maybe the result of –topo-order option
+    C0/C1/C2/C3/C4/C5/C6 
+  
+   reflecting the date of commitment and sha1
+    C0/C1/C5/C2/C6/C3/C4       (C1(4/4) < C5(4/5) and C2 < C6)
+
+2. for each sorted commit (earlier first)
+ 1-1. construct the diff from the previous commit by git-diff-tree
+ 1-2. sort the diff ojbects by following under
+
+     sha1   file
+   ^ 0000   dir         <-+ sorted
+   |  0111  dir/1.txt     |    <-+ sorted
+   |  0112  dir/2.txt     |    <-+
+   | 0001   file1       <-+
+   | 0002   file2       <-|
+   | 0003   dir3        <-+
+   |  0113  dir3/1.txt         <-+ sorted
+   |  0114  dir3/2.txt         <-+ 
+
+   sort the tree objects hierarchically
+
+ 1-3 apeend tree and commit
+
+ example on git-emacs mode
+
+      offset     size  sha1           type info
+      ------------------------------------------------------------
+      2782581     188  db930fdd...  commit 1206500746.0
+      2782427     154  3183cf7e...    tree 
+      2714687   67740  d64d12d2...    blob git-emacs.el
+      2714422     265  05d59989...  commit 1206670217.0
+      2714268     154  a1170dff...    tree 
+      2646255   68013  3a1be7a3...    blob git-emacs.el
+      2646037     218  f49dadbb...  commit 1206670385.0
+      2645883     154  1c165709...    tree 
+      2643046    2837  645367a5...    tree docs
+      2511436  131610  2f399111...    blob docs/git-emacs.el.html
+      2482409   29027  e129f71e...    blob docs/git-emacs.html
+      2414258   68151  bd8e1520...    blob git-emacs.el
+      2414027     231  11ff9968...  commit 1206672017.0
+      2413873     154  07c4970b...    tree 
+      2411036    2837  2f2ef885...    tree docs
+      2382009   29027  5994ebf1...    blob docs/git-emacs.html
+      2381776     233  724f897c...  commit 1206672283.0
+      2381622     154  accfaf81...    tree 
+      2313471   68151  1ba81645...    blob git-emacs.el
+      2313160     311  3dd8d1c2...  commit 1206797969.0
+      2313006     154  d5325fad...    tree 
+      2242471   70535  0ff9d8db...    blob git-emacs.el
+      2240676    1795  60738f0d...    blob git-modeline.el
+      2237839    2837  8b165f3f...    tree docs
+      2145991   91848  009d247a...    blob docs/merge4.png
+      2100753   45238  0110774b...    blob docs/init-archive7.png
+      2063409   37344  08256cb0...    blob docs/commit2.png
+      2018925   44484  0aa3d20f...    blob docs/status8.png
+      2007052   11873  0ae1df9d...    blob docs/clone4.png
+      1951226   55826  17f38a77...    blob docs/status6.png
+
+       ....
+
+        59289   29079  f77e7566...    blob docs/git-emacs.html
+        48327   10962  f8543ca3...    blob docs/branch3.png
+        15273   33054  fb559555...    blob docs/git-blame.el.html
+            0   15273  bb671d56...    blob git-blame.el
+
+3. block request(play)
+ - git-reel-play ('r' in reel-mode)
+
+ - Block Size >> []
+ - Block Number >> []
+
+   find proper commits which start in the block (and the must-be-excluded commit)
+  
+   0    1    2    3    4
+   [   ][   ][   ][   ][]
+   [C1...C2..........C3.]
+  
+   (simple)
+  
+   request block 0 -> git-rev-list C1 ^C2
+   request block 1 -> git-rev-list C2 ^C3
+   request block 2 -> none
+   request block 3 -> git-rev-list C3
+
+ 
