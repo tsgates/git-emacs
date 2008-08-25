@@ -179,11 +179,11 @@
   "Execute 'git' clumsily"
 
   (apply #'call-process
-         (concat "git-" cmd)            ; cmd
+         "git"                          ; cmd
          inbuf                          ; in buffer
          outbuf                         ; out buffer
          nil                            ; display
-         args))                         ; args
+         (cons cmd args)))              ; args
 
 (defun git--exec-pipe (cmd input &rest args)
   "Execute 'echo input | git cmd args' and return result string"
