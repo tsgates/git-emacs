@@ -1711,6 +1711,9 @@ Trim the buffer log and commit"
       ;; flyspell-mode
       (when git--log-flyspell-mode (flyspell-mode t))
 
+      ;; comment hook
+      (run-hooks 'git-comment-hook)
+
       ;; hello~
       (message "Please 'C-cC-c' to commit"))
     (pop-to-buffer buffer)))
@@ -1780,11 +1783,16 @@ Trim the buffer log and commit"
   ;; revert buffer
   (revert-buffer))
 
+(defcustom gitk-program "gitk"
+  "The command used to launch gitk."
+  :type '(string)
+  :group 'git-emacs)
+
 (defun gitk ()
   "Launch gitk in emacs"
 
   (interactive)
-  (start-process "gitk" nil "gitk"))
+  (start-process "gitk" nil gitk-program))
     
 (defun git-checkout (&optional rev)
   "Checkout from 'tag' & 'branch' list when 'rev' is null"
