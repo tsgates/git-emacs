@@ -1,8 +1,8 @@
-;;; git-emacs (v.1.2) : yet another git emacs mode for newbies
+;;; git-emacs (v.1.3) : yet another git emacs mode for newbies
 ;;
 ;; Copyright (C) 2008  TSKim (tsgatesv@gmail.com)
 ;;
-;; v.1.2 Modified by Con Digitalpit @ 29 March 2008
+;; v.1.3 Modified by Con Digitalpit @ 29 March 2008
 ;; 
 ;; Authors    : TSKim : Kim Taesoo(tsgatesv@gmail.com)
 ;; Created    : 24 March 2007
@@ -55,6 +55,7 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+;; TODO : check git environment
 ;; TODO : status -> index
 ;; TODO : pull/patch
 ;; TODO : delete temporary log file
@@ -73,7 +74,7 @@
 ;; TODO : C-x v b -> branch
 ;; 
 ;; DONE : turn off ido-mode globally
-;; 
+;; DONE : git-add 
 
 (eval-when-compile (require 'cl))
 
@@ -91,7 +92,8 @@
 ;;-----------------------------------------------------------------------------
 ;; preference of ido-mode
 ;;-----------------------------------------------------------------------------
-(defvar git--ido-completing-read 'completing-read)
+(defvar git--ido-completing-read
+  #'(lambda (prompt &rest args) (read-minibuffer prompt)))
 
 (defcustom git--use-ido t
   "Turn ido globally or not"
@@ -100,7 +102,8 @@
 
 (when git--use-ido
   (require 'ido)                        ; ido readline
-  (setq git--ido-completing-read 'ido-completing-read))
+  (ido-mode t)
+  (setq git--ido-completing-read #'ido-completing-read))
 
 ;;-----------------------------------------------------------------------------
 ;; faces
@@ -287,7 +290,7 @@
 (defsubst git--select-from-user (prompt choices)
   "Select from choices"
 
-  (git--ido-completing-read prompt choices))
+  (funcall git--ido-completing-read prompt choices))
 
 ;;-----------------------------------------------------------------------------
 ;; git execute command
@@ -337,7 +340,6 @@ and finally 'git--clone-sentinal' is called"
   "Execute 'git-rest' with 'args' and return the result as string"
   
   (apply #'git--exec-string "reset" args))
-
 
 (defsubst git--config (&rest args)
   "Execute git-config with args"
@@ -1769,12 +1771,13 @@ Trim the buffer log and commit"
   
   (interactive "DLocal Directory : ")
   (let ((repository
-         (git--ido-completing-read "Repository : "
-                                   git--repository-bookmarks
-                                   nil
-                                   nil
-                                   ""
-                                   git--repository-history)))
+         (funcall git--ido-completing-read
+                  "Repository : "
+                  git--repository-bookmarks
+                  nil
+                  nil
+                  ""
+                  git--repository-history)))
     (with-temp-buffer
       (cd dir)
       (git--clone repository))))
@@ -2026,6 +2029,15 @@ Trim the buffer log and commit"
   (interactive)
   (git--switch-branch (git--select-branch (git--current-branch)))
   (revert-buffer))
+
+(defun git-add ()
+  "Add new files to repository (usually one file, at least to me)"
+  
+  (interactive)
+  (git--select-from-user "Add new files (regex) >> "
+                         (mapcar #'(lambda (fi)
+                                     (git--fileinfo->name fi))
+                                 (git--ls-files "--others"))))
 
 ;;-----------------------------------------------------------------------------
 ;; branch mode
