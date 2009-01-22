@@ -45,7 +45,7 @@
 ;;   
 ;;; Installation
 ;; 
-;; (add-to-list 'load-path "/home/tsgates/Skills/git/git-emacs")
+;; (add-to-list 'load-path "~/.emacs.d/git-emacs")
 ;; (require 'git-emacs)
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -72,12 +72,13 @@
 ;; TODO : locally flyspell
 ;; TODO : C-x v b -> branch
 ;; 
+;; DONE : turn off ido-mode globally
+;; 
 
 (eval-when-compile (require 'cl))
 
 (require 'ewoc)                         ; view
 (require 'vc-git)                       ; vc-git advises
-(require 'ido)                          ; ido readline
 (require 'electric)                     ; branch mode
 (require 'time-stamp)                   ; today
 
@@ -88,9 +89,18 @@
 (defalias 'electric-command-loop  'Electric-command-loop)
 
 ;;-----------------------------------------------------------------------------
-;; prerequisite modes
+;; preference of ido-mode
 ;;-----------------------------------------------------------------------------
-(ido-mode t)                            ; need this line under Emacs 22.2 Ubuntu
+(defvar git--ido-completing-read 'completing-read)
+
+(defcustom git--use-ido t
+  "Turn ido globally or not"
+  :type '(boolean)
+  :group 'git-emacs)
+
+(when git--use-ido
+  (require 'ido)                        ; ido readline
+  (setq git--ido-completing-read 'ido-completing-read))
 
 ;;-----------------------------------------------------------------------------
 ;; faces
@@ -277,7 +287,7 @@
 (defsubst git--select-from-user (prompt choices)
   "Select from choices"
 
-  (ido-completing-read prompt choices))
+  (git--ido-completing-read prompt choices))
 
 ;;-----------------------------------------------------------------------------
 ;; git execute command
@@ -1758,12 +1768,13 @@ Trim the buffer log and commit"
   "Clone from repository"
   
   (interactive "DLocal Directory : ")
-  (let ((repository (ido-completing-read "Repository : "
-                                         git--repository-bookmarks
-                                         nil
-                                         nil
-                                         ""
-                                         git--repository-history)))
+  (let ((repository
+         (git--ido-completing-read "Repository : "
+                                   git--repository-bookmarks
+                                   nil
+                                   nil
+                                   ""
+                                   git--repository-history)))
     (with-temp-buffer
       (cd dir)
       (git--clone repository))))
