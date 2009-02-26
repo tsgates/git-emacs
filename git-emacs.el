@@ -1961,8 +1961,6 @@ Trim the buffer log and commit"
 	(setq rev (concat rev (file-relative-name abspath)))
 	(setq buf2 (git--cat-file rev "blob" rev))))
 
-    ;; set ediff type
-    (setq ediff-split-window-function 'split-window-horizontally)
     (set-buffer (ediff-buffers buf1 buf2))
  
     (set (make-local-variable 'git--diff-buffer) buf2)
