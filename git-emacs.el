@@ -1444,8 +1444,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   ;; mark depending on the fileinfo state
   (when (and buffer-file-name (git--in-vc-mode?))
     (git--update-state-mark
-     (git--interprete-state-mode-color
-      (git--status-file (file-relative-name buffer-file-name))))))
+     (git--status-file (file-relative-name buffer-file-name)))))
 
 ;; simple highlighting for log view
 (font-lock-add-keywords 'vc-git-log-view-mode
@@ -1727,7 +1726,7 @@ Trim the buffer log and commit"
       (run-hooks 'git-comment-hook)
 
       ;; hello~
-      (message "Please 'C-cC-c' to commit"))
+      (message "Type 'C-cC-c' to commit"))
     (pop-to-buffer buffer)))
 
 (defun git-init (dir)

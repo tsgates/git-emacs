@@ -5,15 +5,45 @@
 
 (provide 'git-modeline)
 
-(defvar git--state-mark-modeline t)     ; modeline mark display or not
-(defvar git--state-mark-tooltip nil)    ; modeline tooltip display
+;; Modeline decoration customization
+(defcustom git-state-modeline-decoration 'git-state-decoration-large-dot
+  "How to indicate the status of files in the modeline. The value
+must be a function that takes a single arg: a symbol denoting file status,
+e.g. 'unmerged. The return value of the function will be added at the beginning
+of mode-line-format."
+  :type '(radio (function-item :tag "Small colored dot"
+                               git-state-decoration-small-dot)
+                (function-item :tag "Large colored dot"
+                               git-state-decoration-large-dot)
+                (function-item :tag "Status letter"
+                               git-state-decoration-letter)
+                (const :tag "No decoration" nil)
+                (function :tag "Other"))
+  :group 'git-emacs
+)
 
-(defun git--state-mark-modeline-dot (color)
-  (propertize "    "
-              'help-echo 'git--state-mark-tooltip
-              'display
-              `(image :type xpm
-                      :data ,(format "/* XPM */
+;; Modeline decoration options
+(defun git-state-decoration-small-dot(stat)
+  (git--state-mark-modeline-dot
+   (git--interprete-state-mode-color stat)
+"/* XPM */
+static char * data[] = {
+\"14 7 3 1\",
+\" 	c None\",
+\"+	c #202020\",
+\".	c %s\",
+\"      +++     \",
+\"     +...+    \",
+\"    +.....+   \",
+\"    +.....+   \",
+\"    +.....+   \",
+\"     +...+    \",
+\"      +++     \"};"))
+
+(defun git-state-decoration-large-dot(stat)
+  (git-state-mark-modeline-dot
+   (git--interprete-state-mode-color stat)
+"/* XPM */
 static char * data[] = {
 \"18 13 3 1\",
 \" 	c None\",
@@ -31,13 +61,39 @@ static char * data[] = {
 \"     +.......+    \",
 \"      +.....+     \",
 \"       +++++      \",
-\"                  \"};"
-                                     color)
+\"                  \"};"))
+
+(defun git-state-decoration-letter(stat)
+  (propertize
+   (case stat
+     ('modified "M ")
+     ('unknown  "? ")
+     ('added    "A ")
+     ('deleted  "D ")
+     ('unmerged "! ")
+     ('uptodate "U " )
+     (t ""))
+   'help-echo 'git--state-mark-tooltip))
+
+;; Modeline decoration implementation
+(defvar git--state-mark-modeline t)     ; marker for our entry in mode-line-fmt
+(defvar git--state-mark-tooltip nil)    ; modeline tooltip display
+
+(defun git--state-mark-modeline-dot (color img)
+  (propertize "    "
+              'help-echo 'git--state-mark-tooltip
+              'display
+              `(image :type xpm
+                      :data ,(format img color)
                       :ascent center)))
 
-(defun git--install-state-mark-modeline (color)
+(defun git--state-decoration-dispatch(stat)
+  (if (functionp git-state-modeline-decoration)
+      (funcall git-state-modeline-decoration stat)))
+
+(defun git--install-state-mark-modeline (stat)
   (push `(git--state-mark-modeline
-          ,(git--state-mark-modeline-dot color))
+          ,(git--state-decoration-dispatch stat))
         mode-line-format)
   (force-mode-line-update t))
 
@@ -51,13 +107,13 @@ static char * data[] = {
 (defun git--update-state-mark-tooltip (tooltip)
   (setq git--state-mark-tooltip tooltip))
 
-(defun git--update-state-mark (color)
+(defun git--update-state-mark (stat)
   (git--uninstall-state-mark-modeline)
-  (git--install-state-mark-modeline color))
+  (git--install-state-mark-modeline stat))
 
 ;; 
 ;; example on state-modeline-mark
 ;; 
-;; (git--install-state-mark-modeline "red")
+;;(git--install-state-mark-modeline 'modified)
 ;; (git--uninstall-state-mark-modeline)
 ;; (setq git--state-mark-tooltip "testsetset")
