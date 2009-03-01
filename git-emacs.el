@@ -80,6 +80,7 @@
 
 (require 'ewoc)                         ; view
 (require 'vc-git)                       ; vc-git advises
+(add-to-list 'vc-handled-backends 'git)
 (require 'electric)                     ; branch mode
 (require 'time-stamp)                   ; today
 
