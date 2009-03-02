@@ -86,6 +86,7 @@
 
 (require 'git-blame)                    ; git blame
 (require 'git-modeline)                 ; modeline dot
+(require 'git-keys)                     ; keyboard mappings
 
 (defalias 'electric-pop-up-window 'Electric-pop-up-window)
 (defalias 'electric-command-loop  'Electric-command-loop)
@@ -1501,7 +1502,9 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 (defadvice vc-find-file-hook (after git--vc-git-find-file-hook activate)
   "vc-find-file-hook advice for synchronizing with vc-git interface"
 
-  (when (git--in-vc-mode?) (git--update-modeline)))
+  (when (git--in-vc-mode?)
+    (git--update-modeline)
+    (git--install-file-commands)))
 
 (defadvice vc-after-save (after git--vc-git-after-save activate)
   "vc-after-save advice for synchronizing when saving buffer"
