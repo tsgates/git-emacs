@@ -391,7 +391,8 @@ and finally 'git--clone-sentinal' is called"
 (defsubst git--diff-index(args &rest files)
   "Execute 'git-diff' with 'args' and 'files' at current buffer"
 
-  (apply #'git--exec "update-index" nil nil "--refresh" "-q" "--" files)
+  (apply #'git--exec "update-index" nil nil "--refresh" "--no-assume-unchanged"
+         "--" files)
   (apply #'git--exec-buffer "diff-index" "-z" "--full-index"
          (append args (list "--") files)))
 
