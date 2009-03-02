@@ -1415,11 +1415,11 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
   (git--select-from-user "Select Tag : " (git--tag-list)))
 
-(defsubst git--select-revision ()
+(defsubst git--select-revision (prompt)
   "Select the revision"
   
-  (git--select-from-user "Select : " (append (git--branch-list)
-                                             (git--tag-list))))
+  (git--select-from-user prompt (append (git--branch-list)
+                                        (git--tag-list))))
 
 (defvar git--switch-branch-auto-msg nil "confirm the auto-generated message")
 
@@ -1795,7 +1795,8 @@ Trim the buffer log and commit"
   "Revert to other revision"
 
   (interactive)
-  (message (git--trim-string (git--revert (git--select-revision))))
+  (message (git--trim-string (git--revert
+                              (git--select-revision "Revert buffer to: "))))
 
   ;; revert buffer
   (revert-buffer))
@@ -1815,7 +1816,7 @@ Trim the buffer log and commit"
   "Checkout from 'tag' & 'branch' list when 'rev' is null"
 
   (interactive)
-  (unless rev (setq rev (git--select-revision)))
+  (unless rev (setq rev (git--select-revision "Checkout: ")))
 
   ;; TODO : sophisticated message control
   (message (git--trim-string (git--checkout rev))))
@@ -1826,7 +1827,7 @@ Trim the buffer log and commit"
   "Checkout to new list based on tag"
 
   (interactive "sNew Branch : ")
-  (let* ((tag (git--select-revision))
+  (let* ((tag (git--select-revision (format "Create \"%s\" based on: " branch)))
          (msg (git--checkout "-b" branch tag)))
     (if (string-match "^Switched" msg)
         (message "%s to the new branch '%s'"
@@ -1962,8 +1963,11 @@ Trim the buffer log and commit"
 
 	;; get relative to git root dir
 	(cd (git--get-top-dir (file-name-directory file)))
-	(setq rev (concat rev (file-relative-name abspath)))
-	(setq buf2 (git--cat-file rev "blob" rev))))
+	(setq filerev (concat rev (file-relative-name abspath)))
+	(setq buf2 (git--cat-file (if (equal rev ":")
+                                      (concat "<index>" filerev)
+                                    filerev)
+                                  "blob" filerev))))
 
     (set-buffer (ediff-buffers buf1 buf2))
  
@@ -2237,5 +2241,70 @@ if 'checkout -> call git-checkout-to-new-branch"
   (git--branch-mode-highlight))
 
 ;;-----------------------------------------------------------------------------
+
+;; options -- must have distinct first letters
+(defun git--prompt-for-choice(prompt_base options &optional default)
+  (let* ((cursor-in-echo-area t)
+         (options-with-strings (mapcar (lambda(sym)
+                                        (cons sym (format "%S" sym)))
+                                      options))
+         (char-to-option (mapcar (lambda(opt-str)
+                                   (cons (elt (cdr opt-str) 0) (car opt-str)))
+                                 options-with-strings))
+         (prompt
+          (format "%s%s? "
+                  prompt_base
+                  (mapconcat
+                   (lambda(opt-str)
+                     (format "[%s]%s"
+                             (propertize (upcase (substring (cdr opt-str) 0 1))
+                                         'face 'bold)
+                             (let ((rest-str (substring (cdr opt-str) 1)))
+                               (if (equal (car opt-str) default)
+                                   (propertize rest-str 'face 'bold)
+                                 rest-str))))
+                   options-with-strings " ")))
+         (char (read-char prompt)))
+    (if (eq char ?\r)
+        default
+      (or (cdr-safe (assoc char char-to-option))
+          (error "Invalid choice: not one of [%s]"
+                 (mapconcat (lambda(char-opt) (string (car char-opt)))
+                            char-to-option ", "))))))
+
+(defvar git--baseline-commit nil)
+
+(defun git-set-baseline(&optional use-previous)
+  "Set and return the baseline commit used in (`git-diff-current' 'baseline).
+If the optional parameter use-previous is true and the baseline commit was
+already set, simply returns it."
+  (interactive)
+  (if (and use-previous git--baseline-commit)
+      git--baseline-commit
+    (setq git--baseline-commit
+          (git--select-revision "Select baseline commit: "))
+    git--baseline-commit))
+
+(defun git-diff-current(against)
+  "Diff the current file against a commit or the index. Offers a choice between
+HEAD, the index, a \"baseline\" commit which will be remembered, or an
+arbitrary commit."
+  (interactive
+   (list (git--prompt-for-choice "Diff against: "
+                                 '(head index baseline other) 'head)))
+  (let ((diff-base
+         (case against
+           ('head "HEAD")
+           ('index "")   ;; luckily ":file" means file as currently staged
+           ('baseline (git-set-baseline t))
+           ;; FIXME: should allow sha1's
+           ('other (git--select-revision "Diff against commit: ")))))
+    (when (not (equal diff-base nil))
+      (if (not (and buffer-file-name (git--in-vc-mode?)))
+          (error "Current buffer must be a file under git revision control")
+        (message "Diffing current buffer against %s..."
+                 (if diff-base (format "\"%s\"" diff-base)
+                   "index"))
+        (git--diff buffer-file-name (concat diff-base ":"))))))
 
 (provide 'git-emacs)
