@@ -2039,13 +2039,37 @@ Trim the buffer log and commit"
   (revert-buffer))
 
 (defun git-add ()
-  "Add new files to repository (usually one file, at least to me)"
-  
+  "Add files to index. If executed in a buffer currently under git control,
+adds the current contents of that file to the index. Otherwise, prompts
+for new files to add to git."
   (interactive)
-  (git--select-from-user "Add new files (regex) >> "
-                         (mapcar #'(lambda (fi)
-                                     (git--fileinfo->name fi))
-                                 (git--ls-files "--others"))))
+  (if (not (and buffer-file-name (git--in-vc-mode?)))
+      (git-add-new)
+    (let ((rel-filename (file-relative-name buffer-file-name)))
+      (if (not (git--ls-files "--modified" "--" rel-filename))
+          (error "%s is already current in the index" rel-filename)
+        (when (y-or-n-p (format "Add the current contents of %s to the index? "
+                                rel-filename))
+          (git--add buffer-file-name))))))
+
+(defun git-add-new ()
+  "Add new files to the index, prompting the user for filenames or globs"
+  ;; TODO: ido doesn't give good feedback on globs
+  (let* ((files (git--select-from-user "Add new file (glob) >> "
+                                       (mapcar #'(lambda (fi)
+                                                   (git--fileinfo->name fi))
+                                               (git--ls-files "--others"))))
+         (matched-files (mapcar #'(lambda (fi) (git--fileinfo->name fi))
+                                    (git--ls-files "--others" "--" files))))
+    (if (not matched-files) (error "No files matched \"%s\"" files)
+      (let ((output (replace-regexp-in-string "[\s\n]+$" ""
+                                             (git--add matched-files))))
+        (if (not (equal output ""))
+            (error "git: %s" output)
+          (message "Added %s to git" (git--join matched-files ", "))
+          ;; TODO: refresh vc-git
+      )))))
+
 
 ;;-----------------------------------------------------------------------------
 ;; branch mode
@@ -2300,7 +2324,6 @@ arbitrary commit."
            ('head "HEAD")
            ('index "")   ;; luckily ":file" means file as currently staged
            ('baseline (git-set-baseline t))
-           ;; FIXME: should allow sha1's
            ('other (git--select-revision "Diff against commit: ")))))
     (when (not (equal diff-base nil))
       (if (not (and buffer-file-name (git--in-vc-mode?)))
