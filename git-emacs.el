@@ -2263,18 +2263,58 @@ if 'checkout -> call git-checkout-to-new-branch"
    ;; luckily ":file" means file as currently staged
   (git--diff buffer-file-name ":"))
 
-(defvar git--baseline-commit nil)
+;; baseline stuff
+(defvar git-baseline-commit '()
+  "Association list of (REPOSITORY-DIR . BASELINE-COMMIT). Both
+REPOSITORY-DIR and BASELINE-COMMIT are strings.")
+;; (makunbound 'git-baseline-commit)  ;;eval to clear variable
 
 (defun git-set-baseline(&optional use-previous)
   "Set and return the baseline commit used in (`git-diff-current' 'baseline).
-If the optional parameter use-previous is true and the baseline commit was
-already set, simply returns it."
+If the optional parameter use-previous is true and the baseline
+commit was already set, simply returns it. The baseline commit is
+per-repository and can be optionally stored in .emacs after being set."
   (interactive)
-  (if (and use-previous git--baseline-commit)
-      git--baseline-commit
-    (setq git--baseline-commit
-          (git--select-revision "Select baseline commit: "))
-    git--baseline-commit))
+  ;; This function is a bit too long. Consider extracting parts that may
+  ;; be useful elsewhere.
+  (let* ((repo-dir
+          ;; either the repo of the current buffer
+          (if buffer-file-name
+               (git--get-top-dir (or (file-name-directory buffer-file-name)
+                                     ""))
+            ;; or one prompted from the user
+            (let ((prompted-repo-dir
+                   (read-directory-name "Set baseline for repository: "
+                                        default-directory nil t)))
+              ;; verify that it's a git repo indeed
+              (if (equal
+                   (expand-file-name (file-name-as-directory prompted-repo-dir))
+                   (expand-file-name (git--get-top-dir prompted-repo-dir)))
+                  prompted-repo-dir
+                (error "Not a git repository: %s" prompted-repo-dir)))))
+         ;; canonicalize, for storage / lookup
+         (canonical-repo-dir
+          (expand-file-name (file-name-as-directory repo-dir)))
+         (previous-baseline-assoc
+          (assoc canonical-repo-dir git-baseline-commit)))
+    ;; found among previous associations?
+    (if (and use-previous previous-baseline-assoc)
+        (cdr previous-baseline-assoc)
+      ;; prompt for new one
+      (let ((new-baseline
+             (with-temp-buffer
+               (cd canonical-repo-dir)
+               (git--select-revision "Select baseline commit: "))))
+        ;; store in variable
+        (if previous-baseline-assoc
+            (setcar previous-baseline-assoc new-baseline)
+          (add-to-list 'git-baseline-commit
+                       (cons canonical-repo-dir new-baseline)))
+        ;; ... which we possibly save in .emacs
+        (when (y-or-n-p "Save for future sessions? ")
+          (customize-save-variable 'git-baseline-commit
+                                   git-baseline-commit))
+        new-baseline))))
 
 (defun git-diff-buffer-baseline()
   "Diff current buffer against a selectable \"baseline\" commit"
