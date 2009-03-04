@@ -24,13 +24,15 @@
 (easy-menu-add-item nil '("tools" "vc") "---")
 (easy-menu-add-item nil '("tools" "vc")
   `("Git"
-    ["Add current file to index" git-add t]
+    ("Add to index"
+     ["Current file" git-add t]
+     ["New files..." git-add-new t])
     ["Commit all" git-commit-all t]
     ("Diff current buffer against"
       ["HEAD" git-diff-buffer-head t]
       ["Baseline" git-diff-buffer-baseline t]
       ["Index" git-diff-buffer-index t]
-      ["Other" git-diff-buffer-other t]
+      ["Other..." git-diff-buffer-other t]
       )
     ["Status" git-status t]))
 
