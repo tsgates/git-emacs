@@ -86,6 +86,7 @@
 
 (require 'git-blame)                    ; git blame
 (require 'git-modeline)                 ; modeline dot
+(require 'git-global-keys)              ; global keyboard mappings
 
 (defalias 'electric-pop-up-window 'Electric-pop-up-window)
 (defalias 'electric-command-loop  'Electric-command-loop)
@@ -1415,11 +1416,11 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
   (git--select-from-user "Select Tag : " (git--tag-list)))
 
-(defsubst git--select-revision ()
+(defsubst git--select-revision (prompt)
   "Select the revision"
   
-  (git--select-from-user "Select : " (append (git--branch-list)
-                                             (git--tag-list))))
+  (git--select-from-user prompt (append (git--branch-list)
+                                        (git--tag-list))))
 
 (defvar git--switch-branch-auto-msg nil "confirm the auto-generated message")
 
@@ -1795,7 +1796,8 @@ Trim the buffer log and commit"
   "Revert to other revision"
 
   (interactive)
-  (message (git--trim-string (git--revert (git--select-revision))))
+  (message (git--trim-string (git--revert
+                              (git--select-revision "Revert buffer to: "))))
 
   ;; revert buffer
   (revert-buffer))
@@ -1815,7 +1817,7 @@ Trim the buffer log and commit"
   "Checkout from 'tag' & 'branch' list when 'rev' is null"
 
   (interactive)
-  (unless rev (setq rev (git--select-revision)))
+  (unless rev (setq rev (git--select-revision "Checkout: ")))
 
   ;; TODO : sophisticated message control
   (message (git--trim-string (git--checkout rev))))
@@ -1826,7 +1828,7 @@ Trim the buffer log and commit"
   "Checkout to new list based on tag"
 
   (interactive "sNew Branch : ")
-  (let* ((tag (git--select-revision))
+  (let* ((tag (git--select-revision (format "Create \"%s\" based on: " branch)))
          (msg (git--checkout "-b" branch tag)))
     (if (string-match "^Switched" msg)
         (message "%s to the new branch '%s'"
@@ -1962,8 +1964,11 @@ Trim the buffer log and commit"
 
 	;; get relative to git root dir
 	(cd (git--get-top-dir (file-name-directory file)))
-	(setq rev (concat rev (file-relative-name abspath)))
-	(setq buf2 (git--cat-file rev "blob" rev))))
+	(setq filerev (concat rev (file-relative-name abspath)))
+	(setq buf2 (git--cat-file (if (equal rev ":")
+                                      (concat "<index>" filerev)
+                                    filerev)
+                                  "blob" filerev))))
 
     (set-buffer (ediff-buffers buf1 buf2))
  
@@ -2237,5 +2242,56 @@ if 'checkout -> call git-checkout-to-new-branch"
   (git--branch-mode-highlight))
 
 ;;-----------------------------------------------------------------------------
+;; Expanded diff functions
+;;-----------------------------------------------------------------------------
+
+(defun git--require-buffer-in-git ()
+  "Error out from interactive if current buffer is not in git revision control."
+  (if (not (and buffer-file-name (git--in-vc-mode?)))
+      (error "Current buffer must be a file under git revision control")))
+
+;; diff-buffer functions
+(defun git-diff-buffer-head()
+  "Diff current buffer against HEAD version, using ediff"
+  (interactive)
+  (git--require-buffer-in-git)
+  (git--diff buffer-file-name "HEAD:"))
+
+(defun git-diff-buffer-index()
+  "Diff current buffer against version in index, using ediff"
+  (interactive)
+  (git--require-buffer-in-git)
+   ;; luckily ":file" means file as currently staged
+  (git--diff buffer-file-name ":"))
+
+(defvar git--baseline-commit nil)
+
+(defun git-set-baseline(&optional use-previous)
+  "Set and return the baseline commit used in (`git-diff-current' 'baseline).
+If the optional parameter use-previous is true and the baseline commit was
+already set, simply returns it."
+  (interactive)
+  (if (and use-previous git--baseline-commit)
+      git--baseline-commit
+    (setq git--baseline-commit
+          (git--select-revision "Select baseline commit: "))
+    git--baseline-commit))
+
+(defun git-diff-buffer-baseline()
+  "Diff current buffer against a selectable \"baseline\" commit"
+  (interactive)
+  (git--require-buffer-in-git)
+  (git--diff buffer-file-name (concat (git-set-baseline t) ":")))
+
+(defun git-diff-buffer-other(commit)
+  "Diff current buffer against an arbitrary commit"
+  (interactive
+   (progn
+     (git--require-buffer-in-git)
+     (list (git--select-revision "Diff against commit: "))))
+  (git--diff buffer-file-name (concat commit ":")))
+
+;;-----------------------------------------------------------------------------
 
 (provide 'git-emacs)
+
