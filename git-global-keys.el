@@ -21,4 +21,19 @@
 
 (define-key git-global-map "s" '("Status" . git-status))
 
+(easy-menu-add-item nil '("tools" "vc") "---")
+(easy-menu-add-item nil '("tools" "vc")
+  `("Git"
+    ["Add current file to index" git-add t]
+    ["Commit all" git-commit-all t]
+    ("Diff current buffer against"
+      ["HEAD" git-diff-buffer-head t]
+      ["Baseline" git-diff-buffer-baseline t]
+      ["Index" git-diff-buffer-index t]
+      ["Other" git-diff-buffer-other t]
+      )
+    ["Status" git-status t]))
+
+;; (force-mode-line-update)
+
 (provide 'git-global-keys)
