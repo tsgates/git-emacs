@@ -98,13 +98,12 @@
   #'(lambda (prompt &rest args) (read-minibuffer prompt)))
 
 (defcustom git--use-ido t
-  "Turn ido globally or not"
+  "Use ido for Git prompts."
   :type '(boolean)
   :group 'git-emacs)
 
 (when git--use-ido
   (require 'ido)                        ; ido readline
-  (ido-mode t)
   (setq git--ido-completing-read #'ido-completing-read))
 
 ;;-----------------------------------------------------------------------------
