@@ -20,6 +20,8 @@
 (define-key git--diff-buffer-map "h" '("[H]ead" . git-diff-buffer-head))
 (define-key git--diff-buffer-map (kbd "RET") 'git-diff-buffer-head)
 
+(define-key git-global-map "i" 'git-add-interactively)
+
 (define-key git-global-map "s" '("Status" . git-status))
 
 (easy-menu-add-item nil '("tools" "vc") "---")
@@ -27,6 +29,7 @@
   `("Git"
     ("Add to index"
      ["Current file" git-add t]
+     ["Select changes in current file..." git-add-interactively t]
      ["New files..." git-add-new t])
     ["Commit all" git-commit-all t]
     ("Diff current buffer against"
@@ -37,6 +40,5 @@
       )
     ["Status" git-status t]))
 
-;; (force-mode-line-update)
 
 (provide 'git-global-keys)

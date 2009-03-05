@@ -189,28 +189,32 @@
 ;; fork git process
 ;;-----------------------------------------------------------------------------
 
-(defsubst git--exec (cmd outbuf inbuf &rest args)
+(defsubst git--exec (cmd outbuf infile &rest args)
   "Execute 'git' clumsily"
 
   (apply #'call-process
          "git"                          ; cmd
-         inbuf                          ; in buffer
+         infile                         ; in file
          outbuf                         ; out buffer
          nil                            ; display
          (cons cmd args)))              ; args
 
 (defun git--exec-pipe (cmd input &rest args)
-  "Execute 'echo input | git cmd args' and return result string"
+  "Execute 'echo input | git cmd args' and return result
+string. INPUT can also be a buffer."
 
   (with-output-to-string
     (with-current-buffer standard-output
       (let ((tmp (make-temp-file "git-tmp")))
-        (with-temp-buffer
-          (insert input)
-          (write-file tmp)
-
+        (if (bufferp input)
+            (with-current-buffer input
+              (write-file tmp))
+          (with-temp-buffer
+            (insert input)
+            (write-file tmp)))
+            
           ;; tricky hide write to file message
-          (message ""))
+        (message "")
         (apply #'git--exec cmd t tmp args)))))
 
 (defsubst git--exec-buffer (cmd &rest args)
@@ -402,9 +406,20 @@ and finally 'git--clone-sentinal' is called"
   ;; update fileinfo -> unmerged index
   (let ((fileinfo nil)
         (unmerged-info (make-hash-table :test 'equal))
-        (regexp (git--build-reg git--reg-status  ; matched-1
+        (regexp (git--build-reg ":"
+                                git--reg-perm    ; matched-1: HEAD perms
+                                git--reg-blank
+                                git--reg-perm    ; matched-2: index perms
+
+                                git--reg-blank
+                                git--reg-sha1    ; matched-3: HEAD sha1
+                                git--reg-blank
+                                git--reg-sha1    ; matched-4: index sha1
+                                git--reg-blank
+                                git--reg-status  ; matched-5
                                 git--reg-eof
-                                git--reg-file))) ; matched-2
+                                git--reg-file    ; matched-6
+                                )))
 
     (dolist (fi (git--ls-unmerged))
       (puthash (git--fileinfo->name fi)
@@ -412,19 +427,20 @@ and finally 'git--clone-sentinal' is called"
                unmerged-info))
 
     (with-temp-buffer
-      (apply #'git--diff-index (list "--name-status"  "HEAD") files)
+      (apply #'git--diff-index (list "HEAD") files)
 
       (goto-char (point-min))
 
       (while (re-search-forward regexp nil t)
-        (let ((stat (git--interprete-to-state-symbol (match-string 1)))
-              (file (match-string 2)))
+        (let ((perm (match-string 2))
+              (stat (git--interprete-to-state-symbol (match-string 5)))
+              (file (match-string 6)))
 
           ;; if unmerged file
           (when (gethash file unmerged-info) (setq stat 'unmerged))
 
           ;; assume all listed elements are 'blob
-          (push (git--create-fileinfo file 'blob nil nil nil stat) fileinfo))))
+          (push (git--create-fileinfo file 'blob nil perm nil stat) fileinfo))))
 
     fileinfo))
 
@@ -483,6 +499,10 @@ and finally 'git--clone-sentinal' is called"
 
     (let ((cdup (git--rev-parse "--show-cdup")))
       (git--concat-path dir (car (split-string cdup "\n"))))))
+
+(defun git--get-relative-to-top(filename)
+  (file-relative-name filename
+                      (git--get-top-dir (file-name-directory filename))))
 
 (defun git--ls-unmerged ()
   "Get the list of 'git--fileinfo' of the unmerged files"
@@ -1944,11 +1964,15 @@ Trim the buffer log and commit"
           (error (git--trim-tail msg)))))
     buffer))
 
-(defvar git--diff-buffer nil "locally saved buffer for ediffing")
-(defvar git--diff-window nil "locally saved windows for ediffing")
-
-(defun git--diff (file rev &rest args)
-  "Implementation of git-diff, it should be called with file and revision"
+(defun git--diff (file rev &optional before-ediff-hook after-ediff-hook)
+  "Starts an ediff session between the FILE and its specified revision.
+REVISION should include the filename. The latter should not
+include the filename, e.g. \"HEAD:\". If BEFORE-EDIFF-HOOK or
+AFTER-EDIFF-HOOK are specified, they are executed with two
+arguments: the A and B buffers of ediff. BEFORE-EDIFF-HOOK is
+executed before running ediff-buffers. AFTER-EDIFF-HOOK is
+executed after the user quits the ediff session, but before ediff
+cleanup"
 
   (setq abspath (expand-file-name file))
   
@@ -1968,20 +1992,22 @@ Trim the buffer log and commit"
                                       (concat "<index>" filerev)
                                     filerev)
                                   "blob" filerev))))
-
+    (when before-ediff-hook (funcall before-ediff-hook buf1 buf2))
     (set-buffer (ediff-buffers buf1 buf2))
  
-    (set (make-local-variable 'git--diff-buffer) buf2)
-    (set (make-local-variable 'git--diff-window) config)
     (set (make-local-variable 'ediff-quit-hook)
-         #'(lambda ()
-             (let ((buffer git--diff-buffer)
-                   (window git--diff-window))
-               
-               (ediff-cleanup-mess)               
-               (set-buffer buffer)
-               (kill-buffer buffer)
-               (set-window-configuration window))))))
+         (lexical-let ((saved-config config)
+                       (saved-after-ediff-hook after-ediff-hook))
+           #'(lambda ()
+               (let ((buffer-A ediff-buffer-A)
+                     (buffer-B ediff-buffer-B))
+                 (unwind-protect        ; an error here is a real mess
+                     (when saved-after-ediff-hook
+                       (funcall saved-after-ediff-hook buffer-A buffer-B))
+                   (ediff-cleanup-mess)            
+                   (set-buffer buffer-B)
+                   (kill-buffer buffer-B)
+                   (set-window-configuration saved-config))))))))
 
 (defun git-diff-head (file)
   "Simple diffing with the previous HEAD"
@@ -2353,6 +2379,43 @@ per-repository and can be optionally stored in .emacs after being set."
      (git--require-buffer-in-git)
      (list (git--select-revision "Diff against commit: "))))
   (git--diff buffer-file-name (concat commit ":")))
+
+;;-----------------------------------------------------------------------------
+;; Add interactively
+;;-----------------------------------------------------------------------------
+(defun git-add-interactively()
+  "A friendly replacement git add -i, using ediff"
+  (interactive)                         ; haha
+  (git--require-buffer-in-git)
+  (git--diff
+   buffer-file-name ":"
+   ;; before ediff
+   (lambda(file-buf index-buf)
+     (with-current-buffer index-buf
+       (setq buffer-read-only nil)
+       (set-buffer-modified-p nil))
+     )
+   ;; after ediff
+   (lambda(file-buf index-buf)
+     (if (not (buffer-modified-p index-buf))
+         (message "No changes to index")
+       (with-current-buffer file-buf
+         (let ((filename (file-relative-name buffer-file-name)))
+           (when (y-or-n-p "Add selected changes to the git index? ")
+             ;; insert index-buf as blob object,  get its hash
+             (let ((new-content-hash
+                    (git--trim-string (git--exec-pipe
+                                       "hash-object"
+                                       index-buf
+                                       "-t" "blob" "-w" "--stdin")))
+                (fileinfo (car-safe (git--status-index filename))))
+               ;; update index with the new object
+               (git--exec-string
+                "update-index" "--cacheinfo"
+                (git--fileinfo->perm fileinfo)
+                new-content-hash
+                (git--get-relative-to-top buffer-file-name))))))))
+   ))
 
 ;;-----------------------------------------------------------------------------
 
