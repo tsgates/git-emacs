@@ -1,4 +1,5 @@
 ;; See git-emacs.el for License information
+(require 'easymenu)
 
 (defcustom git-keyboard-prefix "\C-xg"
   "Keyboard prefix to use for global git keyboard commands."
