@@ -58,7 +58,6 @@
 ;; TODO : check git environment
 ;; TODO : status -> index
 ;; TODO : pull/patch
-;; TODO : delete temporary log file
 ;; TODO : separate branch-mode & status-view-mode to other files
 ;; TODO : fetching 
 ;; TODO : regular exp selecting
@@ -205,17 +204,19 @@ string. INPUT can also be a buffer."
 
   (with-output-to-string
     (with-current-buffer standard-output
-      (let ((tmp (make-temp-file "git-tmp")))
-        (if (bufferp input)
-            (with-current-buffer input
-              (write-file tmp))
-          (with-temp-buffer
-            (insert input)
-            (write-file tmp)))
-            
-          ;; tricky hide write to file message
-        (message "")
-        (apply #'git--exec cmd t tmp args)))))
+      (let ((tmp (make-temp-file "git-emacs-tmp")))
+        (unwind-protect
+            (progn
+              (if (bufferp input)
+                  (with-current-buffer input
+                    (write-file tmp))
+                (with-temp-buffer
+                  (insert input)
+                  (write-file tmp)))
+              ;; tricky hide write to file message
+              (message "")
+              (apply #'git--exec cmd t tmp args))
+          (delete-file tmp))))))
 
 (defsubst git--exec-buffer (cmd &rest args)
   "Execute 'git' within the buffer"
