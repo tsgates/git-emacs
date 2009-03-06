@@ -2075,7 +2075,7 @@ for new files to add to git."
           (error "%s is already current in the index" rel-filename)
         (when (y-or-n-p (format "Add the current contents of %s to the index? "
                                 rel-filename))
-          (git--add buffer-file-name))))))
+          (git--add rel-filename))))))
 
 (defun git-add-new ()
   "Add new files to the index, prompting the user for filenames or globs"
