@@ -1968,13 +1968,11 @@ Trim the buffer log and commit"
 (defun git--diff (file rev &optional before-ediff-hook after-ediff-hook)
   "Starts an ediff session between the FILE and its specified revision.
 REVISION should include the filename. The latter should not
-include the filename, e.g. \"HEAD:\". If BEFORE-EDIFF-HOOK or
-AFTER-EDIFF-HOOK are specified, they are executed with two
-arguments: the A and B buffers of ediff. BEFORE-EDIFF-HOOK is
-executed before running ediff-buffers. AFTER-EDIFF-HOOK is
-executed after the user quits the ediff session, but before ediff
-cleanup"
-
+include the filename, e.g. \"HEAD:\". If BEFORE-EDIFF-HOOK is specified,
+it is executed as an ediff setup hook. If AFTER-EDIFF-HOOK is specified,
+it is executed as an ediff quit hook. Both hooks run in the ediff context,
+i.e. with valid ediff-buffer-A and B variables, among others.
+"
   (setq abspath (expand-file-name file))
   
   (let* ((buf1 (find-file-noselect file))
@@ -1993,22 +1991,24 @@ cleanup"
                                       (concat "<index>" filerev)
                                     filerev)
                                   "blob" filerev))))
-    (when before-ediff-hook (funcall before-ediff-hook buf1 buf2))
-    (set-buffer (ediff-buffers buf1 buf2))
- 
-    (set (make-local-variable 'ediff-quit-hook)
-         (lexical-let ((saved-config config)
-                       (saved-after-ediff-hook after-ediff-hook))
-           #'(lambda ()
-               (let ((buffer-A ediff-buffer-A)
-                     (buffer-B ediff-buffer-B))
-                 (unwind-protect        ; an error here is a real mess
-                     (when saved-after-ediff-hook
-                       (funcall saved-after-ediff-hook buffer-A buffer-B))
-                   (ediff-cleanup-mess)            
-                   (set-buffer buffer-B)
-                   (kill-buffer buffer-B)
-                   (set-window-configuration saved-config))))))))
+
+    (set-buffer
+     (ediff-buffers buf1 buf2
+                    (when before-ediff-hook (list before-ediff-hook))))
+    
+    (add-hook 'ediff-quit-hook
+              (lexical-let ((saved-config config)
+                            (saved-after-ediff-hook after-ediff-hook))
+                #'(lambda ()
+                    (let ((buffer-B ediff-buffer-B))
+                      (unwind-protect ; an error here is a real mess
+                          (when saved-after-ediff-hook
+                            (funcall saved-after-ediff-hook))
+                        (ediff-cleanup-mess)
+                        (kill-buffer buffer-B)
+                        (set-window-configuration saved-config)))))
+              nil t)                     ; prepend, buffer-local
+    ))
 
 (defun git-diff-head (file)
   "Simple diffing with the previous HEAD"
@@ -2391,34 +2391,34 @@ per-repository and can be optionally stored in .emacs after being set."
   (git--diff
    buffer-file-name ":"
    ;; before ediff
-   (lambda(file-buf index-buf)
-     (with-current-buffer index-buf
+   (lambda()
+     (with-current-buffer ediff-buffer-B
        (setq buffer-read-only nil)
        (set-buffer-modified-p nil))
-     )
+     (message "Your changes to the second buffer will be added to the index"))
    ;; after ediff
-   (lambda(file-buf index-buf)
-     (if (not (buffer-modified-p index-buf))
-         (message "No changes to index")
-       (with-current-buffer file-buf
-         (let ((filename (file-relative-name buffer-file-name)))
-           (when (y-or-n-p "Add selected changes to the git index? ")
-             ;; insert index-buf as blob object,  get its hash
-             (let ((new-content-hash
-                    (git--trim-string (git--exec-pipe
-                                       "hash-object"
-                                       index-buf
-                                       "-t" "blob" "-w" "--stdin")))
-                (fileinfo (car-safe (git--status-index filename))))
-               ;; update index with the new object
-               (git--exec-string
-                "update-index" "--cacheinfo"
-                (git--fileinfo->perm fileinfo)
-                new-content-hash
-                (git--get-relative-to-top buffer-file-name))))))))
-   ))
-
+   (lambda()
+     (let ((file-buf ediff-buffer-A)
+           (index-buf ediff-buffer-B))
+       (if (not (buffer-modified-p index-buf))
+           (message "No changes to the index")
+         (with-current-buffer file-buf
+           (let ((filename (file-relative-name buffer-file-name)))
+             (when (y-or-n-p "Add changes to the git index? ")
+               ;; insert index-buf as blob object,  get its hash
+               (let ((new-content-hash
+                      (git--trim-string (git--exec-pipe
+                                         "hash-object"
+                                         index-buf
+                                         "-t" "blob" "-w" "--stdin")))
+                     (fileinfo (car-safe (git--status-index filename))))
+                 ;; update index with the new object
+                 (git--exec-string
+                  "update-index" "--cacheinfo"
+                  (git--fileinfo->perm fileinfo)
+                  new-content-hash
+                  (git--get-relative-to-top buffer-file-name))))))))
+   )))
 ;;-----------------------------------------------------------------------------
 
 (provide 'git-emacs)
-
