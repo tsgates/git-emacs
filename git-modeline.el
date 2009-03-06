@@ -6,7 +6,9 @@
 (provide 'git-modeline)
 
 ;; Modeline decoration customization
-(defcustom git-state-modeline-decoration 'git-state-decoration-large-dot
+(defcustom git-state-modeline-decoration
+  (if window-system 'git-state-decoration-large-dot
+                    'git-state-decoration-colored-letter)
   "How to indicate the status of files in the modeline. The value
 must be a function that takes a single arg: a symbol denoting file status,
 e.g. 'unmerged. The return value of the function will be added at the beginning
@@ -17,6 +19,8 @@ of mode-line-format."
                                git-state-decoration-large-dot)
                 (function-item :tag "Status letter"
                                git-state-decoration-letter)
+                (function-item :tag "Colored status letter"
+                               git-state-decoration-colored-letter)
                 (const :tag "No decoration" nil)
                 (function :tag "Other"))
   :group 'git-emacs
@@ -63,16 +67,28 @@ static char * data[] = {
 \"       +++++      \",
 \"                  \"};"))
 
+(defsubst git--interpret-state-mode-letter(stat)
+   (case stat
+     ('modified "M")
+     ('unknown  "?")
+     ('added    "A")
+     ('deleted  "D")
+     ('unmerged "!")
+     ('uptodate "U" )
+     (t "")))
+
 (defun git-state-decoration-letter(stat)
   (propertize
-   (case stat
-     ('modified "M ")
-     ('unknown  "? ")
-     ('added    "A ")
-     ('deleted  "D ")
-     ('unmerged "! ")
-     ('uptodate "U " )
-     (t ""))
+   (concat (git--interpret-state-mode-letter stat) " ")
+   'help-echo 'git--state-mark-tooltip))
+
+(defun git-state-decoration-colored-letter(stat)
+  (propertize
+   (concat 
+    (propertize 
+     (git--interpret-state-mode-letter stat)
+     'face (list ':foreground (git--interprete-state-mode-color stat)))
+    " ")
    'help-echo 'git--state-mark-tooltip))
 
 ;; Modeline decoration implementation
