@@ -422,9 +422,10 @@ and finally 'git--clone-sentinal' is called"
                                 git--reg-file    ; matched-6
                                 )))
 
-    (dolist (fi (git--ls-unmerged))
-      (puthash (git--fileinfo->name fi)
-               (git--fileinfo->stat fi)
+    (dolist (stage-and-fi (git--ls-unmerged))
+      ;; ignore the different stages, since we're not using the sha1s
+      (puthash (git--fileinfo->name (cdr stage-and-fi))
+               (git--fileinfo->stat (cdr stage-and-fi))
                unmerged-info))
 
     (with-temp-buffer
@@ -505,12 +506,14 @@ and finally 'git--clone-sentinal' is called"
   (file-relative-name filename
                       (git--get-top-dir (file-name-directory filename))))
 
-(defun git--ls-unmerged ()
-  "Get the list of 'git--fileinfo' of the unmerged files"
+(defun git--ls-unmerged (&rest files)
+  "Get the list of unmerged files. Returns an association list of
+\(stage . git--fileinfo), where stage is one of 1, 2, 3. If FILES is specified,
+only checks the specified files. The list is sorted by filename."
   
   (let (fileinfo)
     (with-temp-buffer
-      (git--exec-buffer "ls-files" "-t" "-u" "-z")
+      (apply #'git--exec-buffer "ls-files" "-t" "-u" "-z" files)
       (goto-char (point-min))
 
       (let ((regexp (git--build-reg git--reg-perm    ; matched-1
@@ -524,13 +527,15 @@ and finally 'git--clone-sentinal' is called"
         (while (re-search-forward regexp nil t)
           (let ((perm (match-string 1))
                 (sha1 (match-string 2))
+                (stage (match-string 3))
                 (file (match-string 4)))
 
-            (unless (and fileinfo
-                         (string= file (git--fileinfo->name (car (last fileinfo)))))
-              (push (git--create-fileinfo file 'blob sha1 perm nil 'unmerged)
-                    fileinfo))))))
-    (sort fileinfo 'git--fileinfo-lessp)))
+              (push
+               (cons (string-to-number stage)
+                     (git--create-fileinfo file 'blob sha1 perm nil 'unmerged))
+               fileinfo)))))
+    (sort fileinfo #'(lambda(cell1 cell2)
+                       (git--fileinfo-lessp (cdr cell1) (cdr cell2))))))
 
 (defun git--ls-files (&rest args)
   "Execute 'git-ls-files' with 'args' and return the list of the 'git--fileinfo'"
@@ -1630,7 +1635,8 @@ Trim the buffer log and commit"
 side ('ours or 'theirs)"
 
   (let* ((filename (file-relative-name (buffer-file-name template)))
-         (buffer-name (concat (capitalize (symbol-name side)) ": " filename))
+         (buffer-name (format "*%s*: %s"
+                              (capitalize (symbol-name side)) filename))
          (buffer (get-buffer-create buffer-name))
          (msg "Malformed conflict marker"))
 
@@ -1664,6 +1670,19 @@ side ('ours or 'theirs)"
             (t (error "Side must be one of 'ours or 'theirs"))))))
     buffer-name))
 
+(defun git--resolve-fill-base()
+  "Assumes that the current buffer is an unmerged file, gets its \"base\"
+revision from git into a buffer named \"*Base*: filename\" and returns that
+buffer. If there is no common base, returns nil."
+  (let* ((rel-filename (file-relative-name buffer-file-name))
+         (stage-and-fileinfo (git--ls-unmerged rel-filename))
+         (base-fileinfo (cdr-safe (assq 1 stage-and-fileinfo)))
+         (base-buffer (when base-fileinfo
+                        (git--cat-file (format "*Base*: %s" rel-filename)
+                                       "blob"
+                                       (git--fileinfo->sha1 base-fileinfo)))))
+    base-buffer))
+
 (defun git-merge ()
   "Git merge"
 
@@ -1672,9 +1691,6 @@ side ('ours or 'theirs)"
   (let ((branch (git--select-branch (git--current-branch))))
     (git--merge branch)
     (git-status ".")))
-
-(defvar git--resolve-window-config)
-(defvar git--resolve-buffer)
 
 (defun git--resolve-merge-buffer (result-buffer)
   "Implementation of resolving conflicted buffer"
@@ -1685,30 +1701,36 @@ side ('ours or 'theirs)"
   (let* ((filename (file-relative-name buffer-file-name))
          (our-buffer (git--resolve-fill-buffer result-buffer 'ours))
          (their-buffer (git--resolve-fill-buffer result-buffer 'theirs))
+         (base-buffer (git--resolve-fill-base))
          (config (current-window-configuration))
          (ediff-default-variant 'default-B))
 
     ;; set merge buffer first
-    (set-buffer (ediff-merge-buffers our-buffer their-buffer))
+    (set-buffer (if base-buffer
+                    (ediff-merge-buffers-with-ancestor
+                     our-buffer their-buffer base-buffer)
+                  (ediff-merge-buffers our-buffer their-buffer)))
 
-    (set (make-local-variable 'git--resolve-buffer) result-buffer)
-    (set (make-local-variable 'git--resolve-window-config) config)
-    (set (make-local-variable 'ediff-quit-hook)
+    (add-hook
+     'ediff-quit-hook
+     (lexical-let ((saved-config config)
+                   (saved-result-buffer result-buffer)
+                   (saved-base-buffer base-buffer))
          #'(lambda ()
              (let ((buffer-A ediff-buffer-A)
                    (buffer-B ediff-buffer-B)
-                   (buffer-C ediff-buffer-C)
-                   (windows git--resolve-window-config)
-                   (result git--resolve-buffer))
+                   (buffer-C ediff-buffer-C))
                (ediff-cleanup-mess)
-               (set-buffer result)
+               (set-buffer saved-result-buffer)
                (erase-buffer)
                (insert-buffer-substring buffer-C)
                (kill-buffer buffer-A)
                (kill-buffer buffer-B)
                (kill-buffer buffer-C)
-               (set-window-configuration windows)
+               (when saved-base-buffer (kill-buffer saved-base-buffer))
+               (set-window-configuration saved-config)
                (message "Conflict resolution finished, you may save the buffer"))))
+     nil t)                             ; hook is prepend, local
     (message "Please resolve conflicts now, exit ediff when done")))
 
 (defun git-resolve-merge ()
