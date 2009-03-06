@@ -1626,10 +1626,11 @@ Trim the buffer log and commit"
   (git--update-modeline))
 
 (defun git--resolve-fill-buffer (template side)
-  "Make the new buffer based on the conflicted template on each side(working and checkedin)"
+  "Make the new buffer based on the conflicted template on each
+side ('ours or 'theirs)"
 
   (let* ((filename (file-relative-name (buffer-file-name template)))
-         (buffer-name (concat "*" filename ": " (capitalize (symbol-name side)) "*"))
+         (buffer-name (concat (capitalize (symbol-name side)) ": " filename))
          (buffer (get-buffer-create buffer-name))
          (msg "Malformed conflict marker"))
 
@@ -1658,9 +1659,9 @@ Trim the buffer log and commit"
           (setq conflict-end (match-beginning 0))
 
           (case side
-            ('workfile (delete-region conflict-sep conflict-end))
-            ('checked-in (delete-region conflict-begin conflict-sep))
-            (t (error "Side argument have to be one of 'workfile or 'checked-in"))))))
+            ('ours (delete-region conflict-sep conflict-end))
+            ('theirs (delete-region conflict-begin conflict-sep))
+            (t (error "Side must be one of 'ours or 'theirs"))))))
     buffer-name))
 
 (defun git-merge ()
@@ -1682,13 +1683,13 @@ Trim the buffer log and commit"
   
   (interactive)
   (let* ((filename (file-relative-name buffer-file-name))
-         (your-buffer (git--resolve-fill-buffer result-buffer 'workfile))
-         (other-buffer (git--resolve-fill-buffer result-buffer 'checked-in))
+         (our-buffer (git--resolve-fill-buffer result-buffer 'ours))
+         (their-buffer (git--resolve-fill-buffer result-buffer 'theirs))
          (config (current-window-configuration))
          (ediff-default-variant 'default-B))
 
     ;; set merge buffer first
-    (set-buffer (ediff-merge-buffers your-buffer other-buffer))
+    (set-buffer (ediff-merge-buffers our-buffer their-buffer))
 
     (set (make-local-variable 'git--resolve-buffer) result-buffer)
     (set (make-local-variable 'git--resolve-window-config) config)
