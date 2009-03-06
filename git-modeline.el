@@ -41,7 +41,7 @@ static char * data[] = {
 \"      +++     \"};"))
 
 (defun git-state-decoration-large-dot(stat)
-  (git-state-mark-modeline-dot
+  (git--state-mark-modeline-dot
    (git--interprete-state-mode-color stat)
 "/* XPM */
 static char * data[] = {
