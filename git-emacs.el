@@ -2121,8 +2121,12 @@ for new files to add to git."
         (if (not (equal output ""))
             (error "git: %s" output)
           (message "Added %s to git" (git--join matched-files ", "))
-          ;; TODO: refresh vc-git
-      )))))
+          ;; refresh vc-git.
+          (dolist (filename matched-files)
+            (let ((added-file-buffer (get-file-buffer filename)))
+              (when added-file-buffer
+                (with-current-buffer added-file-buffer (vc-find-file-hook))))))
+      ))))
 
 
 ;;-----------------------------------------------------------------------------
