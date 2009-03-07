@@ -299,6 +299,16 @@ string. INPUT can also be a buffer."
 
   (funcall git--ido-completing-read prompt choices))
 
+(defmacro git--please-wait(msg body)
+  "Macro to give feedback around actions that may take a long
+time. Prints MSG..., executes BODY, then prints MSG...done (as per the elisp
+style guidelines)."
+  `(let ((git--please-wait-msg (concat ,msg "...")))
+     (message git--please-wait-msg)
+     ,body
+     (message (concat git--please-wait-msg "done"))))
+
+
 ;;-----------------------------------------------------------------------------
 ;; git execute command
 ;;-----------------------------------------------------------------------------
@@ -1235,7 +1245,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   "Refresh view"
 
   (interactive)
-  (revert-buffer))
+  (git--please-wait "Reading git status" (revert-buffer)))
 
 (defun git--status-view-mark-reg (reg)
   "Mark with regular expression"
@@ -1482,9 +1492,10 @@ If predicate return nil continue to scan, otherwise stop and return the node"
      (git--status-file (file-relative-name buffer-file-name)))))
 
 ;; simple highlighting for log view
-(font-lock-add-keywords 'vc-git-log-view-mode
-                        '(("^\\([Aa]uthor\\|[Cc]ommit\\|[Dd]ate\\)"
-                           1 font-lock-keyword-face prepend)))
+(defconst git--log-view-font-lock-keywords
+  '(("^\\([Aa]uthor\\|[Cc]ommit\\|[Dd]ate\\)"
+     (0 font-lock-keyword-face prepend))))
+(font-lock-add-keywords 'vc-git-log-view-mode 'git--log-view-font-lock-keywords)
 
 (defun git-log ()
   "Launch the git log view for the file you opened"
@@ -1510,14 +1521,24 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
   (let ((buffer (get-buffer-create git--log-view-buffer)))
     (with-current-buffer buffer
+      (buffer-disable-undo)
       (let ((buffer-read-only nil)) (erase-buffer))
 
       (local-set-key "q" 'git--quit-buffer)
 
-      (vc-git-log-view-mode)
+      ;; vc-git-log-view-mode is not available in some versions
+      (if (boundp 'vc-git-log-view-mode)
+          (vc-git-log-view-mode)
+        ;; disable syntactic highlighting (e.g. strings)
+        (set (make-local-variable 'font-lock-keywords-only) t)
+        (font-lock-add-keywords nil git--log-view-font-lock-keywords)
+        (when global-font-lock-mode (font-lock-mode t))
+        )
+      
 
-      (save-excursion 
-        (git--rev-list "--pretty=full" "HEAD"))
+      (git--please-wait "Reading git log"
+                        (save-excursion 
+                          (git--rev-list "--pretty" "HEAD")))
 
       (message "Please 'q' to quit"))
     (pop-to-buffer buffer)))
@@ -1932,7 +1953,8 @@ buffer. If there is no common base, returns nil."
         (switch-to-buffer (git--create-status-buffer dir))
         (cd dir)
         (git--status-mode)
-        (git--status-new)
+        (git--please-wait "Reading git status"
+                          (git--status-new))
         (git--status-view-first-line))
     ;; (add-hook 'after-save-hook 'git-update-saved-file)))
     (message "%s is not a git working tree." dir)))
