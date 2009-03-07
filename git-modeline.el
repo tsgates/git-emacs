@@ -74,7 +74,8 @@ static char * data[] = {
      ('added    "A")
      ('deleted  "D")
      ('unmerged "!")
-     ('uptodate "U" )
+     ('uptodate "U")
+     ('staged   "S")
      (t "")))
 
 (defun git-state-decoration-letter(stat)

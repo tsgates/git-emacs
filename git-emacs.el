@@ -131,6 +131,7 @@
 (git--face uptodate   "gray"   (:bold t) "tomato" (:bold t))
 (git--face added      "tomato" (:bold t) "tomato" (:bold t))
 (git--face deleted    "red"    (:bold t) "tomato" (:bold t))
+(git--face staged     "yellow" (:bold t) "tomato" (:bold t))
 (git--face log-line   "gray"   (:bold t :italic t) "gray"(:bold t :italic t))
 
 (defsubst git--bold-face (str) (propertize str 'face 'git--bold-face))
@@ -435,11 +436,16 @@ and finally 'git--clone-sentinal' is called"
 
       (while (re-search-forward regexp nil t)
         (let ((perm (match-string 2))
-              (stat (git--interprete-to-state-symbol (match-string 5)))
+              (stat (git--interpret-to-state-symbol (match-string 5)))
               (file (match-string 6)))
 
           ;; if unmerged file
           (when (gethash file unmerged-info) (setq stat 'unmerged))
+          ;; modified vs. staged: the latter has a nonzero sha1
+          (when (and (eq stat 'modified)
+                     (not (equal (match-string 4)
+                                 "0000000000000000000000000000000000000000")))
+            (setq stat 'staged))
 
           ;; assume all listed elements are 'blob
           (push (git--create-fileinfo file 'blob nil perm nil stat) fileinfo))))
@@ -538,7 +544,9 @@ only checks the specified files. The list is sorted by filename."
                        (git--fileinfo-lessp (cdr cell1) (cdr cell2))))))
 
 (defun git--ls-files (&rest args)
-  "Execute 'git-ls-files' with 'args' and return the list of the 'git--fileinfo'"
+  "Execute 'git-ls-files' with 'args' and return the list of the
+'git--fileinfo'. Does not differentiate between 'modified and
+'staged."
 
   (let (fileinfo)
     (with-temp-buffer
@@ -554,14 +562,7 @@ only checks the specified files. The list is sorted by filename."
                 (file (match-string 2)))
 
             (push (git--create-fileinfo file 'blob nil nil nil
-                                        (case (string-to-char stat)
-                                          (?H 'uptodate )
-                                          (?M 'unmerged )
-                                          (?R 'deleted  )
-                                          (?C 'modified )
-                                          (?K 'killed   )
-                                          (?? 'unknown  )
-                                          (t nil        )))
+                                        (git--interpret-to-state-symbol stat))
                   fileinfo)))))
     (sort fileinfo 'git--fileinfo-lessp)))
 
@@ -630,19 +631,21 @@ only checks the specified files. The list is sorted by filename."
 (defsubst git--today ()
   (time-stamp-string "%:y-%02m-%02d %02H:%02M:%02S"))
 
-(defsubst git--interprete-to-state-symbol (stat)
+(defsubst git--interpret-to-state-symbol (stat)
   "Interpret git state string to state symbol"
 
   (case (string-to-char stat)
+    (?H 'uptodate )
     (?M 'modified )
     (?? 'unknown  )
     (?A 'added    )
     (?D 'deleted  )
     (?U 'unmerged )
     (?T 'modified )
+    (?K 'killed   )
     (t nil)))
 
-(defsubst git--interprete-state-mode-color (stat)
+(defsubst git--interpret-state-mode-color (stat)
   "Interpret git state symbol to mode line color"
 
   (case stat
@@ -652,6 +655,7 @@ only checks the specified files. The list is sorted by filename."
     ('deleted  "red"         )
     ('unmerged "purple"      )
     ('uptodate "GreenYellow" )
+    ('staged   "yellow"      )
     (t "red")))
 
 ;;-----------------------------------------------------------------------------
@@ -687,6 +691,7 @@ only checks the specified files. The list is sorted by filename."
                   ('added    'git--added-face    )
                   ('deleted  'git--deleted-face  )
                   ('unmerged 'git--unmerged-face )
+                  ('staged   'git--staged-face   )
                   (t nil)))))
 
 (defsubst git--status-node-perm (info)
@@ -778,7 +783,7 @@ only checks the specified files. The list is sorted by filename."
   expanded ;; t/nil
   refresh  ;; t/nil
   lessp    ;; sort priority (tree=3, sub=2, blob=1)
-  stat     ;; 'unknown/'modified/'uptodate
+  stat     ;; 'unknown/'modified/'uptodate/'staged  etc.
   type     ;; 'blob/'tree
   name     ;; filename
   size     ;; size
@@ -1249,7 +1254,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   "To the summary mode with occur"
   
   (interactive)
-  (occur "[\t* ]+\\(Deleted\\|Modified\\|Unknown\\|Added\\)")
+  (occur "[\t* ]+\\(Deleted\\|Modified\\|Unknown\\|Added\\|Staged\\)")
   
   (message "Move with 'next-error and 'previous-error"))
 
@@ -1551,6 +1556,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
     (if on-git?
       (case (git--status-file filename)
         ('modified (git-commit-all))    ; modified -> commit
+        ('staged (git-commit-all))      ; staged -> commit
         ('unknown (git--add filename))  ; unknown  -> add
         ('unmerged (git--add filename)) ; unmerged -> add
         (t (git--add filename)))        ; TODO : add more
@@ -2097,7 +2103,8 @@ for new files to add to git."
           (error "%s is already current in the index" rel-filename)
         (when (y-or-n-p (format "Add the current contents of %s to the index? "
                                 rel-filename))
-          (git--add rel-filename))))))
+          (git--add rel-filename)
+          (git--update-modeline))))))
 
 (defun git-add-new ()
   "Add new files to the index, prompting the user for filenames or globs"
