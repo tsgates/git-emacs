@@ -970,6 +970,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
     (define-key map "p" 'git--status-view-prev-line)
     (define-key map "N" 'git--status-view-next-meaningfull-line)
     (define-key map "P" 'git--status-view-prev-meaningfull-line)
+    (define-key map "l" 'git--status-view-log-selected)
     (define-key map "m" 'git--status-view-mark-and-next)
     (define-key map "u" 'git--status-view-unmark-and-next)
     (define-key map " " 'git--status-view-toggle-and-next)
@@ -985,6 +986,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
     (define-key map "!" 'git--status-view-resolve-merge)
     (define-key map "." 'git--status-view-git-cmd)
     (define-key map "k" 'git--status-view-gitk)
+    (define-key map "L" 'git-log-all)
     (define-key map "g" 'git--status-view-refresh)
     (define-key map "a" 'git--status-view-add)
     (define-key map "i" 'git--status-view-add-ignore)
@@ -1022,7 +1024,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
        ["Diff File" git--status-view-diff-file t]
        ["Remove File" git--status-view-rm]
        ["View Summary" git--status-view-summary t]
-       ["Log" git-log t]
+       ["Log for File" git--status-view-log-selected t]
        ["Mark" git--status-view-mark-and-next t]
        ["Unmark" git--status-view-unmark-and-next t]
        "----"
@@ -1032,6 +1034,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
       ["Resolve Merge" git--status-view-resolve-merge t]
       ["Merge" git-merge t]
       ["Revert" git-revert t]
+      ["Log for Project" git-log-all t]
       "----"
       ["Git Command" git--status-view-git-cmd t]
       ["GitK" git--status-view-gitk t]
@@ -1348,7 +1351,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
                         (push (git--fileinfo->name node) files))))
     files))
 
-(defsubst git--status-view-makred-or-file ()
+(defsubst git--status-view-marked-or-file ()
   "If not marked -> rename for current file"
 
   (let ((files (git--status-view-marked-files)))
@@ -1361,7 +1364,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
   (interactive)
 
-  (let* ((files (git--status-view-makred-or-file))
+  (let* ((files (git--status-view-marked-or-file))
          (msg (format "total %s files including '%s'"
                       (length files)
                       (file-name-nondirectory (car files)))))
@@ -1381,7 +1384,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
   (interactive)
 
-  (let ((files (git--status-view-makred-or-file)))
+  (let ((files (git--status-view-marked-or-file)))
     (dolist (src files)
       (let ((msg (format "%s '%s' to >> " (git--bold-face "Rename") src)))
         (git--mv src (file-relative-name (read-from-minibuffer msg src))))))
@@ -1392,7 +1395,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   "Add the selected files"
 
   (interactive)
-  (git--add (git--status-view-makred-or-file))
+  (git--add (git--status-view-marked-or-file))
   (revert-buffer))
 
 (defun git--status-view-add-ignore ()
@@ -1407,6 +1410,13 @@ If predicate return nil continue to scan, otherwise stop and return the node"
       (git-ignore file)))
 
   (revert-buffer))
+
+
+(defun git--status-view-log-selected ()
+  "Runs git--log-view on the selected file(s)"
+  (interactive)
+  (apply #'git--log-view (git--status-view-marked-or-file)))
+  
 
 ;;-----------------------------------------------------------------------------
 ;; git application
@@ -1493,55 +1503,64 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
 ;; simple highlighting for log view
 (defconst git--log-view-font-lock-keywords
-  '(("^\\([Aa]uthor\\|[Cc]ommit\\|[Dd]ate\\)"
-     (0 font-lock-keyword-face prepend))))
-(font-lock-add-keywords 'vc-git-log-view-mode 'git--log-view-font-lock-keywords)
+  '(("^\\([Cc]ommit\\|[Mm]erge\\):?\\(.*\\)$"
+     (1 font-lock-keyword-face prepend)
+     (2 font-lock-function-name-face prepend))
+    ("^\\(Author\\):?\\(.*?\\([^<( \t]+@[^>) \t]+\\).*\\)$"
+     (1 font-lock-keyword-face prepend) (2 font-lock-constant-face prepend)
+     (3 font-lock-variable-name-face prepend))
+    ("^\\(Date\\):?\\(.*\\)$"
+     (1 font-lock-keyword-face prepend) (2 font-lock-doc-face prepend))
+))
 
-(defun git-log ()
-  "Launch the git log view for the file you opened"
-
-  (interactive)
-
-  (if (git--in-vc-mode?)
-      (progn
-        ;; call vc-log
-        (call-interactively 'vc-print-log)
-
-        ;; close window with key 'q'
-        (local-set-key "q" 'git--quit-buffer))
-    (git-log-all)))
-  
-(defvar git--log-view-buffer "*git-log-view*")
-
-(defun git-log-all ()
-  "Launch the git log view for the whole project"
-  
-  ;; vc-git-log-view-mode
-  (interactive)
-
-  (let ((buffer (get-buffer-create git--log-view-buffer)))
+(defun git--log-view (&rest files)
+  "Show a log window for the given files; if none, the whole
+repository. Assumes it is being run from a buffer whose
+default-directory is inside the repo."
+  (let* ((rel-filenames (mapcar #'file-relative-name files))
+         (log-identification (case (length files)
+                               (0 (abbreviate-file-name
+                                   (git--get-top-dir default-directory)))
+                               (1 (first rel-filenames))
+                               (t (format "%d files" (length files)))))
+         (log-buffer-name (format "*git log: %s*" log-identification))
+         (buffer (get-buffer-create log-buffer-name))
+         (saved-default-directory default-directory))
     (with-current-buffer buffer
       (buffer-disable-undo)
       (let ((buffer-read-only nil)) (erase-buffer))
-
-      (local-set-key "q" 'git--quit-buffer)
-
-      ;; vc-git-log-view-mode is not available in some versions
-      (if (boundp 'vc-git-log-view-mode)
-          (vc-git-log-view-mode)
-        ;; disable syntactic highlighting (e.g. strings)
-        (set (make-local-variable 'font-lock-keywords-only) t)
-        (font-lock-add-keywords nil git--log-view-font-lock-keywords)
-        (when global-font-lock-mode (font-lock-mode t))
-        )
-      
-
-      (git--please-wait "Reading git log"
-                        (save-excursion 
-                          (git--rev-list "--pretty" "HEAD")))
-
-      (message "Please 'q' to quit"))
+      ;; Subtle: the buffer may already exist and have the wrong directory
+      (cd saved-default-directory)
+      ;; Use log-view-mode, it's nice
+      (log-view-mode)
+      ;; But customize. This might need a derived major mode eventually
+      (use-local-map (copy-keymap (current-local-map)))
+      (local-set-key "q" 'git--quit-buffer) ; without affecting log-view-mode
+      ;; redefine log-view-message-re to move between commits with n, p
+      (set (make-local-variable 'log-view-message-re)
+           "^[Cc]ommit[: ]*\\([:xdigit:]]+\\)")
+      (set (make-local-variable 'font-lock-keywords-only) t)
+      (font-lock-add-keywords nil git--log-view-font-lock-keywords)
+      (when global-font-lock-mode (font-lock-mode t))
+      ;; vc-do-command does almost everything right. Beware, it misbehaves
+      ;; if not called with current buffer (undoes our setup)
+      (apply #'vc-do-command buffer 'async "git" nil "rev-list"
+             "--pretty" "HEAD" "--" rel-filenames)
+      ;; vc sometimes goes to the end of the buffer, for unknown reasons
+      (vc-exec-after `(goto-char (point-min))))
     (pop-to-buffer buffer)))
+
+(defun git-log ()
+  "Launch the git log view for the current file"
+  (interactive)
+  (git--require-buffer-in-git)
+  (git--log-view buffer-file-name))
+  
+(defun git-log-all ()
+  "Launch the git log view for the whole project"
+  (interactive)
+  ;; TODO: maybe ask user for a git repo if they're not in one
+  (git--log-view))
 
 (defalias 'git-history 'git-log-all)
 

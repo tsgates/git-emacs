@@ -22,22 +22,27 @@
 
 (define-key git-global-map "i" 'git-add-interactively)
 
+(define-key git-global-map "l" 'git-log)
+(define-key git-global-map "L" 'git-log-all)
+
 (define-key git-global-map "s" '("Status" . git-status))
 
 (easy-menu-add-item nil '("tools" "vc") "---")
 (easy-menu-add-item nil '("tools" "vc")
   `("Git"
-    ("Add to index"
-     ["Current file" git-add t]
-     ["Select changes in current file..." git-add-interactively t]
-     ["New files..." git-add-new t])
-    ["Commit all" git-commit-all t]
-    ("Diff current buffer against"
+    ("Add to Index"
+     ["Current File" git-add t]
+     ["Select Changes in Current File..." git-add-interactively t]
+     ["New Files..." git-add-new t])
+    ["Commit All" git-commit-all t]
+    ("Diff Current Buffer against"
       ["HEAD" git-diff-buffer-head t]
       ["Baseline" git-diff-buffer-baseline t]
       ["Index" git-diff-buffer-index t]
       ["Other..." git-diff-buffer-other t]
       )
+    ["Log for Current File" git-log t]
+    ["Log for Entire Project" git-log-all t]
     ["Status" git-status t]))
 
 
