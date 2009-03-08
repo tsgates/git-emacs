@@ -962,84 +962,83 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 ;; key/menu map
 ;;-----------------------------------------------------------------------------
 
-(unless git--status-mode-map
-  (let ((map (make-keymap)))
-    (suppress-keymap map)
+(let ((map (make-keymap)))
+  (suppress-keymap map)
 
-    (define-key map "n" 'git--status-view-next-line)
-    (define-key map "p" 'git--status-view-prev-line)
-    (define-key map "N" 'git--status-view-next-meaningfull-line)
-    (define-key map "P" 'git--status-view-prev-meaningfull-line)
-    (define-key map "l" 'git--status-view-log-selected)
-    (define-key map "m" 'git--status-view-mark-and-next)
-    (define-key map "u" 'git--status-view-unmark-and-next)
-    (define-key map " " 'git--status-view-toggle-and-next)
-    (define-key map "q" 'git--status-view-quit)
-    (define-key map "<" 'git--status-view-first-line)
-    (define-key map ">" 'git--status-view-last-line)
+  (define-key map "n" 'git--status-view-next-line)
+  (define-key map "p" 'git--status-view-prev-line)
+  (define-key map "N" 'git--status-view-next-meaningful-line)
+  (define-key map "P" 'git--status-view-prev-meaningful-line)
+  (define-key map "l" 'git--status-view-log-selected)
+  (define-key map "m" 'git--status-view-mark-and-next)
+  (define-key map "u" 'git--status-view-unmark-and-next)
+  (define-key map " " 'git--status-view-toggle-and-next)
+  (define-key map "q" 'git--status-view-quit)
+  (define-key map "<" 'git--status-view-first-line)
+  (define-key map ">" 'git--status-view-last-line)
 
-    (define-key map "e" 'git--status-view-expand-tree-toggle)
-    (define-key map "v" 'git--status-view-view-file)
-    (define-key map "o" 'git--status-view-open-file)
-    (define-key map "=" 'git--status-view-diff-file)
-    (define-key map "b" 'git--status-view-switch-branch)
-    (define-key map "!" 'git--status-view-resolve-merge)
-    (define-key map "." 'git--status-view-git-cmd)
-    (define-key map "k" 'git--status-view-gitk)
-    (define-key map "L" 'git-log-all)
-    (define-key map "g" 'git--status-view-refresh)
-    (define-key map "a" 'git--status-view-add)
-    (define-key map "i" 'git--status-view-add-ignore)
-    (define-key map "r" 'git--status-view-rename)
-    (define-key map "?" 'git--status-view-blame)
-    (define-key map "d" 'git--status-view-rm)
-    (define-key map "*" 'git--status-view-mark-reg)
-    (define-key map "s" 'git--status-view-summary)
-    (define-key map "z" 'git-branch)
+  (define-key map "e" 'git--status-view-expand-tree-toggle)
+  (define-key map "v" 'git--status-view-view-file)
+  (define-key map "o" 'git--status-view-open-file)
+  (define-key map "=" 'git--status-view-diff-file)
+  (define-key map "b" 'git--status-view-switch-branch)
+  (define-key map "!" 'git--status-view-resolve-merge)
+  (define-key map "." 'git--status-view-git-cmd)
+  (define-key map "k" 'git--status-view-gitk)
+  (define-key map "L" 'git-log-all)
+  (define-key map "g" 'git--status-view-refresh)
+  (define-key map "a" 'git--status-view-add)
+  (define-key map "i" 'git--status-view-add-ignore)
+  (define-key map "r" 'git--status-view-rename)
+  (define-key map "?" 'git--status-view-blame)
+  (define-key map "d" 'git--status-view-rm)
+  (define-key map "*" 'git--status-view-mark-reg)
+  (define-key map "s" 'git--status-view-summary)
+  (define-key map "z" 'git-branch)
 
-    ;; ok for commiting
-    (define-key map "c" 'git-commit-all)
+  ;; ok for commiting
+  (define-key map "c" 'git-commit-all)
     
-    (define-key map "\C-m" 'git--status-view-do-propriate)
+  (define-key map "\C-m" 'git--status-view-do-propriate)
 
-    (setq git--status-mode-map map))
+  (setq git--status-mode-map map))
 
-  (easy-menu-define gitemacs-menu git--status-mode-map
-    "Git"
-    `("Emacs-Git"
-      ["Refresh" git--status-view-refresh t]
-      ["First Line" git--status-view-first-line t]
-      ["Last Line" git--status-view-last-line t]
-      ["Next Line" git--status-view-next-line t]
-      ["Previous Line" git--status-view-prev-line t]
-      ["Next meaningful line" git--status-view-next-meaningfull-line t]
-      ["Previous meaningful line" git--status-view-prev-meaningfull-line t]
-      ["Expand Tree" git--status-view-expand-tree-toggle]
-       "----" 
-       ["Add File" git--status-view-add t]
-       ["Ignore File" git--status-view-add-ignore t]
-       ["Rename File" git--status-view-rename t]
-       ["Open File" git--status-view-open-file t]
-       ["View File" git--status-view-view-file t]
-       ["Diff File" git--status-view-diff-file t]
-       ["Remove File" git--status-view-rm]
-       ["View Summary" git--status-view-summary t]
-       ["Log for File" git--status-view-log-selected t]
-       ["Mark" git--status-view-mark-and-next t]
-       ["Unmark" git--status-view-unmark-and-next t]
-       "----"
-      ["Branch Mode" git-branch t]
-      ["Switch to Branch..." git--status-view-switch-branch t]      
-      ["Commit All" git-commit-all t]
-      ["Resolve Merge" git--status-view-resolve-merge t]
-      ["Merge" git-merge t]
-      ["Revert" git-revert t]
-      ["Log for Project" git-log-all t]
-      "----"
-      ["Git Command" git--status-view-git-cmd t]
-      ["GitK" git--status-view-gitk t]
-      "----"
-      ["Quit" git--status-view-quit t])))
+(easy-menu-define gitemacs-menu git--status-mode-map
+  "Git"
+  `("Emacs-Git"
+    ["Refresh" git--status-view-refresh t]
+    ["First Line" git--status-view-first-line t]
+    ["Last Line" git--status-view-last-line t]
+    ["Next Line" git--status-view-next-line t]
+    ["Previous Line" git--status-view-prev-line t]
+    ["Next Meaningful Line" git--status-view-next-meaningful-line t]
+    ["Previous Meaningful Line" git--status-view-prev-meaningful-line t]
+    ["Expand Tree" git--status-view-expand-tree-toggle]
+    "----" 
+    ["Add File" git--status-view-add t]
+    ["Ignore File" git--status-view-add-ignore t]
+    ["Rename File" git--status-view-rename t]
+    ["Open File" git--status-view-open-file t]
+    ["View File" git--status-view-view-file t]
+    ["Diff File" git--status-view-diff-file t]
+    ["Remove File" git--status-view-rm]
+    ["View Summary" git--status-view-summary t]
+    ["Log for File" git--status-view-log-selected t]
+    ["Mark" git--status-view-mark-and-next t]
+    ["Unmark" git--status-view-unmark-and-next t]
+    "----"
+    ["Branch Mode" git-branch t]
+    ["Switch to Branch..." git--status-view-switch-branch t]      
+    ["Commit All" git-commit-all t]
+    ["Resolve Merge" git--status-view-resolve-merge t]
+    ["Merge" git-merge t]
+    ["Revert" git-revert t]
+    ["Log for Project" git-log-all t]
+    "----"
+    ["Git Command" git--status-view-git-cmd t]
+    ["GitK" git--status-view-gitk t]
+    "----"
+    ["Quit" git--status-view-quit t]))
 
 
 ;;-----------------------------------------------------------------------------
@@ -1132,7 +1131,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (goto-char (point-max))
   (git--status-view-forward-line -1))
 
-(defun git--forward-meaningfull-line (move)
+(defun git--forward-meaningful-line (move)
   "Implementation of forward meaningful line"
 
   (let ((start-node (ewoc-locate git--status-view)))
@@ -1153,11 +1152,11 @@ If predicate return nil continue to scan, otherwise stop and return the node"
       (git--status-view-first-line)
     (git--status-view-forward-line 1)))
 
-(defun git--status-view-next-meaningfull-line ()
+(defun git--status-view-next-meaningful-line ()
   "Move to the meaningful next line"
 
   (interactive)
-  (git--forward-meaningfull-line 'git--status-view-next-line))
+  (git--forward-meaningful-line 'git--status-view-next-line))
 
 (defun git--status-view-prev-line (&optional n)
   "Move to the previous line"
@@ -1169,11 +1168,11 @@ If predicate return nil continue to scan, otherwise stop and return the node"
       (git--status-view-last-line)
     (git--status-view-forward-line -1)))
 
-(defun git--status-view-prev-meaningfull-line ()
+(defun git--status-view-prev-meaningful-line ()
   "Move the the meaningful previous line"
   
   (interactive)
-  (git--forward-meaningfull-line 'git--status-view-prev-line))
+  (git--forward-meaningful-line 'git--status-view-prev-line))
 
 ;;-----------------------------------------------------------------------------
 ;; status view marking
@@ -1261,7 +1260,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
   (ewoc-refresh git--status-view)
   (git--status-view-first-line)
-  (git--status-view-next-meaningfull-line))
+  (git--status-view-next-meaningful-line))
 
 (defun git--status-view-summary ()
   "To the summary mode with occur"
@@ -1342,7 +1341,8 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 ;;-----------------------------------------------------------------------------
 
 (defsubst git--status-view-marked-files ()
-  "Scrap the all marked files"
+  "Return a list of the marked files. Usually,
+`git-status-view-marked-or-file' is what you want instead."
 
   (let (files)
     (ewoc-collect git--status-view
@@ -1352,7 +1352,8 @@ If predicate return nil continue to scan, otherwise stop and return the node"
     files))
 
 (defsubst git--status-view-marked-or-file ()
-  "If not marked -> rename for current file"
+  "Return a list of the marked files, or if none, the file on the
+current line. You can think of this as the \"selected files\"."
 
   (let ((files (git--status-view-marked-files)))
     (when (null files)
@@ -1360,7 +1361,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
     files))
 
 (defun git--status-view-rm ()
-  "Delete the whole marked files"
+  "Delete the selected files."
 
   (interactive)
 
@@ -1380,7 +1381,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (revert-buffer))
 
 (defun git--status-view-rename ()
-  "Renamed the whole marked files"
+  "Rename the selected files."
 
   (interactive)
 
@@ -1392,7 +1393,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (revert-buffer))
   
 (defun git--status-view-add ()
-  "Add the selected files"
+  "Add the selected files."
 
   (interactive)
   (git--add (git--status-view-marked-or-file))
@@ -1403,7 +1404,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
   (interactive)
 
-  (let ((files (git--status-view-marked-files)))
+  (let ((files (git--status-view-marked-or-file)))
     (unless files (list (read-from-minibuffer "Add Ignore >> ")))
 
     (dolist (file files)
