@@ -291,7 +291,8 @@ string. INPUT can also be a buffer."
 
   (interactive)
   (let ((buffer (current-buffer)))
-    (delete-window)
+    ;; Emacs refuses to delete a "maximized" window (i.e. just 1 in frame)
+    (unless (one-window-p t) (delete-window))
     (kill-buffer buffer)))
 
 (defsubst git--select-from-user (prompt choices)
