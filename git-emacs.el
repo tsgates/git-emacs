@@ -1476,10 +1476,12 @@ current line. You can think of this as the \"selected files\"."
 
   (git--select-from-user "Select Tag : " (git--tag-list)))
 
-(defsubst git--select-revision (prompt)
-  "Select the revision"
+(defsubst git--select-revision (prompt &optional prepend-choices)
+  "Offer the user a list of human-readable revisions to choose from. By default,
+it shows tags and branches; additional choices can be specified as a list."
   
-  (git--select-from-user prompt (append (git--branch-list)
+  (git--select-from-user prompt (append prepend-choices
+                                        (git--branch-list)
                                         (git--tag-list))))
 
 (defvar git--switch-branch-auto-msg nil "confirm the auto-generated message")
@@ -2389,11 +2391,21 @@ if 'checkout -> call git-checkout-to-new-branch"
 REPOSITORY-DIR and BASELINE-COMMIT are strings.")
 ;; (makunbound 'git-baseline-commit)  ;;eval to clear variable
 
+(defvar git-baseline-functions '()
+  "List of functions that should be offered as choices in git-set-baseline.
+Each function will be called with the current buffer inside of the repository
+and no parameters; it should return a sha1 string or signal a readable error.
+A function will only be offered as a choice if it completes without error
+in the repository being prompted for. Use symbols instead of lambdas so
+the functions are human-readable.")
+
 (defun git-set-baseline(&optional use-previous)
   "Set and return the baseline commit used in (`git-diff-current' 'baseline).
 If the optional parameter use-previous is true and the baseline
 commit was already set, simply returns it. The baseline commit is
-per-repository and can be optionally stored in .emacs after being set."
+per-repository and can be optionally stored in .emacs after being set.
+The result might be a function, one of git-baseline-functions, if the
+user chose so."
   (interactive)
   ;; This function is a bit too long. Consider extracting parts that may
   ;; be useful elsewhere.
@@ -2420,14 +2432,25 @@ per-repository and can be optionally stored in .emacs after being set."
     ;; found among previous associations?
     (if (and use-previous previous-baseline-assoc)
         (cdr previous-baseline-assoc)
-      ;; prompt for new one
-      (let ((new-baseline
-             (with-temp-buffer
+      ;; prompt for new one, possibly a function
+      (let* ((names-to-functions
+              (apply #'append
+                     (mapcar (lambda(func)
+                               (when (condition-case nil (funcall func)
+                                       (error nil))
+                                 (list (cons (format "(%S)" func) func))))
+                             git-baseline-functions)))
+             (new-baseline-str
+              (with-temp-buffer
                (cd canonical-repo-dir)
-               (git--select-revision "Select baseline commit: "))))
+               (git--select-revision "Select baseline commit: "
+                                     (mapcar #'car names-to-functions))))
+             (new-baseline (or (cdr-safe
+                                (assoc new-baseline-str names-to-functions))
+                               new-baseline-str)))
         ;; store in variable
         (if previous-baseline-assoc
-            (setcar previous-baseline-assoc new-baseline)
+            (setcdr previous-baseline-assoc new-baseline)
           (add-to-list 'git-baseline-commit
                        (cons canonical-repo-dir new-baseline)))
         ;; ... which we possibly save in .emacs
@@ -2440,7 +2463,9 @@ per-repository and can be optionally stored in .emacs after being set."
   "Diff current buffer against a selectable \"baseline\" commit"
   (interactive)
   (git--require-buffer-in-git)
-  (git--diff buffer-file-name (concat (git-set-baseline t) ":")))
+  (let* ((baseline (git-set-baseline t))
+         (baseline-str (if (functionp baseline) (funcall baseline) baseline)))
+    (git--diff buffer-file-name (concat baseline-str ":"))))
 
 (defun git-diff-buffer-other(commit)
   "Diff current buffer against an arbitrary commit"
