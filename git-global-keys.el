@@ -25,7 +25,8 @@
 (define-key git-global-map "l" 'git-log)
 (define-key git-global-map "L" 'git-log-all)
 
-(define-key git-global-map "s" '("Status" . git-status))
+(define-key git-global-map "s" 'git-status)
+(define-key git-global-map "." 'git-cmd)
 
 (easy-menu-add-item nil '("tools" "vc") "---")
 (easy-menu-add-item nil '("tools" "vc")
@@ -43,7 +44,8 @@
       )
     ["Log for Current File" git-log t]
     ["Log for Entire Project" git-log-all t]
-    ["Status" git-status t]))
+    ["Status" git-status t]
+    ["Git Command..." git-cmd t]))
 
 
 (provide 'git-global-keys)
