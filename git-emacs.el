@@ -2096,6 +2096,51 @@ i.e. with valid ediff-buffer-A and B variables, among others.
   (let ((prompt (format "git diff [rev]:%s >> " (file-relative-name file))))
     (git--diff file (concat (read-from-minibuffer prompt "HEAD") ":"))))
 
+
+(defun git--diff-many (files &optional rev1 rev2)
+  "Shows a diff window for the specified files and revisions, since we can't
+do ediff on multiple files. FILES is a list of files, if empty the whole
+git repository is diffed. REV1 and REV2 are strings, interpreted roughly the
+same as in git diff REV1..REV2. If REV1 is unspecified, we use the index.
+If REV2 is unspecified, we use the working dir. "
+  (let* ((rel-filenames (mapcar #'file-relative-name files))
+         (friendly-rev1 (or rev1 "<index>"))
+         (friendly-rev2 (or rev2 "<working>"))
+         (diff-buffer-name (format "*git diff: %s %s..%s*"
+                                   (case (length files)
+                                     (0 (abbreviate-file-name
+                                         (git--get-top-dir default-directory)))
+                                     (1 (file-relative-name (first files)))
+                                     (t (format "%d files" (length files))))
+                                   friendly-rev1 friendly-rev2))
+         (buffer (get-buffer-create diff-buffer-name)))
+    (with-current-buffer buffer
+      (buffer-disable-undo)
+      (let ((buffer-read-only nil)) (erase-buffer))
+      (setq buffer-read-only t)
+      (diff-mode)
+      ;; See diff-mode.el, search for "neat trick", for why this is necessary
+      (let ((diff-readonly-map (assq 'buffer-read-only
+                                     minor-mode-overriding-map-alist)))
+        (when diff-readonly-map
+          (setcdr diff-readonly-map (copy-keymap (cdr diff-readonly-map)))
+          (define-key (cdr diff-readonly-map) "q" 'git--quit-buffer)))
+      (let ((diff-qualifier
+             (if rev1
+                 (if rev2 (list (format "%s..%s" rev1 rev2))
+                   (list rev1))
+               ;; swap sides of git diff when diffing against the index, for
+               ;; consistency (rev1 -> rev2)
+               (if rev2 (list "--cached" "-R" rev2)
+                 '()))))
+        (apply #'vc-do-command buffer 'async "git" nil "diff"
+               (append diff-qualifier (list "--") rel-filenames)))
+      (vc-exec-after `(goto-char (point-min))))
+    (pop-to-buffer buffer)))
+
+;; (git--diff-many '())
+
+
 (defun git-config-init ()
   "Set initial configuration, it query the logined user information"
 
@@ -2457,6 +2502,27 @@ per-repository and can be optionally stored in .emacs after being set."
      (git--require-buffer-in-git)
      (list (git--select-revision "Diff against commit: "))))
   (git--diff buffer-file-name (concat commit ":")))
+
+;; git-diff-all variants
+(defun git-diff-all-head (&optional files)
+  "Diff all of the repository, or just FILES, against HEAD."
+  (interactive)
+  (git--diff-many files "HEAD"))
+
+(defun git-diff-all-index (&optional files)
+  "Diff all of the repository, or just FILES, against the index."
+  (interactive)
+  (git--diff-many files))
+
+(defun git-diff-all-baseline (&optional files)
+  "Diff all of the repository, or just FILES, against the \"baseline\" commit."
+  (interactive)
+  (git--diff-many files (git-set-baseline t)))
+
+(defun git-diff-all-other (commit &optional files)
+  (interactive
+   (list (git--select-revision "Diff against commit: ")))
+  (git--diff-many files commit))
 
 ;;-----------------------------------------------------------------------------
 ;; Add interactively
