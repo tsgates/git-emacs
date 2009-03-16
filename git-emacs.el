@@ -232,17 +232,19 @@ string. INPUT can also be a buffer."
 
 (defsubst git--exec-string (cmd &rest args)
   "Execute 'git' and return result string"
-
   (with-output-to-string
     (with-current-buffer standard-output
       (apply #'git--exec-buffer cmd args))))
 
-(defsubst git--exec-cmd (cmd)
-  "Execute 'git-cmd' with args which comes from user"
+(defun git--exec-string-with-error (cmd &rest args)
+  "Executes the specified git command, raises an error with the git output
+if it fails. If the command succeeds, returns the git output."
+  (with-output-to-string
+    (with-current-buffer standard-output
+      (unless (eq 0
+                  (apply #'git--exec-buffer cmd args))
+        (error (git--trim-string (buffer-string)))))))
 
-  (apply #'git--exec-string
-         cmd
-         (split-string (read-from-minibuffer (concat ">> git " cmd " ")))))
 
 ;;-----------------------------------------------------------------------------
 ;; utilities

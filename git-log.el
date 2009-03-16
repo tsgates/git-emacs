@@ -8,8 +8,12 @@
 (define-derived-mode git-log-view-mode
   log-view-mode "Git log" "Major mode for viewing git logs"
   :group 'git
+  ;; Customize log-view-message-re to be the git commits
   (set (make-local-variable 'log-view-message-re)
        "^[Cc]ommit[: ]*\\([0-9a-f]+\\)")
+  ;; As for the file re, there is no such thing -- make it impossible
+  (set (make-local-variable 'log-view-file-re)
+       "^No_such_text_really$")
   (set (make-local-variable 'font-lock-defaults)
        (list 'git-log-view-font-lock-keywords t))
   ;;(when global-font-lock-mode (font-lock-mode t))
@@ -32,6 +36,7 @@
 
 ;; Keys
 (define-key git-log-view-mode-map "q" 'git--quit-buffer)
+(define-key git-log-view-mode-map "c" 'git-log-view-checkout)
 
 (defun git--log-view (&rest files)
   "Show a log window for the given files; if none, the whole
@@ -50,6 +55,9 @@ default-directory is inside the repo."
       (buffer-disable-undo)
       (let ((buffer-read-only nil)) (erase-buffer))
       (git-log-view-mode)
+      ;; Tell git-log-view-mode what this log is all about
+      (set (make-local-variable 'git-log-view-qualifier) log-identification)
+      (set (make-local-variable 'git-log-view-filenames) rel-filenames)
       ;; Subtle: the buffer may already exist and have the wrong directory
       (cd saved-default-directory)
       ;; vc-do-command does almost everything right. Beware, it misbehaves
@@ -71,3 +79,13 @@ default-directory is inside the repo."
   (interactive)
   ;; TODO: maybe ask user for a git repo if they're not in one
   (git--log-view))
+
+(defun git-log-view-checkout ()
+  (interactive)
+  (let ((commit (substring-no-properties (log-view-current-tag))))
+    (when (y-or-n-p (format "Checkout %s from %s? "
+                            git-log-view-qualifier commit))
+      (git--please-wait
+       "Checking out"
+       (apply #'git--exec-string-with-error "checkout" commit "--"
+              git-log-view-filenames)))))
