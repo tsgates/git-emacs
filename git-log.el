@@ -16,7 +16,6 @@
        "^No_such_text_really$")
   (set (make-local-variable 'font-lock-defaults)
        (list 'git-log-view-font-lock-keywords t))
-  ;;(when global-font-lock-mode (font-lock-mode t))
   )
 
 ;; Highlighting. We could allow customizable faces, but that's a little
@@ -85,7 +84,7 @@ default-directory is inside the repo."
   (let ((commit (substring-no-properties (log-view-current-tag))))
     (when (y-or-n-p (format "Checkout %s from %s? "
                             git-log-view-qualifier commit))
-      (git--please-wait
-       "Checking out"
-       (apply #'git--exec-string "checkout" commit "--"
-              git-log-view-filenames)))))
+      (if git-log-view-filenames
+          (apply #'git--exec-string "checkout" commit "--"
+                 git-log-view-filenames)
+        (git-checkout commit)))))       ;special handling for whole-tree checkout

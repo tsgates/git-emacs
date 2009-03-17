@@ -70,7 +70,6 @@
 ;; TODO : () -> fording/unfording for detail
 ;; TODO : show ignored files
 ;; TODO : locally flyspell
-;; TODO : C-x v b -> branch
 ;; 
 ;; DONE : turn off ido-mode globally
 ;; DONE : git-add 
@@ -317,6 +316,71 @@ style guidelines)."
      ,body
      (message (concat git--please-wait-msg "done"))))
 
+(defun git--find-buffers-in-repo(repo &optional predicate)
+  "Finds buffers corresponding to files in the given repository,
+optionally satisfying PREDICATE (which should take a buffer object as
+argument)."
+  (let* ((absolute-repo (expand-file-name (file-name-as-directory repo)))
+         (absolute-repo-length (length absolute-repo))
+         (buffers))
+    (dolist (buffer (buffer-list))
+      (let ((filename (buffer-file-name buffer)))
+        (when filename
+          (with-current-buffer buffer
+            (when (and (eq t (compare-strings (expand-file-name filename)
+                                              0 absolute-repo-length
+                                              absolute-repo
+                                              0 absolute-repo-length))
+                       (or (not predicate) (funcall predicate buffer)))
+              (add-to-list 'buffers buffer))))))
+    buffers))
+
+(defun git--find-buffers-from-file-list(filelist &optional predicate)
+  "Finds buffers corresponding to files in the given list,
+optionally satisfying the predicate."
+  (let (buffers)
+    (dolist (filename filelist)
+      (let ((buffer (find-buffer-visiting filename predicate)))
+        (when buffer (add-to-list 'buffers buffer))))
+    buffers))
+
+(defun git--find-buffers(&optional repo-or-filelist predicate)
+  "Find buffers satisfying PREDICATE in the given REPO-OR-FILELIST, which
+can be a string (git repository path), a list (filelist) or nil (current git
+repository)."
+  (cond
+   ((eq nil repo-or-filelist) (git--find-buffers-in-repo
+                               (git--get-top-dir default-directory)
+                               predicate))
+   ((stringp repo-or-filelist) (git--find-buffers-in-repo
+                                repo-or-filelist predicate))
+   (t (git--find-buffers-from-file-list repo-or-filelist predicate))))
+
+(defun git--maybe-ask-save(&optional repo-or-filelist)
+  "If there are modified buffers which visit files in the given REPO-OR-FILELIST,
+ask to save them. If REPO-OR-FILELIST is nil, look for buffers in the current
+git repo. Returns the number of buffers saved."
+  (let ((buffers (git--find-buffers repo-or-filelist  #'buffer-modified-p)))
+    (map-y-or-n-p
+     (lambda(buffer) (format "Save %s? " (buffer-name buffer)))
+     (lambda(buffer) (with-current-buffer buffer (save-buffer)))
+     buffers
+     '("buffer" "buffers" "save"))))
+
+(defun git--maybe-ask-revert(&optional repo-or-filelist)
+  "If there are buffers visiting files in the given REPO-OR-FILELIST that
+have changed (buffer modtime != file modtime), ask the user whether to refresh
+those buffers. Returns the number of buffers refreshed."
+  (let ((buffers (git--find-buffers
+                   repo-or-filelist
+                   #'(lambda(buffer)
+                       (not (verify-visited-file-modtime buffer))))))
+    (map-y-or-n-p
+     (lambda(buffer) (format "%s has changed, refresh buffer? "
+                             (buffer-name buffer)))
+     (lambda(buffer) (with-current-buffer buffer (revert-buffer t t)))
+     buffers
+     '("buffer" "buffers" "refresh"))))
 
 ;;-----------------------------------------------------------------------------
 ;; git execute command
@@ -1743,6 +1807,7 @@ buffer. If there is no common base, returns nil."
   "Does git commit -a, with a temporary prompt buffer. Returns the buffer."
 
   (interactive)
+  (git--maybe-ask-save)
   
   (let ((cur-pos nil)
         (buffer (get-buffer-create git--commit-log-buffer)))
@@ -1857,28 +1922,27 @@ buffer. If there is no common base, returns nil."
   (interactive)
   (start-process "gitk" nil gitk-program))
     
-(defun git-checkout (&optional commit confirm-prompt buffer-to-revert
-                               &rest args)
+(defun git-checkout (&optional commit confirm-prompt &rest args)
   "Checkout a commit. When COMMIT is nil, shows tags and branches
 for selection. May pop up a commit buffer to commit pending
 changes; in this case, the function is asynchronous and returns
 that commit buffer. If CONFIRM-PROMPT is non-nil, ask for
-confirmation, replacing %s in CONFIRM-PROMPT with the commit. If
-BUFFER-TO-REVERT is non-nil, calls revert-buffer on the specified
-buffer after the checkout."
+confirmation, replacing %s in CONFIRM-PROMPT with the commit.
+Although the function allows ARGS, it is not suitable for
+checking out individual files due to the assumptions it makes
+about the nature of the checkout (full)."
   (interactive)
+  (git--maybe-ask-save)
   (git--maybe-ask-and-commit
    (lexical-let ((commit (or commit (git--select-revision "Checkout: ")))
                  (confirm-prompt confirm-prompt)
-                 (buffer-to-revert buffer-to-revert)
+                 (repo-dir default-directory)
                  (args args))
      (lambda()
        (when (or (not confirm-prompt)
                  (y-or-n-p (format confirm-prompt commit)))
          (apply #'git--checkout commit args)
-         (when buffer-to-revert
-           (with-current-buffer buffer-to-revert
-             (revert-buffer))))))))
+         (git--maybe-ask-revert repo-dir))))))
 
 
 (defalias 'git-create-branch 'git-checkout-to-new-branch)
@@ -1886,16 +1950,17 @@ buffer after the checkout."
 (defun git-checkout-to-new-branch (&optional branch)
   "Checkout new branch, based on commit prompted from the user"
   (interactive)
+  (git--maybe-ask-save)
   (git--maybe-ask-and-commit
    (lexical-let ((branch branch)
-                 (buffer-to-revert (current-buffer)))
+                 (repo-dir default-directory))
      (lambda()
        (let* ((branch (or branch (read-from-minibuffer "Create new branch: ")))
               (commit (git--select-revision
                        (format "Create %s based on: "
                                (git--bold-face branch)))))
          (git--checkout "-b" branch commit)
-         (with-current-buffer buffer-to-revert (revert-buffer)))))))
+         (git--maybe-ask-revert repo-dir))))))
 
 (defun git-delete-branch (&optional branch)
   "Delete branch after selecting branch"
@@ -1905,14 +1970,7 @@ buffer after the checkout."
   ;; select branch if not assigned
   (unless branch (setq branch (git--select-branch "master")))
   
-  (let* ((msg (git--branch "-d" branch)))
-    (if (string-match "^Deleted" msg)
-        (message "%s '%s' branch" (git--bold-face "Deleted") branch)
-      (message "%s on %s '%s' branch in '%s' branch"
-               git--msg-critical
-               (git--bold-face "deleting")
-               (git--bold-face branch)
-               (git--current-branch)))))
+  (git--branch "-D" branch))             ; we've asked already
 
 (defun git-delete-tag ()
   "Delete tag after selecting tag"
@@ -2066,6 +2124,7 @@ do ediff on multiple files. FILES is a list of files, if empty the whole
 git repository is diffed. REV1 and REV2 are strings, interpreted roughly the
 same as in git diff REV1..REV2. If REV1 is unspecified, we use the index.
 If REV2 is unspecified, we use the working dir. "
+  (git--maybe-ask-save)
   (let* ((rel-filenames (mapcar #'file-relative-name files))
          (friendly-rev1 (or rev1 "<index>"))
          (friendly-rev2 (or rev2 "<working>"))
@@ -2100,8 +2159,6 @@ If REV2 is unspecified, we use the working dir. "
                (append diff-qualifier (list "--") rel-filenames)))
       (vc-exec-after `(goto-char (point-min))))
     (pop-to-buffer buffer)))
-
-;; (git--diff-many '())
 
 
 (defun git-config-init ()
@@ -2138,13 +2195,14 @@ If REV2 is unspecified, we use the working dir. "
 (defun git-switch-branch (&optional branch)
   "Git switch branch, selecting from a list of branches."
   (interactive)
+  (git--maybe-ask-save)
   (git--maybe-ask-and-commit
    (lexical-let ((branch branch)
-                 (buffer-to-revert (current-buffer)))
+                 (repo-dir default-directory))
      (lambda()
        (let ((branch (or branch (git--select-branch (git--current-branch)))))
          (git--checkout branch)
-         (with-current-buffer buffer-to-revert (revert-buffer)))))))
+         (git--maybe-ask-revert repo-dir))))))
 
 (defun git-add ()
   "Add files to index. If executed in a buffer currently under git control,
@@ -2359,7 +2417,7 @@ if 'create -> call git-checkout-to-new-branch"
                      (format "Switch from branch %s to %s? "
                              (git--bold-face (git--current-branch))
                              (git--bold-face "%s")) ; checkout replaces this
-                     (current-buffer))
+                     )
         )
       ('create (call-interactively 'git-checkout-to-new-branch))))))
 
