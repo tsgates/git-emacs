@@ -87,5 +87,5 @@ default-directory is inside the repo."
                             git-log-view-qualifier commit))
       (git--please-wait
        "Checking out"
-       (apply #'git--exec-string-with-error "checkout" commit "--"
+       (apply #'git--exec-string "checkout" commit "--"
               git-log-view-filenames)))))

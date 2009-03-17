@@ -230,13 +230,13 @@ string. INPUT can also be a buffer."
   
   (apply #'git--exec cmd t nil args))
 
-(defsubst git--exec-string (cmd &rest args)
-  "Execute 'git' and return result string"
+(defsubst git--exec-string-no-error (cmd &rest args)
+  "Execute 'git' and return result string (which may be a failure message)."
   (with-output-to-string
     (with-current-buffer standard-output
       (apply #'git--exec-buffer cmd args))))
 
-(defun git--exec-string-with-error (cmd &rest args)
+(defun git--exec-string (cmd &rest args)
   "Executes the specified git command, raises an error with the git output
 if it fails. If the command succeeds, returns the git output."
   (with-output-to-string
@@ -380,17 +380,11 @@ and finally 'git--clone-sentinal' is called"
 
 (defun git--mv (src dst)
   "Execute git-mv for src and dst"
-
-  (let ((msg (git--exec-string "mv" src dst)))
-    (unless (string-match "" (git--trim-string msg))
-      (error msg))))
+  (git--exec-string "mv" src dst))
 
 (defun git--rm (file)
   "Execute git-rm for file"
-
-  (let ((msg (git--exec-string "rm" "--quiet" file)))
-    (unless (string-match "" (git--trim-string msg))
-      (error msg))))
+   (git--exec-string "rm" "--quiet" file))
 
 (defun git--tag (&rest args)
   "Execute 'git-tag' with 'args' and return the result as string"
@@ -399,14 +393,12 @@ and finally 'git--clone-sentinal' is called"
 
 (defalias 'git-snapshot 'git-tag)
 (defun git-tag (name)
-  "Make the new git same as 'git-snapshot"
+  "Create a new tag for the current HEAD. git-snapshot is an alias to this."
 
   (interactive "sNew Tag Name >> ")
 
-  (let ((msg (git--trim-string (git--tag name))))
-    (if (string= "" msg)
-        (message "Success to make %s" (git--bold-face name))
-      (error msg))))
+  (git--tag name)
+  (message "Tagged current head with %s" (git--bold-face name)))
 
 (defun git--tag-list ()
   "Get the tag list"
