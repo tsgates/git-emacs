@@ -10,6 +10,7 @@
 (define-key global-map git-keyboard-prefix 'git-global-map)
 
 (define-key git-global-map "a" 'git-add)
+(define-key git-global-map "b" 'git-branch)
 (define-key git-global-map "c" 'git-commit-all)
 
 (define-prefix-command 'git--diff-buffer-map nil "Diff against")
@@ -58,6 +59,7 @@
      ["Other..." git-diff-all-other t])
     ["Log for Current File" git-log t]
     ["Log for Entire Project" git-log-all t]
+    ["Branch List..." git-branch t]
     ["Status" git-status t]
     ["Git Command..." git-cmd t]))
 

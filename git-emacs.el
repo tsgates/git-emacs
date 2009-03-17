@@ -1476,22 +1476,23 @@ it shows tags and branches; additional choices can be specified as a list."
                                         (git--branch-list)
                                         (git--tag-list))))
 
-(defvar git--switch-branch-auto-msg nil "confirm the auto-generated message")
-
-(defun git--switch-branch (branch)
-  "Implementation of switch-branch"
-  
-  (let* ((current (git--current-branch))
-         (msg (format "Switch from '%s' to '%s'" current branch)))
-
-    (unless git--switch-branch-auto-msg
-      (setq msg (read-from-minibuffer "Commit Log >> " msg)))
-
-    ;; commit with a automatically generated msg
-    (git--commit msg "-a")
-
-    ;; switch to different branch
-    (git-checkout branch)))
+(defun git--maybe-ask-and-commit(after-func)
+  "Helper for functions that switch trees. If there are pending
+changes, asks the user whether they want to commit, then pops up
+a commit buffer (and returns). Once the user has committed (or
+immediately, if they chose not to or there are no pending
+changes), AFTER-FUNC is called, which should do the tree
+switching along with any confirmations. The return value is either the
+pending commit buffer or nil if the buffer wasn't needed."
+  ;; git status -a tells us if there's anything to commit
+  (if (and (eq 0 (git--exec "status" nil nil "-a"))
+           (y-or-n-p "Commit your pending changes first? (if not, they will be merged into the new tree) "))
+      (with-current-buffer (git-commit-all)
+        (add-hook 'git--commit-after-hook after-func t t) ; append, local
+        (current-buffer)) 
+    (funcall after-func)
+    nil))
+    
 
 ;;-----------------------------------------------------------------------------
 ;; vc-git integration
@@ -1590,6 +1591,9 @@ it shows tags and branches; additional choices can be specified as a list."
   (insert (propertize git--log-sep-line 'face 'git--log-line-face) "\n")
   (git--exec-buffer "status"))
 
+(defvar git--commit-after-hook nil
+  "Hooks to run after comitting (and killing) the commit buffer.")
+
 (defun git--commit-buffer ()
   "When you press C-cC-c after editing log, this function is called
 Trim the buffer log and commit"
@@ -1612,12 +1616,19 @@ Trim the buffer log and commit"
         ;; TODO sophisticated message
         (message (git--commit (git--trim-string (buffer-substring begin end)) "-a")))))
 
-  ;; close window
-  (delete-window)
-  (kill-buffer git--commit-log-buffer)
-
-  ;; update
-  (git--update-modeline))
+  ;; close window and kill buffer. Some gymnastics are needed to preserve
+  ;; the buffer-local value of the after-hook.
+  (let ((local-git--commit-after-hook
+         (when (local-variable-p 'git--commit-after-hook)
+           (cdr git--commit-after-hook)))) ; skip the "t" for local
+    (delete-window)
+    (kill-buffer git--commit-log-buffer)
+    
+    ;; update
+    (git--update-modeline)
+  
+    ;; hooks (e.g. switch branch)
+    (run-hooks 'local-git--commit-after-hook 'git--commit-after-hook)))
 
 (defun git--resolve-fill-buffer (template side)
   "Make the new buffer based on the conflicted template on each
@@ -1729,7 +1740,7 @@ buffer. If there is no common base, returns nil."
   (git--resolve-merge-buffer (current-buffer)))
 
 (defun git-commit-all ()
-  "git commit -a like commit command"
+  "Does git commit -a, with a temporary prompt buffer. Returns the buffer."
 
   (interactive)
   
@@ -1764,7 +1775,8 @@ buffer. If there is no common base, returns nil."
 
       ;; hello~
       (message "Type 'C-cC-c' to commit"))
-    (pop-to-buffer buffer)))
+    (pop-to-buffer buffer)
+    buffer))
 
 (defun git-init (dir)
   "Initialize the git repository"
@@ -1845,35 +1857,45 @@ buffer. If there is no common base, returns nil."
   (interactive)
   (start-process "gitk" nil gitk-program))
     
-(defun git-checkout (&optional rev)
-  "Checkout from 'tag' & 'branch' list when 'rev' is null"
-
+(defun git-checkout (&optional commit confirm-prompt buffer-to-revert
+                               &rest args)
+  "Checkout a commit. When COMMIT is nil, shows tags and branches
+for selection. May pop up a commit buffer to commit pending
+changes; in this case, the function is asynchronous and returns
+that commit buffer. If CONFIRM-PROMPT is non-nil, ask for
+confirmation, replacing %s in CONFIRM-PROMPT with the commit. If
+BUFFER-TO-REVERT is non-nil, calls revert-buffer on the specified
+buffer after the checkout."
   (interactive)
-  (unless rev (setq rev (git--select-revision "Checkout: ")))
+  (git--maybe-ask-and-commit
+   (lexical-let ((commit (or commit (git--select-revision "Checkout: ")))
+                 (confirm-prompt confirm-prompt)
+                 (buffer-to-revert buffer-to-revert)
+                 (args args))
+     (lambda()
+       (when (or (not confirm-prompt)
+                 (y-or-n-p (format confirm-prompt commit)))
+         (apply #'git--checkout commit args)
+         (when buffer-to-revert
+           (with-current-buffer buffer-to-revert
+             (revert-buffer))))))))
 
-  ;; TODO : sophisticated message control
-  (message (git--trim-string (git--checkout rev))))
 
 (defalias 'git-create-branch 'git-checkout-to-new-branch)
 
-(defun git-checkout-to-new-branch (branch)
-  "Checkout to new list based on tag"
-
-  (interactive "sNew Branch : ")
-  (let* ((tag (git--select-revision (format "Create \"%s\" based on: " branch)))
-         (msg (git--checkout "-b" branch tag)))
-    (if (string-match "^Switched" msg)
-        (message "%s to the new branch '%s'"
-                 (git--bold-face "Switched")
-                 (git--bold-face branch))
-      (message "%s on creating '%s' from '%s'"
-               git--msg-critical
-               (git--bold-face branch)
-               (git--bold-face tag))))
-
-  ;; refresh buffer content
-  (revert-buffer))
-
+(defun git-checkout-to-new-branch (&optional branch)
+  "Checkout new branch, based on commit prompted from the user"
+  (interactive)
+  (git--maybe-ask-and-commit
+   (lexical-let ((branch branch)
+                 (buffer-to-revert (current-buffer)))
+     (lambda()
+       (let* ((branch (or branch (read-from-minibuffer "Create new branch: ")))
+              (commit (git--select-revision
+                       (format "Create %s based on: "
+                               (git--bold-face branch)))))
+         (git--checkout "-b" branch commit)
+         (with-current-buffer buffer-to-revert (revert-buffer)))))))
 
 (defun git-delete-branch (&optional branch)
   "Delete branch after selecting branch"
@@ -2113,12 +2135,16 @@ If REV2 is unspecified, we use the working dir. "
     (insert ignored-opt "\n")
     (append-to-file (point-min) (point-max) ".gitignore")))
   
-(defun git-switch-branch ()
-  "Git switch branch, user have to select the branch which you will move on"
-  
+(defun git-switch-branch (&optional branch)
+  "Git switch branch, selecting from a list of branches."
   (interactive)
-  (git--switch-branch (git--select-branch (git--current-branch)))
-  (revert-buffer))
+  (git--maybe-ask-and-commit
+   (lexical-let ((branch branch)
+                 (buffer-to-revert (current-buffer)))
+     (lambda()
+       (let ((branch (or branch (git--select-branch (git--current-branch)))))
+         (git--checkout branch)
+         (with-current-buffer buffer-to-revert (revert-buffer)))))))
 
 (defun git-add ()
   "Add files to index. If executed in a buffer currently under git control,
@@ -2165,30 +2191,29 @@ for new files to add to git."
 (defvar git--branch-mode-map nil)
 (defvar git--branch-mode-hook nil)
 
-(unless git--branch-mode-map
-  (let ((map (make-keymap)))
-    (suppress-keymap map)
+(let ((map (make-keymap)))
+  (suppress-keymap map)
 
-    (define-key map "q"     'git--branch-mode-quit)
-    (define-key map "n"     'next-line)
-    (define-key map "p"     'previous-line)
+  (define-key map "q"     'git--branch-mode-quit)
+  (define-key map "n"     'next-line)
+  (define-key map "p"     'previous-line)
 
-    (define-key map "d"     'git--branch-mode-delete)
-    (define-key map "c"     'git--branch-mode-checkout)
-    (define-key map "s"     'git--branch-mode-switch)
-    (define-key map "\C-m"  'git--branch-mode-switch)
+  (define-key map "d"     'git--branch-mode-delete)
+  (define-key map "c"     'git--branch-mode-create)
+  (define-key map "s"     'git--branch-mode-switch)
+  (define-key map "\C-m"  'git--branch-mode-switch)
 
-    (setq git--branch-mode-map map))
+  (setq git--branch-mode-map map))
 
-  (easy-menu-define gitemacs-menu-branch git--branch-mode-map
-    "Git-Branch"
-    `("Git-Branch"
-      ["Next Line" next-line t]
-      ["Previous Line" previous-line t]
-      ["Switch Branch" git--branch-mode-switch t]
-      ["CheckOut Branch" git--branch-mode-checkout t]
-      ["Delete Branch" git--branch-mode-delete]
-      ["Quit" git--branch-mode-quit t])))
+(easy-menu-define gitemacs-menu-branch git--branch-mode-map
+  "Git-Branch"
+  `("Git-Branch"
+    ["Next Line" next-line t]
+    ["Previous Line" previous-line t]
+    ["Switch Branch" git--branch-mode-switch t]
+    ["Create New Branch" git--branch-mode-create t]
+    ["Delete Branch" git--branch-mode-delete]
+    ["Quit" git--branch-mode-quit t]))
 
 
 (defun git--branch-mode-throw (data)
@@ -2215,11 +2240,11 @@ for new files to add to git."
   (interactive)
   (git--branch-mode-throw 'switch))
 
-(defun git--branch-mode-checkout ()
+(defun git--branch-mode-create ()
   "Git branch mode checkout"
 
   (interactive)
-  (git--branch-mode-throw 'checkout))
+  (git--branch-mode-throw 'create))
 
 (defun git--branch-mode ()
   "Set current buffer as branch-mode"
@@ -2312,31 +2337,31 @@ for new files to add to git."
       (kill-buffer buffer)
 
       ;; interpret command 
-      (git--branch-mode-interprete selected-branch))))
+      (git--branch-mode-interpret selected-branch))))
 
-(defun git--branch-mode-interprete (selected-branch)
+(defun git--branch-mode-interpret (selected-branch)
   "git-branch command interpreter,
 if 'delete -> call 'git-delete-branch
-if 'switch -> call 'git-switch-branch
-if 'checkout -> call git-checkout-to-new-branch"
+if 'switch -> call 'git-checkout with tweaked arguments
+if 'create -> call git-checkout-to-new-branch"
 
   (when selected-branch
     (let ((command (car selected-branch))
           (branch (cdr selected-branch)))
     (case command
       ('delete
-       (when (y-or-n-p (format "Would you like to %s the branch, %s? "
+       (when (y-or-n-p (format "Would you like to %s the branch %s ? "
                                (git--bold-face "delete")
                                (git--bold-face branch)))
          (git-delete-branch branch)))
       ('switch
-       (when (y-or-n-p (format "Would you like to %s from %s to %s branch? "
-                               (git--bold-face "switch")
-                               (git--bold-face (git--current-branch))
-                               (git--bold-face branch)))
-         (git--switch-branch branch)
-         (revert-buffer)))
-      ('checkout (call-interactively 'git-checkout-to-new-branch))))))
+       (git-checkout branch
+                     (format "Switch from branch %s to %s? "
+                             (git--bold-face (git--current-branch))
+                             (git--bold-face "%s")) ; checkout replaces this
+                     (current-buffer))
+        )
+      ('create (call-interactively 'git-checkout-to-new-branch))))))
 
 (defun git--branch-mode-loop (stat cond)
   "git-branch mode loop interpreter, update the highlight"
