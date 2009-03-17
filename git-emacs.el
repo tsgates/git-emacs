@@ -1634,10 +1634,10 @@ pending commit buffer or nil if the buffer wasn't needed."
   "Insert the log header to the buffer"
 
   (insert (propertize git--log-header-line 'face 'git--log-line-face)  "\n"
-          (git--bold-face "# Branch  : ") (git--current-branch)        "\n"
-          (git--bold-face "# Author  : ") (git--config-get-author)     "\n"
-          (git--bold-face "# Email   : ") (git--config-get-email)      "\n"
-          (git--bold-face "# Date    : ") (git--today)                 "\n"))
+          "# " (git--bold-face "Branch  : ") (git--current-branch)     "\n"
+          "# " (git--bold-face "Author  : ") (git--config-get-author)  "\n"
+          "# " (git--bold-face "Email   : ") (git--config-get-email)   "\n"
+          "# " (git--bold-face "Date    : ") (git--today)              "\n"))
 
 (defun git--insert-log-files-status ()
   "Insert log file status to the buffer"
@@ -1649,11 +1649,11 @@ pending commit buffer or nil if the buffer wasn't needed."
                     (git--status-node-stat fi)
                     (git--fileinfo->name fi)))))
 
-(defun git--insert-log-status ()
-  "Insert log status to the buffer"
+(defun git--insert-log-status (&rest args)
+  "Insert log status to the buffer. ARGS will be passed to git status."
   
   (insert (propertize git--log-sep-line 'face 'git--log-line-face) "\n")
-  (git--exec-buffer "status"))
+  (apply #'git--exec-buffer "status" args))
 
 (defvar git--commit-after-hook nil
   "Hooks to run after comitting (and killing) the commit buffer.")
@@ -1827,7 +1827,7 @@ buffer. If there is no common base, returns nil."
       (insert "\n\n")
 
       ;; git status
-      (git--insert-log-status)
+      (git--insert-log-status "-a")     ; same thing we commit
       
       ;; set cursor 
       (goto-char cur-pos)
@@ -2564,7 +2564,9 @@ user chose so."
 (defun git-diff-all-baseline (&optional files)
   "Diff all of the repository, or just FILES, against the \"baseline\" commit."
   (interactive)
-  (git--diff-many files (git-set-baseline t)))
+  (let* ((baseline (git-set-baseline t))
+         (baseline-str (if (functionp baseline) (funcall baseline) baseline)))
+    (git--diff-many files baseline-str)))
 
 (defun git-diff-all-other (commit &optional files)
   (interactive
