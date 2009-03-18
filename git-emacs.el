@@ -90,6 +90,8 @@
 (autoload 'git-log "git-log" "Launch the git log view for the current file" t)
 (autoload 'git-log-all "git-log"
   "Launch the git log view for whole repository" t)
+(autoload 'git-log-other "git-log"
+  "Launch the git log view for an arbitrary branch or tag" t)
 
 
 (defalias 'electric-pop-up-window 'Electric-pop-up-window)
@@ -698,6 +700,12 @@ only checks the specified files. The list is sorted by filename."
 
 (defsubst git--branch (&rest args)
   (apply #'git--exec-string "branch" args))
+
+(defun git--abbrev-commit(commit)
+  "Returns a short yet unambiguous SHA1 checksum for a commit"
+  (git--trim-string
+   (git--exec-string "rev-list" "--abbrev-commit" "--abbrev=5" "--max-count=1"
+                    commit)))
 
 ;;-----------------------------------------------------------------------------
 ;; status miscellaneous
@@ -2066,8 +2074,6 @@ it is executed as an ediff setup hook. If AFTER-EDIFF-HOOK is specified,
 it is executed as an ediff quit hook. Both hooks run in the ediff context,
 i.e. with valid ediff-buffer-A and B variables, among others.
 "
-  (setq abspath (expand-file-name file))
-  
   (let* ((buf1 (find-file-noselect file))
 	 (buf2 nil)
 	 (config (current-window-configuration)))
@@ -2078,7 +2084,7 @@ i.e. with valid ediff-buffer-A and B variables, among others.
 	    (filename nil))
 
 	;; get relative to git root dir
-	(cd (git--get-top-dir (file-name-directory file)))
+	(cd (git--get-top-dir (file-name-directory abspath)))
 	(setq filerev (concat rev (file-relative-name abspath)))
 	(setq buf2 (git--cat-file (if (equal rev ":")
                                       (concat "<index>" filerev)
@@ -2118,13 +2124,14 @@ i.e. with valid ediff-buffer-A and B variables, among others.
     (git--diff file (concat (read-from-minibuffer prompt "HEAD") ":"))))
 
 
-(defun git--diff-many (files &optional rev1 rev2)
+(defun git--diff-many (files &optional rev1 rev2 dont-ask-save)
   "Shows a diff window for the specified files and revisions, since we can't
 do ediff on multiple files. FILES is a list of files, if empty the whole
 git repository is diffed. REV1 and REV2 are strings, interpreted roughly the
 same as in git diff REV1..REV2. If REV1 is unspecified, we use the index.
-If REV2 is unspecified, we use the working dir. "
-  (git--maybe-ask-save)
+If REV2 is unspecified, we use the working dir. If DONT-ASK-SAVE is true,
+does not ask to save modified buffers under the tree (e.g. old revisions)"
+  (unless dont-ask-save (git--maybe-ask-save files))
   (let* ((rel-filenames (mapcar #'file-relative-name files))
          (friendly-rev1 (or rev1 "<index>"))
          (friendly-rev2 (or rev2 "<working>"))

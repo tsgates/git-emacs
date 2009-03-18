@@ -34,6 +34,7 @@
 
 (define-key git-global-map "l" 'git-log)
 (define-key git-global-map "L" 'git-log-all)
+(define-key git-global-map "\C-l" 'git-log-other)
 
 (define-key git-global-map "s" 'git-status)
 (define-key git-global-map "." 'git-cmd)
