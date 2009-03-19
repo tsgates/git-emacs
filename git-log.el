@@ -172,7 +172,7 @@ branch."
   (interactive)
   (let ((commit (substring-no-properties (log-view-current-tag)))
         (current-branch (git--current-branch))
-        (saved-head (git--trim-string (git--exec-string "rev-parse" "HEAD"))))
+        (saved-head (git--abbrev-commit "HEAD" 10)))
     (when (y-or-n-p (format "Reset %s to commit %s? "
                             (git--bold-face current-branch) commit))
       (let ((reset-hard (y-or-n-p

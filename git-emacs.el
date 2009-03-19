@@ -692,20 +692,18 @@ only checks the specified files. The list is sorted by filename."
 (defsubst git--kill-status-buffer (dir)
   (kill-buffer (git--status-buffer-name dir)))
 
-(defsubst git--revert (&rest args)
-  (apply #'git--exec-string "revert" args))
-
 (defun git--merge (&rest args)
   (apply #'git--exec-string "merge" args))
 
 (defsubst git--branch (&rest args)
   (apply #'git--exec-string "branch" args))
 
-(defun git--abbrev-commit(commit)
-  "Returns a short yet unambiguous SHA1 checksum for a commit"
+(defun git--abbrev-commit(commit &optional size)
+  "Returns a short yet unambiguous SHA1 checksum for a commit. The default
+SIZE is 5, but it will be longer if needed (due to conflicts)."
   (git--trim-string
-   (git--exec-string "rev-list" "--abbrev-commit" "--abbrev=5" "--max-count=1"
-                    commit)))
+   (git--exec-string "rev-list" "--abbrev-commit"  "--max-count=1"
+                     (format "--abbrev=%d" (or size 5)) commit)))
 
 ;;-----------------------------------------------------------------------------
 ;; status miscellaneous
@@ -1903,22 +1901,17 @@ buffer. If there is no common base, returns nil."
       (cd dir)
       (git--clone repository))))
 
-(defun git-reset-hard (&rest args)
-  "Reset hard"
+(defun git-reset-hard (&optional commit)
+  "Reset the current branch and the working directory to the given COMMIT.
+\(prompts the user if not specified)."
 
-  (interactive)
-  (message (git--trim-string (git--reset "--hard" (git--select-tag)))))
-
-(defun git-revert ()
-  "Revert to other revision"
-
-  (interactive)
-  (message (git--trim-string (git--revert
-                              (git--select-revision "Revert buffer to: "))))
-
-  ;; revert buffer
-  (revert-buffer))
-
+  (interactive (list (git--select-revision
+                      "Reset branch and working directory to: ")))
+  (let ((saved-head (git--abbrev-commit "HEAD" 10)))
+    (git--reset "--hard" commit)
+    (git--maybe-ask-revert)
+    (message "You can recover the old HEAD as %s" saved-head)))
+  
 (defcustom gitk-program "gitk"
   "The command used to launch gitk."
   :type '(string)
@@ -1974,11 +1967,13 @@ about the nature of the checkout (full)."
   "Delete branch after selecting branch"
 
   (interactive)
-
   ;; select branch if not assigned
   (unless branch (setq branch (git--select-branch "master")))
-  
-  (git--branch "-D" branch))             ; we've asked already
+
+  (let ((saved-head (git--abbrev-commit branch 10))) ; safer abbrev
+    (git--branch "-D" branch)              ; we've asked already
+    (message "You can recover the deleted branch %s as %s"
+             (git--bold-face branch) saved-head)))
 
 (defun git-delete-tag ()
   "Delete tag after selecting tag"
