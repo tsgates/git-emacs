@@ -48,7 +48,9 @@
   (define-key map "c" 'git-log-view-cherry-pick)
   (define-key map "k" 'git-log-view-checkout)
   (define-key map "r" 'git-log-view-reset)
+  (define-key map "v" 'git-log-view-revert)
 
+  (define-key map "g" 'git-log-view-refresh)
   (define-key map "q" 'git--quit-buffer))
 
 
@@ -66,10 +68,12 @@
    ["Diff Commit(s)" git-log-view-diff-preceding t]
    ["Diff against Current" git-log-view-diff-current t]
    "---"
-   ["Reset Branch to Commit..." git-log-view-reset t]
+   ["Reset Branch to Commit" git-log-view-reset t]
    ["Checkout" git-log-view-checkout t]
    ["Cherry-pick" git-log-view-cherry-pick t]
+   ["Revert Commit" git-log-view-revert t]
    "---"
+   ["Refresh" git-log-view-refresh t]
    ["Quit" git--quit-buffer t]))
 
 
@@ -209,3 +213,16 @@ the working dir."
         (git--diff (first git-log-view-filenames)
                    (concat commit ":" ))
       (git--diff-many git-log-view-filenames commit nil))))
+
+(defun git-log-view-revert ()
+  "Revert the commit that the cursor is currently on"
+  (interactive)
+  (let ((commit (substring-no-properties (log-view-current-tag))))
+    (when (y-or-n-p (format "Revert %s? " commit))
+      (git-revert commit))))
+
+(defun git-log-view-refresh ()
+  "Refresh log view"
+  (interactive)
+  (unless (boundp git-log-view-start-commit) (error "Not in git log view"))
+  (apply #'git--log-view git-log-view-start-commit git-log-view-filenames))

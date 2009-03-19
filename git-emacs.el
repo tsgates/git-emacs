@@ -1911,6 +1911,17 @@ buffer. If there is no common base, returns nil."
     (git--reset "--hard" commit)
     (git--maybe-ask-revert)
     (message "You can recover the old HEAD as %s" saved-head)))
+
+;; TODO: Maybe support reverting multiple commits at once. Would need nicer
+;; commit support.
+(defun git-revert (commit)
+  "Revert a commit, prompting the user if unspecified."
+  (interactive
+   ;; TODO: for this to really make sense we need some SHA1 completion
+   (list (git--select-revision "Revert commit: ")))
+  (let ((output (git--trim-string (git--exec-string "revert" commit))))
+    (git--maybe-ask-revert)
+    (message output)))
   
 (defcustom gitk-program "gitk"
   "The command used to launch gitk."
