@@ -151,7 +151,7 @@
 ;; internal variable
 ;;-----------------------------------------------------------------------------
 
-(defvar git--commit-log-buffer "*git-log*")
+(defvar git--commit-log-buffer "*git commit*")
 (defvar git--log-flyspell-mode t "enable flyspell-mode when editing log")
 (defvar git--repository-bookmarks
   '("~/Skills/git/checkouttest"
@@ -182,7 +182,7 @@
 (defconst git--reg-stage   "\\([0-9]+\\)")
 
 (defconst git--log-sep-line
-  "# ----------------------------- log -----------------------------")
+  "# --------------------------- message ---------------------------")
 (defconst git--log-file-line
   "# ---------------------------- files ----------------------------")
 (defconst git--log-header-line
@@ -309,13 +309,13 @@ if it fails. If the command succeeds, returns the git output."
 
   (funcall git--ido-completing-read prompt choices))
 
-(defmacro git--please-wait(msg body)
+(defmacro git--please-wait(msg &rest body)
   "Macro to give feedback around actions that may take a long
 time. Prints MSG..., executes BODY, then prints MSG...done (as per the elisp
 style guidelines)."
   `(let ((git--please-wait-msg (concat ,msg "...")))
      (message git--please-wait-msg)
-     ,body
+     ,@body
      (message (concat git--please-wait-msg "done"))))
 
 (defun git--find-buffers-in-repo(repo &optional predicate)
@@ -576,14 +576,15 @@ and finally 'git--clone-sentinal' is called"
 
   (apply #'git--exec-string "rev-parse" args))
 
-(defsubst git--get-top-dir (dir)
-  "Get the top directory of the current git repository"
+(defsubst git--get-top-dir (&optional dir)
+  "Get the top-level git directory above DIR. If nil, use default-directory."
   
   (with-temp-buffer
-    (when (stringp dir) (cd dir))
-
-    (let ((cdup (git--rev-parse "--show-cdup")))
-      (git--concat-path dir (car (split-string cdup "\n"))))))
+    (let ((dir (or dir default-directory)))
+      (when (stringp dir) (cd dir))
+      
+      (let ((cdup (git--rev-parse "--show-cdup")))
+        (git--concat-path dir (car (split-string cdup "\n")))))))
 
 (defun git--get-relative-to-top(filename)
   (file-relative-name filename
@@ -1639,27 +1640,11 @@ pending commit buffer or nil if the buffer wasn't needed."
 (defun git--insert-log-header-info ()
   "Insert the log header to the buffer"
 
-  (insert (propertize git--log-header-line 'face 'git--log-line-face)  "\n"
-          "# " (git--bold-face "Branch  : ") (git--current-branch)     "\n"
-          "# " (git--bold-face "Author  : ") (git--config-get-author)  "\n"
-          "# " (git--bold-face "Email   : ") (git--config-get-email)   "\n"
-          "# " (git--bold-face "Date    : ") (git--today)              "\n"))
-
-(defun git--insert-log-files-status ()
-  "Insert log file status to the buffer"
-  
-  (insert (propertize git--log-file-line 'face 'git--log-line-face) "\n")
-
-  (dolist (fi (git--status-index))
-    (insert (format "#  %-15s : %s\n"
-                    (git--status-node-stat fi)
-                    (git--fileinfo->name fi)))))
-
-(defun git--insert-log-status (&rest args)
-  "Insert log status to the buffer. ARGS will be passed to git status."
-  
-  (insert (propertize git--log-sep-line 'face 'git--log-line-face) "\n")
-  (apply #'git--exec-buffer "status" args))
+  (insert git--log-header-line  "\n"
+          "# Branch : " (git--current-branch)     "\n"
+          "# Author : " (git--config-get-author)  "\n"
+          "# Email  : " (git--config-get-email)   "\n"
+          "# Date   : " (git--today)              "\n"))
 
 (defvar git--commit-after-hook nil
   "Hooks to run after comitting (and killing) the commit buffer.")
@@ -1684,7 +1669,9 @@ Trim the buffer log and commit"
       (when (and begin end)
         (setq end (- end (length git--log-sep-line)))
         ;; TODO sophisticated message
-        (message (git--commit (git--trim-string (buffer-substring begin end)) "-a")))))
+        (message (apply #'git--commit
+                        (git--trim-string (buffer-substring begin end))
+                        git--commit-args)))))
 
   ;; close window and kill buffer. Some gymnastics are needed to preserve
   ;; the buffer-local value of the after-hook.
@@ -1809,45 +1796,95 @@ buffer. If there is no common base, returns nil."
   (interactive)
   (git--resolve-merge-buffer (current-buffer)))
 
-(defun git-commit-all ()
-  "Does git commit -a, with a temporary prompt buffer. Returns the buffer."
+(defconst git--commit-status-font-lock-keywords
+  '(("^#\t\\([^:]+\\): +\\(.*\\)"
+     (1 'git--bold-face) (2 'git--mark-blob-face))
+    ("^# \\(Branch\\|Author\\|Email\\|Date\\) +:" (1 'git--bold-face))
+    ("^# \\(-----*[^-]+-----*\\).*$" (1 'git--log-line-face))))
+;; (makunbound 'git--commit-status-font-lock-keywords)
+
+(defun git-commit (&optional targets)
+  "Does git commit with a temporary prompt buffer. TARGETS can be nil
+\(commit staged files), t (commit all) or a list of files. Returns the buffer."
 
   (interactive)
-  (git--maybe-ask-save)
+  ;; Don't save anything on commit-index
+  (when targets (git--maybe-ask-save (if (eq t targets) nil targets)))
   
   (let ((cur-pos nil)
-        (buffer (get-buffer-create git--commit-log-buffer)))
+        (buffer (get-buffer-create git--commit-log-buffer))
+        (current-dir default-directory))
     (with-current-buffer buffer
+      ;; Tell git--commit-buffer what to do
+      (set (make-local-variable 'git--commit-args)
+           (cond ((eq nil targets) '())
+                 ((eq t targets) '("-a"))
+                 ((listp targets) targets)
+                 (t (error "Invalid targets: %S" targets))))
+                 
       (local-set-key "\C-c\C-c" 'git--commit-buffer)
+      (local-set-key "\C-c\C-q" 'git--quit-buffer)
+      (buffer-disable-undo)
       (erase-buffer)
+      (flyspell-mode 0)               ; disable for the text we insert
+      (cd current-dir)                ; if we reused the buffer
 
+      (set (make-local-variable 'font-lock-defaults)
+           (list 'git--commit-status-font-lock-keywords t))
+      (when global-font-lock-mode (font-lock-mode t))
       ;; insert info
       (git--insert-log-header-info)
-      (git--insert-log-files-status)
 
       ;; real log space
       (insert (propertize git--log-sep-line 'face 'git--log-line-face) "\n")
 
       (insert "\n")
+      ;; Insert .git/MERGE_MSG if exists
+      (let ((merge-msg-file
+             (expand-file-name ".git/MERGE_MSG" (git--get-top-dir))))
+        (when (file-readable-p merge-msg-file)
+          (git--please-wait (format "Reading %s" merge-msg-file)
+            (insert-file-contents merge-msg-file)
+            (goto-char (point-max))        ; insert-file didn't move point
+            (insert "\n"))))
       (setq cur-pos (point))
       (insert "\n\n")
 
-      ;; git status
-      (git--insert-log-status "-a")     ; same thing we commit
+      ;;git status -- give same args as to commit
+      (insert git--log-sep-line "\n")
+      (unless (eq 0 (apply #'git--exec-buffer "status" git--commit-args))
+        (kill-buffer nil)
+        (error "Nothing to commit%s"
+               (if (eq t targets) "" ", try git-commit-all")))
+
+      ;; Remove "On branch blah" it's redundant
+      (goto-char cur-pos)
+      (when (re-search-forward "^# On branch.*$" nil t) (kill-whole-line 1))
       
-      ;; set cursor 
+      ;; Set cursor to message area
       (goto-char cur-pos)
 
-      ;; flyspell-mode
       (when git--log-flyspell-mode (flyspell-mode t))
 
       ;; comment hook
       (run-hooks 'git-comment-hook)
 
-      ;; hello~
-      (message "Type 'C-cC-c' to commit"))
+      (buffer-enable-undo)
+      (message "Type 'C-c C-c' to commit, 'C-c C-q' to cancel"))
     (pop-to-buffer buffer)
     buffer))
+
+(defun git-commit-all ()
+  "Runs git commit -a, prompting for a commit message"
+  (interactive)
+  (git-commit t))
+
+(defun git-commit-file ()
+  "Runs git commit with the file in the current buffer. Only changes to that
+file will be committed."
+  (interactive)
+  (git--require-buffer-in-git)
+  (git-commit (list (file-relative-name buffer-file-name))))
 
 (defun git-init (dir)
   "Initialize the git repository"
@@ -2144,7 +2181,7 @@ does not ask to save modified buffers under the tree (e.g. old revisions)"
          (diff-buffer-name (format "*git diff: %s %s..%s*"
                                    (case (length files)
                                      (0 (abbreviate-file-name
-                                         (git--get-top-dir default-directory)))
+                                         (git--get-top-dir)))
                                      (1 (file-relative-name (first files)))
                                      (t (format "%d files" (length files))))
                                    friendly-rev1 friendly-rev2))

@@ -11,7 +11,13 @@
 
 (define-key git-global-map "a" 'git-add)
 (define-key git-global-map "b" 'git-branch)
-(define-key git-global-map "c" 'git-commit-all)
+
+(define-prefix-command 'git--commit-map nil "Commit")
+(define-key git-global-map "c" 'git--commit-map)
+(define-key git--commit-map "f" '("[f]ile" . git-commit-file))
+(define-key git--commit-map "i" '("[i]ndex" . git-commit))
+(define-key git--commit-map "a" '("[a]ll" . git-commit-all))
+(define-key git--commit-map (kbd "RET") 'git-commit-all)
 
 (define-prefix-command 'git--diff-buffer-map nil "Diff against")
 (define-key git-global-map "d" 'git--diff-buffer-map)
@@ -46,7 +52,10 @@
      ["Current File" git-add t]
      ["Select Changes in Current File..." git-add-interactively t]
      ["New Files..." git-add-new t])
-    ["Commit All" git-commit-all t]
+    ("Commit"
+     ["All Changes" git-commit-all t]
+     ["Index" git-commit t]
+     ["Current File" git-commit-file t])
     ("Diff Current Buffer against"
       ["HEAD" git-diff-buffer-head t]
       ["Index" git-diff-buffer-index t]

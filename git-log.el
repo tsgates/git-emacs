@@ -96,8 +96,7 @@ given commit. Assumes it is being run from a buffer whose
 default-directory is inside the repo."
   (let* ((rel-filenames (mapcar #'file-relative-name files))
          (log-qualifier (case (length files)
-                               (0 (abbreviate-file-name
-                                   (git--get-top-dir default-directory)))
+                               (0 (abbreviate-file-name (git--get-top-dir)))
                                (1 (first rel-filenames))
                                (t (format "%d files" (length files)))))
          (log-buffer-name (format "*git log: %s%s*"
