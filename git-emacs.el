@@ -1797,11 +1797,56 @@ buffer. If there is no common base, returns nil."
   (git--resolve-merge-buffer (current-buffer)))
 
 (defconst git--commit-status-font-lock-keywords
-  '(("^#\t\\([^:]+\\): +\\(.*\\)"
-     (1 'git--bold-face) (2 'git--mark-blob-face))
+  '(("^#\t\\([^:]+\\): +[^ ]+$"
+     (1 'git--bold-face))
     ("^# \\(Branch\\|Author\\|Email\\|Date\\) +:" (1 'git--bold-face))
     ("^# \\(-----*[^-]+-----*\\).*$" (1 'git--log-line-face))))
 ;; (makunbound 'git--commit-status-font-lock-keywords)
+
+(define-button-type 'git--commit-diff-committed-link
+  'help-echo "mouse-2, RET: view changes that will be committed"
+  'action 'git--commit-diff-file)
+(define-button-type 'git--commit-diff-uncomitted-link
+  'help-echo "mouse-2, RET: view changes that will NOT be committed"
+  'action 'git--commit-diff-file)
+
+(defun git--commit-buttonize-filenames (single-block type)
+  "Makes clickable buttons (aka hyperlinks) from filenames in git-status
+outputs. The filenames are found with a simple regexp.
+If SINGLE-BLOCK, stops after the first \"block\" of files, i.e.
+when it would move forward more than one line after a filename. The buttons
+created are of the given TYPE. Leaves the cursor at the end of the last
+button, or at the end of the file if it didn't create any."
+  (let (last-match-pos)
+    (while (and (re-search-forward "^#\t[^:]+: +\\(.*\\)" nil t)
+                (or (not single-block)
+                    (not last-match-pos)
+                    (> 1 (count-lines last-match-pos (point)))))
+      (make-text-button (match-beginning 1) (match-end 1)
+                        'type type)
+      (setq last-match-pos (point)))
+    (when last-match-pos (goto-char last-match-pos))))
+
+(defun git--commit-diff-file (button)
+  "Click handler for filename links in the commit buffer"
+  (with-current-buffer git--commit-log-buffer
+    (let ((diff-from "HEAD") (diff-to nil)) ; rev1, rev2 inputs to diff--many
+      ;; the commit-index case is the complicated one, adjust.
+      (if (eq nil git--commit-targets)
+          (if (eq (button-type button) 'git--commit-diff-committed-link)
+              (setq diff-to t)          ; diff HEAD -> index
+            (setq diff-from nil))       ; diff index -> working
+        )
+      ;; Use diff--many which is much less intrusive than ediff. Reuse the
+      ;; same buffer so the user can easily look at multiple files in turn.
+      (let ((buffer
+            (git--diff-many (list (button-label button)) diff-from diff-to t
+                            (when (boundp 'git--commit-last-diff-file-buffer)
+                              git--commit-last-diff-file-buffer))))
+        ;; Subtle: git-diff-many switched buffers
+        (with-current-buffer git--commit-log-buffer
+          (set (make-local-variable 'git--commit-last-diff-file-buffer) buffer)))
+    )))
 
 (defun git-commit (&optional targets)
   "Does git commit with a temporary prompt buffer. TARGETS can be nil
@@ -1816,6 +1861,7 @@ buffer. If there is no common base, returns nil."
         (current-dir default-directory))
     (with-current-buffer buffer
       ;; Tell git--commit-buffer what to do
+      (set (make-local-variable 'git--commit-targets) targets)
       (set (make-local-variable 'git--commit-args)
            (cond ((eq nil targets) '())
                  ((eq t targets) '("-a"))
@@ -1852,14 +1898,29 @@ buffer. If there is no common base, returns nil."
 
       ;;git status -- give same args as to commit
       (insert git--log-sep-line "\n")
-      (unless (eq 0 (apply #'git--exec-buffer "status" git--commit-args))
-        (kill-buffer nil)
-        (error "Nothing to commit%s"
-               (if (eq t targets) "" ", try git-commit-all")))
+      (git--please-wait "Reading git status"
+        (unless (eq 0 (apply #'git--exec-buffer "status" git--commit-args))
+          (kill-buffer nil)
+          (error "Nothing to commit%s"
+                 (if (eq t targets) "" ", try git-commit-all"))))
 
       ;; Remove "On branch blah" it's redundant
       (goto-char cur-pos)
-      (when (re-search-forward "^# On branch.*$" nil t) (kill-whole-line 1))
+      (when (re-search-forward "^# On branch.*$" nil t)
+        (delete-region (line-beginning-position) (line-beginning-position 2)))
+
+      ;; Buttonize files to be committed, with action=diff. Assume
+      ;; that the first block of files is the one to be committed, and all
+      ;; others won't be committed.
+      (goto-char cur-pos)
+      (git--commit-buttonize-filenames t 'git--commit-diff-committed-link)
+      (git--commit-buttonize-filenames nil 'git--commit-diff-uncomitted-link)
+      ;; Delete diff buffers when we're gone
+      (add-hook 'kill-buffer-hook
+                #'(lambda()
+                    (ignore-errors
+                      (kill-buffer git--commit-last-diff-file-buffer)))
+                t t)                    ; append, local
       
       ;; Set cursor to message area
       (goto-char cur-pos)
@@ -2167,17 +2228,20 @@ i.e. with valid ediff-buffer-A and B variables, among others.
     (git--diff file (concat (read-from-minibuffer prompt "HEAD") ":"))))
 
 
-(defun git--diff-many (files &optional rev1 rev2 dont-ask-save)
+(defun git--diff-many (files &optional rev1 rev2 dont-ask-save reuse-buffer)
   "Shows a diff window for the specified files and revisions, since we can't
 do ediff on multiple files. FILES is a list of files, if empty the whole
 git repository is diffed. REV1 and REV2 are strings, interpreted roughly the
 same as in git diff REV1..REV2. If REV1 is unspecified, we use the index.
-If REV2 is unspecified, we use the working dir. If DONT-ASK-SAVE is true,
-does not ask to save modified buffers under the tree (e.g. old revisions)"
+If REV2 is unspecified, we use the working dir. If REV2 is t, we use the index.
+If DONT-ASK-SAVE is true, does not ask to save modified buffers under the
+tree (e.g. old revisions). If REUSE-BUFFER is non-nil and alive, uses that
+buffer instead of a new one."
   (unless dont-ask-save (git--maybe-ask-save files))
+  (when (and (not rev1) (eq t rev2) (error "Invalid diff index->index")))
   (let* ((rel-filenames (mapcar #'file-relative-name files))
          (friendly-rev1 (or rev1 "<index>"))
-         (friendly-rev2 (or rev2 "<working>"))
+         (friendly-rev2 (if (eq t rev2) "<index>" (or rev2 "<working>")))
          (diff-buffer-name (format "*git diff: %s %s..%s*"
                                    (case (length files)
                                      (0 (abbreviate-file-name
@@ -2185,7 +2249,11 @@ does not ask to save modified buffers under the tree (e.g. old revisions)"
                                      (1 (file-relative-name (first files)))
                                      (t (format "%d files" (length files))))
                                    friendly-rev1 friendly-rev2))
-         (buffer (get-buffer-create diff-buffer-name)))
+         (buffer (if (buffer-live-p reuse-buffer)
+                     (with-current-buffer reuse-buffer
+                       (rename-buffer diff-buffer-name t)
+                       reuse-buffer)
+                   (get-buffer-create diff-buffer-name))))
     (with-current-buffer buffer
       (buffer-disable-undo)
       (let ((buffer-read-only nil)) (erase-buffer))
@@ -2199,10 +2267,11 @@ does not ask to save modified buffers under the tree (e.g. old revisions)"
           (define-key (cdr diff-readonly-map) "q" 'git--quit-buffer)))
       (let ((diff-qualifier
              (if rev1
-                 (if rev2 (list (format "%s..%s" rev1 rev2))
-                   (list rev1))
-               ;; swap sides of git diff when diffing against the index, for
-               ;; consistency (rev1 -> rev2)
+                 (if (eq t rev2) (list "--cached" rev1)
+                   (if rev2 (list (format "%s..%s" rev1 rev2))
+                     (list rev1)))
+               ;; rev1 is index. swap sides of git diff when diffing
+               ;; against the index, for consistency (rev1 -> rev2)
                (if rev2 (list "--cached" "-R" rev2)
                  '()))))
         (apply #'vc-do-command buffer 'async "git" nil "diff"
