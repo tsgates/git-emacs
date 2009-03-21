@@ -3,7 +3,7 @@
 ;; "http://nschum.de/src/emacs/test-runner/"
 ;;
 
-(provide 'git-modeline)
+(require 'git-emacs)
 
 ;; Modeline decoration customization
 (defcustom git-state-modeline-decoration
@@ -124,6 +124,7 @@ static char * data[] = {
 (defun git--update-state-mark-tooltip (tooltip)
   (setq git--state-mark-tooltip tooltip))
 
+;; autoload entry point
 (defun git--update-state-mark (stat)
   (git--uninstall-state-mark-modeline)
   (git--install-state-mark-modeline stat))
@@ -134,3 +135,6 @@ static char * data[] = {
 ;;(git--install-state-mark-modeline 'modified)
 ;; (git--uninstall-state-mark-modeline)
 ;; (setq git--state-mark-tooltip "testsetset")
+
+(provide 'git-modeline)
+

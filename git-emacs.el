@@ -77,22 +77,27 @@
 (eval-when-compile (require 'cl))
 
 (require 'ewoc)                         ; view
+(require 'ediff)                        ; we use this a lot
+(require 'vc)                           
 (require 'vc-git)                       ; vc-git advises
 (add-to-list 'vc-handled-backends 'git)
 (require 'electric)                     ; branch mode
 (require 'time-stamp)                   ; today
 
-(require 'git-blame)                    ; git blame
-(require 'git-modeline)                 ; modeline dot
 (require 'git-global-keys)              ; global keyboard mappings
 
 ;; Autoloaded submodules
+(autoload 'git-blame-mode "git-blame"
+  "Minor mode for incremental blame for Git" t)
+
+(autoload 'git--update-state-mark "git-modeline"
+  "Update modeline of git buffers with a customizable state marker" t)
+
 (autoload 'git-log "git-log" "Launch the git log view for the current file" t)
 (autoload 'git-log-all "git-log"
   "Launch the git log view for whole repository" t)
 (autoload 'git-log-other "git-log"
   "Launch the git log view for an arbitrary branch or tag" t)
-
 
 (defalias 'electric-pop-up-window 'Electric-pop-up-window)
 (defalias 'electric-command-loop  'Electric-command-loop)
@@ -237,20 +242,6 @@ string. INPUT can also be a buffer."
     (with-current-buffer standard-output
       (apply #'git--exec-buffer cmd args))))
 
-(defun git--exec-string (cmd &rest args)
-  "Executes the specified git command, raises an error with the git output
-if it fails. If the command succeeds, returns the git output."
-  (with-output-to-string
-    (with-current-buffer standard-output
-      (unless (eq 0
-                  (apply #'git--exec-buffer cmd args))
-        (error (git--trim-string (buffer-string)))))))
-
-
-;;-----------------------------------------------------------------------------
-;; utilities
-;;-----------------------------------------------------------------------------
-
 (defsubst git--trim-string (str)
   "Trim the front and rear part of the string"
   
@@ -267,6 +258,20 @@ if it fails. If the command succeeds, returns the git output."
       (decf end))
 
     (substring str begin (+ end 1))))
+
+(defun git--exec-string (cmd &rest args)
+  "Executes the specified git command, raises an error with the git output
+if it fails. If the command succeeds, returns the git output."
+  (with-output-to-string
+    (with-current-buffer standard-output
+      (unless (eq 0
+                  (apply #'git--exec-buffer cmd args))
+        (error (git--trim-string (buffer-string)))))))
+
+
+;;-----------------------------------------------------------------------------
+;; utilities
+;;-----------------------------------------------------------------------------
 
 (defsubst git--trim-tail (str)
   "Trim only the tail of the string"
@@ -303,6 +308,23 @@ if it fails. If the command succeeds, returns the git output."
     ;; Emacs refuses to delete a "maximized" window (i.e. just 1 in frame)
     (unless (one-window-p t) (delete-window))
     (kill-buffer buffer)))
+
+(defsubst git--interpret-to-state-symbol (stat)
+  "Interpret git state string to state symbol"
+
+  (case (string-to-char stat)
+    (?H 'uptodate )
+    (?M 'modified )
+    (?? 'unknown  )
+    (?A 'added    )
+    (?D 'deleted  )
+    (?U 'unmerged )
+    (?T 'modified )
+    (?K 'killed   )
+    (t nil)))
+
+(defsubst git--build-reg (&rest args)
+  (apply #'concat (add-to-list 'args "\0" t)))
 
 (defsubst git--select-from-user (prompt choices)
   "Select from choices"
@@ -383,6 +405,45 @@ those buffers. Returns the number of buffers refreshed."
      (lambda(buffer) (with-current-buffer buffer (revert-buffer t t)))
      buffers
      '("buffer" "buffers" "refresh"))))
+
+
+;;-----------------------------------------------------------------------------
+;; fileinfo structure
+;;-----------------------------------------------------------------------------
+
+;; ewoc file info structure for each list element
+(defstruct (git--fileinfo 
+            (:copier nil)
+            (:constructor git--create-fileinfo-core
+                          (name type &optional sha1 perm marked stat size refresh lessp))
+            (:conc-name git--fileinfo->))
+  marked   ;; t/nil
+  expanded ;; t/nil
+  refresh  ;; t/nil
+  lessp    ;; sort priority (tree=3, sub=2, blob=1)
+  stat     ;; 'unknown/'modified/'uptodate/'staged  etc.
+  type     ;; 'blob/'tree
+  name     ;; filename
+  size     ;; size
+  perm     ;; permission
+  sha1)    ;; sha1
+
+(defsubst git--create-fileinfo (name type &optional sha1 perm marked stat size refresh)
+  "Create fileinfo through this function instead using 'git--create-fileinfo-core'"
+  
+  (git--create-fileinfo-core name type sha1 perm marked stat size refresh
+                             (if (eq type 'tree) 3 (if (string-match "/" name) 2 1))))
+
+(defun git--fileinfo-lessp (info1 info2)
+  "Sorting rules of 'git--fileinfo' ref to 'git--create-fileinfo'"
+
+  (let ((info1-level (git--fileinfo->lessp info1))
+        (info2-level (git--fileinfo->lessp info2)))
+
+    (if (eq info1-level info2-level)
+        (string-lessp (git--fileinfo->name info1)
+                      (git--fileinfo->name info2))
+      (> info1-level info2-level))))
 
 ;;-----------------------------------------------------------------------------
 ;; git execute command
@@ -576,7 +637,7 @@ and finally 'git--clone-sentinal' is called"
 
   (apply #'git--exec-string "rev-parse" args))
 
-(defsubst git--get-top-dir (&optional dir)
+(defun git--get-top-dir (&optional dir)
   "Get the top-level git directory above DIR. If nil, use default-directory."
   
   (with-temp-buffer
@@ -713,20 +774,6 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
 (defsubst git--today ()
   (time-stamp-string "%:y-%02m-%02d %02H:%02M:%02S"))
 
-(defsubst git--interpret-to-state-symbol (stat)
-  "Interpret git state string to state symbol"
-
-  (case (string-to-char stat)
-    (?H 'uptodate )
-    (?M 'modified )
-    (?? 'unknown  )
-    (?A 'added    )
-    (?D 'deleted  )
-    (?U 'unmerged )
-    (?T 'modified )
-    (?K 'killed   )
-    (t nil)))
-
 (defsubst git--interpret-state-mode-color (stat)
   "Interpret git state symbol to mode line color"
 
@@ -849,47 +896,6 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
   (git--status-view-first-line))
 
 ;;-----------------------------------------------------------------------------
-;; fileinfo in view
-;;-----------------------------------------------------------------------------
-
-(defsubst git--build-reg (&rest args)
-  (apply #'concat (add-to-list 'args "\0" t)))
-
-;; ewoc file info structure for each list element
-(defstruct (git--fileinfo 
-            (:copier nil)
-            (:constructor git--create-fileinfo-core
-                          (name type &optional sha1 perm marked stat size refresh lessp))
-            (:conc-name git--fileinfo->))
-  marked   ;; t/nil
-  expanded ;; t/nil
-  refresh  ;; t/nil
-  lessp    ;; sort priority (tree=3, sub=2, blob=1)
-  stat     ;; 'unknown/'modified/'uptodate/'staged  etc.
-  type     ;; 'blob/'tree
-  name     ;; filename
-  size     ;; size
-  perm     ;; permission
-  sha1)    ;; sha1
-
-(defsubst git--create-fileinfo (name type &optional sha1 perm marked stat size refresh)
-  "Create fileinfo through this function instead using 'git--create-fileinfo-core'"
-  
-  (git--create-fileinfo-core name type sha1 perm marked stat size refresh
-                             (if (eq type 'tree) 3 (if (string-match "/" name) 2 1))))
-
-(defun git--fileinfo-lessp (info1 info2)
-  "Sorting rules of 'git--fileinfo' ref to 'git--create-fileinfo'"
-
-  (let ((info1-level (git--fileinfo->lessp info1))
-        (info2-level (git--fileinfo->lessp info2)))
-
-    (if (eq info1-level info2-level)
-        (string-lessp (git--fileinfo->name info1)
-                      (git--fileinfo->name info2))
-      (> info1-level info2-level))))
-
-;;-----------------------------------------------------------------------------
 ;; git-status-view features
 ;;-----------------------------------------------------------------------------
 
@@ -981,6 +987,11 @@ If predicate return nil continue to scan, otherwise stop and return the node"
     (git--status-view-update-expand-tree fileinfo)
     (git--status-view-update-state fileinfo)))
 
+(defsubst git--status-refresh ()
+  (let ((pos (point)))
+    (ewoc-refresh git--status-view)
+    (goto-char pos)))
+
 (defun git--status-new ()
   "Create new status-view buffer in current buffer"
 
@@ -1010,11 +1021,6 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   
   (let ((buffer-read-only nil)) 
     (ewoc-delete git--status-view node)))
-
-(defsubst git--status-refresh ()
-  (let ((pos (point)))
-    (ewoc-refresh git--status-view)
-    (goto-char pos)))
 
 (defun git--status-delete-afer-regex (node regex)
   (while node
@@ -1569,6 +1575,11 @@ pending commit buffer or nil if the buffer wasn't needed."
 ;; vc-git integration
 ;;-----------------------------------------------------------------------------
 
+(defsubst git--in-vc-mode? ()
+  "Check see if in vc-git is under vc-git"
+  
+  (and vc-mode (string-match "^ Git" (substring-no-properties vc-mode))))
+
 (defun git--update-modeline ()
   "Update modeline state dot mark properly"
   
@@ -1578,11 +1589,6 @@ pending commit buffer or nil if the buffer wasn't needed."
      (git--status-file (file-relative-name buffer-file-name)))))
 
 (defalias 'git-history 'git-log-all)
-
-(defsubst git--in-vc-mode? ()
-  "Check see if in vc-git is under vc-git"
-  
-  (and vc-mode (string-match "^ Git" (substring-no-properties vc-mode))))
 
 (defadvice vc-find-file-hook (after git--vc-git-find-file-hook activate)
   "vc-find-file-hook advice for synchronizing with vc-git interface"
@@ -1646,8 +1652,15 @@ pending commit buffer or nil if the buffer wasn't needed."
           "# Email  : " (git--config-get-email)   "\n"
           "# Date   : " (git--today)              "\n"))
 
+;; Internal variables for commit
 (defvar git--commit-after-hook nil
   "Hooks to run after comitting (and killing) the commit buffer.")
+(defvar git--commit-args nil
+  "Args to be passed to the current git commit once done editing.")
+(defvar git--commit-targets nil
+  "Records the targets parameter of `git-commit'. Buffer-local.")
+(defvar git--commit-last-diff-file-buffer nil
+  "Stores last diff buffer launched from a commit buffer.")
 
 (defun git--commit-buffer ()
   "When you press C-cC-c after editing log, this function is called
@@ -1751,10 +1764,10 @@ buffer. If there is no common base, returns nil."
 
 (defun git--resolve-merge-buffer (result-buffer)
   "Implementation of resolving conflicted buffer"
+  (interactive)
 
   (setq result-buffer (current-buffer))
   
-  (interactive)
   (let* ((filename (file-relative-name buffer-file-name))
          (our-buffer (git--resolve-fill-buffer result-buffer 'ours))
          (their-buffer (git--resolve-fill-buffer result-buffer 'theirs))
@@ -1841,11 +1854,11 @@ button, or at the end of the file if it didn't create any."
       ;; same buffer so the user can easily look at multiple files in turn.
       (let ((buffer
             (git--diff-many (list (button-label button)) diff-from diff-to t
-                            (when (boundp 'git--commit-last-diff-file-buffer)
-                              git--commit-last-diff-file-buffer))))
+                            git--commit-last-diff-file-buffer)))
         ;; Subtle: git-diff-many switched buffers
         (with-current-buffer git--commit-log-buffer
-          (set (make-local-variable 'git--commit-last-diff-file-buffer) buffer)))
+          (set (make-local-variable 'git--commit-last-diff-file-buffer)
+               buffer)))
     )))
 
 (defun git-commit (&optional targets)
@@ -2133,7 +2146,9 @@ about the nature of the checkout (full)."
   (git--kill-status-buffer ".")
 
   ;; testing
-  (assert (null (string-match "asdf/" "asdf"))))
+  (assert (null (string-match "asdf/" "asdf")))
+
+  (message "git-regression passed"))
 
 (defun git-cmd (str)
   "git-cmd for user"
@@ -2189,11 +2204,11 @@ i.e. with valid ediff-buffer-A and B variables, among others.
 
 	;; get relative to git root dir
 	(cd (git--get-top-dir (file-name-directory abspath)))
-	(setq filerev (concat rev (file-relative-name abspath)))
-	(setq buf2 (git--cat-file (if (equal rev ":")
-                                      (concat "<index>" filerev)
-                                    filerev)
-                                  "blob" filerev))))
+	(let ((filerev (concat rev (file-relative-name abspath))))
+              (setq buf2 (git--cat-file (if (equal rev ":")
+                                            (concat "<index>" filerev)
+                                          filerev)
+                                        "blob" filerev)))))
 
     (set-buffer
      (ediff-buffers buf1 buf2
@@ -2286,7 +2301,7 @@ buffer instead of a new one."
   (interactive)
 
   (let ((name (git--trim-string (git--config "user.name")))
-        (email (git--trim-string (git--config "user.email"))))
+        (email (git--trim-string (git--config "uscer.email"))))
 
     (when (or (null name) (string= "" name))
       (setq name (read-from-minibuffer "User Name : "

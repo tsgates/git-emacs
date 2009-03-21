@@ -1,8 +1,7 @@
 ;; See git-emacs.el for license information
 
-(require 'git-emacs)
 (require 'log-view)
-
+(require 'git-emacs)
 
 ;; Based off of log-view-mode, which has some nice functionality, like
 ;; moving between comits
@@ -89,6 +88,14 @@
 
 
 ;; Implementation
+(defvar git-log-view-filenames nil
+  "List of filenames that this log is about, nil if the whole repository.")
+(defvar git-log-view-qualifier nil
+  "A short string representation of `git-log-view-filenames', e.g. \"2 files\"")
+(defvar git-log-view-start-commit nil
+  "Records the starting commit (e.g. branch name) of the current log view")
+
+
 (defun git--log-view (&optional start-commit &rest files)
   "Show a log window for the given FILES; if none, the whole
 repository. If START-COMMIT is nil, use the current branch, otherwise the
@@ -225,3 +232,5 @@ the working dir."
   (interactive)
   (unless (boundp git-log-view-start-commit) (error "Not in git log view"))
   (apply #'git--log-view git-log-view-start-commit git-log-view-filenames))
+
+(provide 'git-log)
