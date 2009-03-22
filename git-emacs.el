@@ -64,7 +64,6 @@
 ;; TODO : enhance config! & tag!
 ;; TODO : save -> status-view update
 ;; TODO : git-log -> C-u command :=> cmd
-;; TODO : remote branch list
 ;; TODO : status-mode function -> add status prefix
 ;; TODO : git set config
 ;; TODO : () -> fording/unfording for detail
@@ -72,7 +71,9 @@
 ;; TODO : locally flyspell
 ;; 
 ;; DONE : turn off ido-mode globally
-;; DONE : git-add 
+;; DONE : git-add
+;; DONE : remote branch list
+
 
 (eval-when-compile (require 'cl))
 
@@ -528,7 +529,7 @@ and finally 'git--clone-sentinal' is called"
   (message "Tagged current head with %s" (git--bold-face name)))
 
 (defun git--tag-list ()
-  "Get the tag list"
+  "Get the list of known git tags, which may not always refer to commit objects"
 
   (split-string (git--tag "-l") "\n" t))
 
@@ -1540,19 +1541,40 @@ current line. You can think of this as the \"selected files\"."
     (git--select-from-user "Select Branch : "
                            (remove-if (lambda (b) (member b excepts)) branchs))))
                          
-(defsubst git--select-tag ()
-  "Select the tag"
-
-  (git--select-from-user "Select Tag : " (git--tag-list)))
+(defun git--symbolic-commits (&optional reftypes)
+  "Find symbolic names referring to commits, using git-for-each-ref.
+REFTYPES is a list of types of refs under .git/refs ; by default,
+ (\"heads\" \"tags\" \"remotes\") , which gives branches, tags and remote
+branches. Returns a list of the refs found (as strings), in the order
+dictated by REFTYPES, then alphabetical."
+  (let* ((reftypes (or reftypes '("heads" "tags" "remotes")))
+         (git-ref-args (mapcar #'(lambda(reftype) (concat "refs/" reftype))
+                               reftypes))
+         ;; assoc list of reftype -> list of matches in reverse order
+         (results (mapcar #'(lambda(reftype) (cons reftype nil)) reftypes)))
+  (with-temp-buffer
+    (apply #'git--exec-buffer "for-each-ref" "--format=%(objecttype) %(refname)"
+           " --" git-ref-args)
+    (goto-char (point-min))
+    (while (re-search-forward "^commit refs/\\([^/]*\\)/\\(.*\\)$" nil t)
+      ;; omit e.g. remotes/origin/HEAD, which is a confusing duplicate
+      (unless (and (equal "remotes" (match-string 1))
+                   (string-match "/HEAD$" (match-string 2)))
+        (let ((result-cell (assoc (match-string 1) results)))
+          (setcdr result-cell (cons (match-string 2) (cdr result-cell))))))
+    )
+  ;; reverse (destructively) each result type, then concatenate
+  (apply #'append (mapcar #'(lambda(result-cell) (nreverse (cdr result-cell)))
+                          results))))
 
 (defsubst git--select-revision (prompt &optional prepend-choices)
   "Offer the user a list of human-readable revisions to choose from. By default,
-it shows tags and branches; additional choices can be specified as a list."
+it shows branches, tags and remotes; additional choices can be
+specified as a list."
   
   (git--select-from-user prompt (append prepend-choices
-                                        (git--branch-list)
-                                        (git--tag-list))))
-
+                                        (git--symbolic-commits))))
+                                        
 (defun git--maybe-ask-and-commit(after-func)
   "Helper for functions that switch trees. If there are pending
 changes, asks the user whether they want to commit, then pops up
@@ -2097,17 +2119,17 @@ about the nature of the checkout (full)."
     (message "You can recover the deleted branch %s as %s"
              (git--bold-face branch) saved-head)))
 
-(defun git-delete-tag ()
+(defun git-delete-tag (tag)
   "Delete tag after selecting tag"
   
-  (interactive)
-  (let ((tag (git--select-tag)))
-    (if (string-match "^Deleted" (git--tag "-d" tag))
-        (message "%s '%s' Tag" (git--bold-face "Deleted") tag)
-      (message "%s on %s '%s' Tag"
-               git--msg-critical
-               (git--bold-face "deleting")
-               tag))))
+  (interactive
+   (list (git--select-from-user "Delete tag: " (git--tag-list))))
+  (let ((saved-tag-target
+         (ignore-errors
+           (git--trim-string (git--exec-string "rev-parse" "--short" tag)))))
+    (git--tag "-d" tag)
+    (message "%s tag '%s'; you can recover it as %s"
+             (git--bold-face "Deleted") tag saved-tag-target)))
 
 (defun git-status (dir)
   "Launch git-status mode at the directory if it is under 'git'"
