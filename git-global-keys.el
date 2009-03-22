@@ -36,6 +36,7 @@
 (define-key git--diff-all-buffer-map "h" '("[H]ead" . git-diff-all-head))
 (define-key git--diff-all-buffer-map (kbd "RET") 'git-diff-all-head)
 
+(define-key git-global-map "g" 'git-grep)
 (define-key git-global-map "i" 'git-add-interactively)
 
 (define-key git-global-map "l" 'git-log)
@@ -69,8 +70,9 @@
      ["Other..." git-diff-all-other t])
     ["Log for Current File" git-log t]
     ["Log for Entire Project" git-log-all t]
-    ["Branch List..." git-branch t]
+    ["Branch List" git-branch t]
     ["Status" git-status t]
+    ["Grep..." git-grep t]
     ["Git Command..." git-cmd t]))
 
 

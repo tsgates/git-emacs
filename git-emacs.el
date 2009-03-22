@@ -2745,6 +2745,30 @@ user chose so."
                   new-content-hash
                   (git--get-relative-to-top buffer-file-name))))))))
    )))
+
 ;;-----------------------------------------------------------------------------
+;;grep
+;;-----------------------------------------------------------------------------
+
+(defvar git--grep-history nil "History for git-grep")
+(defun git-grep (args)
+  "Runs git grep with the given ARGS (a string) and output to a buffer"
+  (interactive
+   (let ((default (find-tag-default)))  ; often, user looks up an identifier
+     (list (read-string (format "git grep %s>> "
+                                (if default (format "(default %s) " default)
+                                  ""))
+                        nil 'git--grep-history default))))
+  (require 'grep)
+  (let ((default-directory (git--get-top-dir default-directory))
+        (git-grep-setup-hook (lambda() (setenv "GIT_PAGER" "")))
+        (compilation-buffer-name-function
+         (lambda (&rest ignore) "*git grep*")))
+    (add-hook 'grep-setup-hook git-grep-setup-hook)
+    (unwind-protect
+        (grep (concat "git grep -n " args))
+      (remove-hook 'grep-setup-hook git-grep-setup-hook))))
+;-----------------------------------------------------------------------------
+    
 
 (provide 'git-emacs)
