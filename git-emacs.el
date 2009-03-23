@@ -1873,7 +1873,7 @@ button, or at the end of the file if it didn't create any."
     (while (and (re-search-forward "^#\t[^:]+: +\\(.*\\)" nil t)
                 (or (not single-block)
                     (not last-match-pos)
-                    (> 1 (count-lines last-match-pos (point)))))
+                    (<= (count-lines last-match-pos (point)) 2)))
       (make-text-button (match-beginning 1) (match-end 1)
                         'type type)
       (setq last-match-pos (point)))
