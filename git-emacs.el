@@ -757,7 +757,7 @@ only checks the specified files. The list is sorted by filename."
     (sort fileinfo 'git--fileinfo-lessp)))
 
 (defsubst git--status-buffer-name (dir)
-  (format "*git-status on %s*" (expand-file-name dir)))
+  (format "*git-status on %s*" (abbreviate-file-name (expand-file-name dir))))
 
 (defsubst git--create-status-buffer (dir)
   (let* ((status-buffer-name (git--status-buffer-name dir))
@@ -1071,7 +1071,9 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (define-key map "e" 'git--status-view-expand-tree-toggle)
   (define-key map "v" 'git--status-view-view-file)
   (define-key map "o" 'git--status-view-open-file)
-  (define-key map "=" 'git--status-view-diff-file)
+  ;; Use the sub-maps from git-global-keys for diffs.
+  (define-key map "d" (copy-keymap git--diff-buffer-map))
+  (define-key map "D" (copy-keymap git--diff-all-map))
   (define-key map "b" 'git--status-view-switch-branch)
   (define-key map "!" 'git--status-view-resolve-merge)
   (define-key map "." 'git--status-view-git-cmd)
@@ -1082,14 +1084,13 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (define-key map "i" 'git--status-view-add-ignore)
   (define-key map "r" 'git--status-view-rename)
   (define-key map "?" 'git--status-view-blame)
-  (define-key map "d" 'git--status-view-rm)
+  (define-key map (kbd "<delete>") 'git--status-view-rm)
   (define-key map "*" 'git--status-view-mark-reg)
   (define-key map "s" 'git--status-view-summary)
   (define-key map "z" 'git-branch)
 
-  ;; ok for commiting
-  (define-key map "c" 'git-commit-all)
-    
+  (define-key map "c" (copy-keymap git--commit-map))
+
   (define-key map "\C-m" 'git--status-view-do-propriate)
 
   (setq git--status-mode-map map))
@@ -1111,16 +1112,29 @@ If predicate return nil continue to scan, otherwise stop and return the node"
     ["Rename File" git--status-view-rename t]
     ["Open File" git--status-view-open-file t]
     ["View File" git--status-view-view-file t]
-    ["Diff File" git--status-view-diff-file t]
-    ["Remove File" git--status-view-rm]
+    ("Diff File(s) against"
+     ;; We want the short keys to appear here rather than the global keys
+      ["HEAD" git-diff-head :keys "d RET" :active t]
+      ["Index" git-diff-index :keys "d i" :active t]
+      ["Baseline" git-diff-baseline :keys "d b" :active t]
+      ["Other..." git-diff-other :keys "d o" :active t])
+    ("Diff Repository against"
+     ["HEAD" git-diff-all-head :keys "D RET" :active t]
+     ["Index" git-diff-all-index :keys "D i" :active t]
+     ["Baseline" git-diff-all-baseline :keys "D b" :active t]
+     ["Other..." git-diff-all-other :keys "D o" :active t])
+    ["Delete File" git--status-view-rm]
     ["View Summary" git--status-view-summary t]
-    ["Log for File" git--status-view-log-selected t]
+    ["Log for Selected File(s)" git--status-view-log-selected t]
     ["Mark" git--status-view-mark-and-next t]
     ["Unmark" git--status-view-unmark-and-next t]
     "----"
     ["Branch Mode" git-branch t]
     ["Switch to Branch..." git--status-view-switch-branch t]      
-    ["Commit All" git-commit-all t]
+    ("Commit"
+     ["All Changes" git-commit-all :keys "c RET" :active t]
+     ["Index" git-commit :keys "c i" :active t]
+     ["Selected File(s)" git-commit-file :keys "c f" :active t])
     ["Resolve Merge" git--status-view-resolve-merge t]
     ["Merge" git-merge t]
     ["Revert" git-revert t]
@@ -1390,12 +1404,6 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (interactive)
   (find-file (git--status-view-select-filename)))
 
-(defun git--status-view-diff-file ()
-  "Diff the selected file"
-
-  (interactive)
-  (git-diff (expand-file-name (git--status-view-select-filename))))
-
 (defun git--status-view-resolve-merge ()
   "Resolve the conflict if necessary"
   
@@ -1457,11 +1465,13 @@ current line. You can think of this as the \"selected files\"."
   (interactive)
 
   (let* ((files (git--status-view-marked-or-file))
-         (msg (format "total %s files including '%s'"
-                      (length files)
-                      (file-name-nondirectory (car files)))))
+         (msg (if (eq 1 (length files))
+                  (first files)
+                (format "%s files, including '%s'"
+                        (length files)
+                        (file-name-nondirectory (car files))))))
     
-    (unless (y-or-n-p (format "Really want to %s %s?"
+    (unless (y-or-n-p (format "Really %s %s? "
                               (git--bold-face "delete")
                               msg))
       (error "Aborted deletion"))
@@ -1988,11 +1998,13 @@ button, or at the end of the file if it didn't create any."
     buffer))
 
 (defun git-commit-file ()
-  "Runs git commit with the file in the current buffer. Only changes to that
-file will be committed."
+  "Runs git commit with the file in the current buffer, or with the selected
+files in git-status. Only changes to those files will be committed."
   (interactive)
   (git--require-buffer-in-git)
-  (git-commit (list (file-relative-name buffer-file-name))))
+  (git-commit (if (eq major-mode 'git-status-mode)
+                  (git--status-view-marked-or-file)
+                (list (file-relative-name buffer-file-name)))))
 
 (defun git-init (dir)
   "Initialize the git repository"
@@ -2258,21 +2270,6 @@ i.e. with valid ediff-buffer-A and B variables, among others.
                         (set-window-configuration saved-config)))))
               nil t)                     ; prepend, buffer-local
     ))
-
-(defun git-diff-head (file)
-  "Simple diffing with the previous HEAD"
-  
-  (interactive "fSelect Diff Target : ")
-  (git--diff file "HEAD:"))
-
-(defun git-diff (file)
-  "Diffing with the target file and revision user selected"
-
-  (interactive "fSelect Diff Target : ")
-
-  (let ((prompt (format "git diff [rev]:%s >> " (file-relative-name file))))
-    (git--diff file (concat (read-from-minibuffer prompt "HEAD") ":"))))
-
 
 (defun git--diff-many (files &optional rev1 rev2 dont-ask-save reuse-buffer)
   "Shows a diff window for the specified files and revisions, since we can't
@@ -2607,23 +2604,35 @@ if 'create -> call git-checkout-to-new-branch"
 ;;-----------------------------------------------------------------------------
 
 (defun git--require-buffer-in-git ()
-  "Error out from interactive if current buffer is not in git revision control."
-  (if (not (and buffer-file-name (git--in-vc-mode?)))
+  "Error out from interactive if current buffer is not in git revision control,
+and it's not a git-status-buffer."
+  (if (not (or (and buffer-file-name (git--in-vc-mode?))
+               (eq major-mode 'git-status-mode)))
       (error "Current buffer must be a file under git revision control")))
 
-;; diff-buffer functions
-(defun git-diff-buffer-head()
-  "Diff current buffer against HEAD version, using ediff"
+;; The git-diff-* family of functions diffs a buffer or the selected file
+;; in git status against HEAD, the index, etc..
+                 
+(defun git-diff-head()
+  "Diff current buffer, or current file in git-status,  against HEAD version,
+using ediff."
   (interactive)
   (git--require-buffer-in-git)
-  (git--diff buffer-file-name "HEAD:"))
+  (git--diff (if (eq major-mode 'git-status-mode)
+                 (git--status-view-select-filename)
+               buffer-file-name)
+             "HEAD:"))
 
-(defun git-diff-buffer-index()
-  "Diff current buffer against version in index, using ediff"
+(defun git-diff-index()
+  "Diff current buffer, or current file in git-status,  against version
+in index, using ediff"
   (interactive)
   (git--require-buffer-in-git)
-   ;; luckily ":file" means file as currently staged
-  (git--diff buffer-file-name ":"))
+  (git--diff (if (eq major-mode 'git-status-mode)
+                 (git--status-view-select-filename)
+               buffer-file-name)
+             ;; luckily ":file" means file as currently in the index
+             ":"))
 
 ;; baseline stuff
 (defvar git-baseline-commit '()
@@ -2651,9 +2660,12 @@ user chose so."
   ;; be useful elsewhere.
   (let* ((repo-dir
           ;; either the repo of the current buffer
-          (if buffer-file-name
-               (git--get-top-dir (or (file-name-directory buffer-file-name)
-                                     ""))
+          (cond
+           (buffer-file-name
+            (git--get-top-dir (or (file-name-directory buffer-file-name) "")))
+           ((eq major-mode 'git-status-mode)
+            (git--get-top-dir default-directory))
+           (t
             ;; or one prompted from the user
             (let ((prompted-repo-dir
                    (read-directory-name "Set baseline for repository: "
@@ -2663,7 +2675,7 @@ user chose so."
                    (expand-file-name (file-name-as-directory prompted-repo-dir))
                    (expand-file-name (git--get-top-dir prompted-repo-dir)))
                   prompted-repo-dir
-                (error "Not a git repository: %s" prompted-repo-dir)))))
+                (error "Not a git repository: %s" prompted-repo-dir))))))
          ;; canonicalize, for storage / lookup
          (canonical-repo-dir
           (expand-file-name (file-name-as-directory repo-dir)))
@@ -2699,21 +2711,28 @@ user chose so."
                                    git-baseline-commit))
         new-baseline))))
 
-(defun git-diff-buffer-baseline()
+(defun git-diff-baseline()
   "Diff current buffer against a selectable \"baseline\" commit"
   (interactive)
   (git--require-buffer-in-git)
   (let* ((baseline (git-set-baseline t))
          (baseline-str (if (functionp baseline) (funcall baseline) baseline)))
-    (git--diff buffer-file-name (concat baseline-str ":"))))
+    (git--diff (if (eq major-mode 'git-status-mode)
+                   (git--status-view-select-filename)
+                 buffer-file-name)
+               (concat baseline-str ":"))))
 
-(defun git-diff-buffer-other(commit)
+(defun git-diff-other(commit)
   "Diff current buffer against an arbitrary commit"
   (interactive
    (progn
      (git--require-buffer-in-git)
      (list (git--select-revision "Diff against commit: "))))
-  (git--diff buffer-file-name (concat commit ":")))
+  (git--require-buffer-in-git)
+  (git--diff (if (eq major-mode 'git-status-mode)
+                 (git--status-view-select-filename)
+               buffer-file-name)
+             (concat commit ":")))
 
 ;; git-diff-all variants
 (defun git-diff-all-head (&optional files)
@@ -2746,7 +2765,9 @@ user chose so."
   (interactive)                         ; haha
   (git--require-buffer-in-git)
   (git--diff
-   buffer-file-name ":"
+   (if (eq major-mode 'git-status-mode) (git--status-view-select-filename)
+     buffer-file-name )
+   ":"                                  ; index
    ;; before ediff
    (lambda()
      (with-current-buffer ediff-buffer-B

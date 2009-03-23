@@ -21,20 +21,19 @@
 
 (define-prefix-command 'git--diff-buffer-map nil "Diff against")
 (define-key git-global-map "d" 'git--diff-buffer-map)
-(define-key git--diff-buffer-map "o" '("[o]ther" . git-diff-buffer-other))
-(define-key git--diff-buffer-map "i" '("[i]ndex" . git-diff-buffer-index))
-(define-key git--diff-buffer-map "b" '("[b]aseline" . git-diff-buffer-baseline))
-(define-key git--diff-buffer-map "h" '("[H]ead" . git-diff-buffer-head))
-(define-key git--diff-buffer-map (kbd "RET") 'git-diff-buffer-head)
+(define-key git--diff-buffer-map "o" '("[o]ther" . git-diff-other))
+(define-key git--diff-buffer-map "i" '("[i]ndex" . git-diff-index))
+(define-key git--diff-buffer-map "b" '("[b]aseline" . git-diff-baseline))
+(define-key git--diff-buffer-map "h" '("[H]ead" . git-diff-head))
+(define-key git--diff-buffer-map (kbd "RET") 'git-diff-head)
 
-(define-prefix-command 'git--diff-all-buffer-map nil "Diff repo against")
-(define-key git-global-map "D" 'git--diff-all-buffer-map)
-(define-key git--diff-all-buffer-map "o" '("[o]ther" . git-diff-all-other))
-(define-key git--diff-all-buffer-map "i" '("[i]ndex" . git-diff-all-index))
-(define-key git--diff-all-buffer-map "b"
-  '("[b]aseline" . git-diff-all-baseline))
-(define-key git--diff-all-buffer-map "h" '("[H]ead" . git-diff-all-head))
-(define-key git--diff-all-buffer-map (kbd "RET") 'git-diff-all-head)
+(define-prefix-command 'git--diff-all-map nil "Diff repo against")
+(define-key git-global-map "D" 'git--diff-all-map)
+(define-key git--diff-all-map "o" '("[o]ther" . git-diff-all-other))
+(define-key git--diff-all-map "i" '("[i]ndex" . git-diff-all-index))
+(define-key git--diff-all-map "b" '("[b]aseline" . git-diff-all-baseline))
+(define-key git--diff-all-map "h" '("[H]ead" . git-diff-all-head))
+(define-key git--diff-all-map (kbd "RET") 'git-diff-all-head)
 
 (define-key git-global-map "g" 'git-grep)
 (define-key git-global-map "i" 'git-add-interactively)
@@ -58,10 +57,10 @@
      ["Index" git-commit t]
      ["Current File" git-commit-file t])
     ("Diff Current Buffer against"
-      ["HEAD" git-diff-buffer-head t]
-      ["Index" git-diff-buffer-index t]
-      ["Baseline" git-diff-buffer-baseline t]
-      ["Other..." git-diff-buffer-other t]
+      ["HEAD" git-diff-head t]
+      ["Index" git-diff-index t]
+      ["Baseline" git-diff-baseline t]
+      ["Other..." git-diff-other t]
       )
     ("Diff Repository against"
      ["HEAD" git-diff-all-head t]
