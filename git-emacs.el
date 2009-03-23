@@ -545,12 +545,11 @@ and finally 'git--clone-sentinal' is called"
 
   (split-string (git--tag "-l") "\n" t))
 
-(defsubst git--diff-index(args &rest files)
-  "Execute 'git-diff' with 'args' and 'files' at current buffer"
-
-  (apply #'git--exec "update-index" nil nil "--refresh" "--no-assume-unchanged"
-         "--" files)
-  (apply #'git--exec-buffer "diff-index" "-z" "--full-index"
+(defsubst git--diff-raw(args &rest files)
+  "Execute 'git-diff --raw' with 'args' and 'files' at current buffer. This
+gives, essentially, file status."
+  ;; git-diff abbreviates by default, and also produces a diff.
+  (apply #'git--exec-buffer "diff" "-z" "--full-index" "--raw" "--abbrev=40"
          (append args (list "--") files)))
 
 (defun git--status-index (&rest files)
@@ -581,7 +580,7 @@ and finally 'git--clone-sentinal' is called"
                unmerged-info))
 
     (with-temp-buffer
-      (apply #'git--diff-index (list "HEAD") files)
+      (apply #'git--diff-raw (list "HEAD") files)
 
       (goto-char (point-min))
 
