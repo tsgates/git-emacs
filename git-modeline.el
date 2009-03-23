@@ -116,9 +116,11 @@ static char * data[] = {
 
 (defun git--uninstall-state-mark-modeline ()
   (setq mode-line-format
-        (remove-if #'(lambda (mode) (eq (car-safe mode)
-                                        'git--state-mark-modeline))
-                   mode-line-format))
+        (delq nil (mapcar #'(lambda (mode)
+                              (unless (eq (car-safe mode)
+                                          'git--state-mark-modeline)
+                                mode))
+                   mode-line-format)))
   (force-mode-line-update t))
 
 (defun git--update-state-mark-tooltip (tooltip)

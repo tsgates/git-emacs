@@ -103,20 +103,23 @@
 (defalias 'electric-pop-up-window 'Electric-pop-up-window)
 (defalias 'electric-command-loop  'Electric-command-loop)
 
+
 ;;-----------------------------------------------------------------------------
 ;; preference of ido-mode
 ;;-----------------------------------------------------------------------------
-(defvar git--ido-completing-read
-  #'(lambda (prompt &rest args) (read-minibuffer prompt)))
-
 (defcustom git--use-ido t
-  "Use ido for Git prompts."
+  "Use ido for Git prompts. Affects the default of `git--completing-read'."
   :type '(boolean)
   :group 'git-emacs)
 
-(when git--use-ido
-  (require 'ido)                        ; ido readline
-  (setq git--ido-completing-read #'ido-completing-read))
+(defvar git--completing-read
+  (if git--use-ido
+      (progn
+        (require 'ido)
+        #'ido-completing-read)
+    #'completing-read)
+  "Function to use for git minibuffer prompts with choices. It should have
+the signature of `completing-read'.")
 
 ;;-----------------------------------------------------------------------------
 ;; faces
@@ -327,10 +330,9 @@ if it fails. If the command succeeds, returns the git output."
 (defsubst git--build-reg (&rest args)
   (apply #'concat (add-to-list 'args "\0" t)))
 
-(defsubst git--select-from-user (prompt choices)
-  "Select from choices"
-
-  (funcall git--ido-completing-read prompt choices))
+(defsubst git--select-from-user (prompt choices &optional history default)
+  "Select from choices. Shortcut to git--completing-read."
+  (funcall git--completing-read prompt choices nil nil nil history default))
 
 (defmacro git--please-wait(msg &rest body)
   "Macro to give feedback around actions that may take a long
@@ -407,6 +409,12 @@ those buffers. Returns the number of buffers refreshed."
      buffers
      '("buffer" "buffers" "refresh"))))
 
+;; This belongs later with all the commit functions, but the compiler complains
+;; in git-log if we don't define it before its first use.
+(defun git-commit-all ()
+  "Runs git commit -a, prompting for a commit message"
+  (interactive)
+  (git-commit t))
 
 ;;-----------------------------------------------------------------------------
 ;; fileinfo structure
@@ -1537,9 +1545,11 @@ current line. You can think of this as the \"selected files\"."
 (defsubst git--select-branch (&rest excepts)
   "Select the branch"
 
-  (let ((branchs (git--branch-list)))
-    (git--select-from-user "Select Branch : "
-                           (remove-if (lambda (b) (member b excepts)) branchs))))
+  (let ((branches (git--branch-list)))
+    (git--select-from-user
+     "Select Branch : "
+     (delq nil (mapcar (lambda (b) (unless (member b excepts) b))
+                       branches)))))
                          
 (defun git--symbolic-commits (&optional reftypes)
   "Find symbolic names referring to commits, using git-for-each-ref.
@@ -1567,13 +1577,16 @@ dictated by REFTYPES, then alphabetical."
   (apply #'append (mapcar #'(lambda(result-cell) (nreverse (cdr result-cell)))
                           results))))
 
+(defvar git--revision-history nil "History for selecting revisions")
+
 (defsubst git--select-revision (prompt &optional prepend-choices)
   "Offer the user a list of human-readable revisions to choose from. By default,
 it shows branches, tags and remotes; additional choices can be
 specified as a list."
   
-  (git--select-from-user prompt (append prepend-choices
-                                        (git--symbolic-commits))))
+  (git--select-from-user prompt
+                         (append prepend-choices (git--symbolic-commits))
+                         git--revision-history))
                                         
 (defun git--maybe-ask-and-commit(after-func)
   "Helper for functions that switch trees. If there are pending
@@ -1970,11 +1983,6 @@ button, or at the end of the file if it didn't create any."
     (pop-to-buffer buffer)
     buffer))
 
-(defun git-commit-all ()
-  "Runs git commit -a, prompting for a commit message"
-  (interactive)
-  (git-commit t))
-
 (defun git-commit-file ()
   "Runs git commit with the file in the current buffer. Only changes to that
 file will be committed."
@@ -2023,13 +2031,10 @@ file will be committed."
   
   (interactive "DLocal Directory : ")
   (let ((repository
-         (funcall git--ido-completing-read
-                  "Repository : "
-                  git--repository-bookmarks
-                  nil
-                  nil
-                  ""
-                  git--repository-history)))
+         (git--select-from-user "Clone repository: "
+                                git--repository-bookmarks
+                                git--repository-history
+                                "")))
     (with-temp-buffer
       (cd dir)
       (git--clone repository))))
