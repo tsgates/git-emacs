@@ -136,18 +136,18 @@ the signature of `completing-read'.")
     ,(concat "git " (symbol-name name) " face in status buffer mode")
     :group 'git))
 
-(git--face mark       "red"    (:bold t) "tomato" (:bold t))
-(git--face mark-tree  "blue"   (:bold t) "yellow" (:bold t))
+(git--face mark       "red"    (:bold t) "tomato"  (:bold t))
+(git--face mark-tree  "blue"   (:bold t) "yellow"  (:bold t))
 (git--face mark-blob  "black"  () "white" ())
-(git--face unknown    "black"  (:bold t) "white"  (:bold t))
-(git--face ignored    "gray"   (:bold t) "gray"   (:bold t))
-(git--face bold       "tomato" (:bold t) "tomato" (:bold t))
-(git--face modified   "tomato" (:bold t) "tomato" (:bold t))
-(git--face unmerged   "red"    (:bold t) "tomato" (:bold t))
-(git--face uptodate   "gray"   (:bold t) "tomato" (:bold t))
-(git--face added      "tomato" (:bold t) "tomato" (:bold t))
-(git--face deleted    "red"    (:bold t) "tomato" (:bold t))
-(git--face staged     "yellow" (:bold t) "tomato" (:bold t))
+(git--face unknown    "black"  (:bold t) "white"   (:bold t))
+(git--face ignored    "gray"   (:bold t) "gray"    (:bold t))
+(git--face bold       "tomato" (:bold t) "tomato"  (:bold t))
+(git--face modified   "tomato" (:bold t) "tomato"  (:bold t))
+(git--face unmerged   "red"    (:bold t) "magenta" (:bold t))
+(git--face uptodate   "gray"   (:bold t) "green"   ())
+(git--face added      "tomato" (:bold t) "cyan"    (:bold t))
+(git--face deleted    "red"    (:bold t) "red"     (:bold t))
+(git--face staged     "yellow" (:bold t) "yellow"  (:bold t))
 (git--face log-line   "gray"   (:bold t :italic t) "gray"(:bold t :italic t))
 
 (defsubst git--bold-face (str) (propertize str 'face 'git--bold-face))
@@ -198,8 +198,12 @@ the signature of `completing-read'.")
   "# ----------------------------- info ----------------------------")
 
 (defsubst git--status-header ()
-  (format (concat " " git--status-header-format)
-          "M" "STATUS" "PERM" "SIZE" "FILE"))
+  ;; Put spaces above the scrollbar and the fringe
+  (format
+   (concat (make-string (+ (scroll-bar-columns 'left) (fringe-columns 'left))
+                        ? )
+           git--status-header-format)
+   "M" "STATUS" "PERM" "SIZE" "FILE"))
 
 ;;-----------------------------------------------------------------------------
 ;; fork git process
@@ -1503,7 +1507,7 @@ current line. You can think of this as the \"selected files\"."
 (defun git--status-view-log-selected ()
   "Runs git--log-view on the selected file(s)"
   (interactive)
-  (apply #'git--log-view (git--status-view-marked-or-file)))
+  (apply #'git--log-view nil (git--status-view-marked-or-file)))
   
 
 ;;-----------------------------------------------------------------------------
