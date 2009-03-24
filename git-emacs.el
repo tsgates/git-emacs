@@ -522,10 +522,6 @@ and finally 'git--clone-sentinal' is called"
   "Execute git-mv for src and dst"
   (git--exec-string "mv" src dst))
 
-(defun git--rm (file)
-  "Execute git-rm for file"
-   (git--exec-string "rm" "--quiet" file))
-
 (defun git--tag (&rest args)
   "Execute 'git-tag' with 'args' and return the result as string"
 
@@ -545,7 +541,7 @@ and finally 'git--clone-sentinal' is called"
 
   (split-string (git--tag "-l") "\n" t))
 
-(defsubst git--diff-raw(args &rest files)
+(defsubst git--diff-raw (args &rest files)
   "Execute 'git-diff --raw' with 'args' and 'files' at current buffer. This
 gives, essentially, file status."
   ;; git-diff abbreviates by default, and also produces a diff.
@@ -1017,9 +1013,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (git--status-view-update)
 
   ;; add unknown file
-  (let ((fileinfo (git--ls-files "-o" "--exclude-per-directory=.gitignore"
-                                 "--exclude-from=.git/info/exclude")))
-    
+  (let ((fileinfo (git--ls-files "-o" "--exclude-standard")))
     (git--status-view-update-expand-tree fileinfo)
 
     (let ((iter (ewoc-nth git--status-view 0)))
@@ -1111,7 +1105,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
     ["Rename File" git--status-view-rename t]
     ["Open File" git--status-view-open-file t]
     ["View File" git--status-view-view-file t]
-    ("Diff File(s) against"
+    ("Diff File against"
      ;; We want the short keys to appear here rather than the global keys
       ["HEAD" git-diff-head :keys "d RET" :active t]
       ["Index" git-diff-index :keys "d i" :active t]
@@ -1464,20 +1458,59 @@ current line. You can think of this as the \"selected files\"."
   (interactive)
 
   (let* ((files (git--status-view-marked-or-file))
-         (msg (if (eq 1 (length files))
-                  (first files)
-                (format "%s files, including '%s'"
-                        (length files)
-                        (file-name-nondirectory (car files))))))
-    
-    (unless (y-or-n-p (format "Really %s %s? "
-                              (git--bold-face "delete")
-                              msg))
-      (error "Aborted deletion"))
-                      
-    (dolist (file files)
-      (git--rm file)))
+         ;; We can't afford to use stale fileinfos here, the warnings
+         ;; are crucial.
+         (fresh-fileinfos (append (apply #'git--status-index files)
+                                  (apply #'git--ls-files "-o" "--" files)))
+         (untracked-files nil) (pending-files nil))
+    (dolist (fi fresh-fileinfos)
+      (let ((stat (git--fileinfo->stat fi)) (name (git--fileinfo->name fi)))
+        (if (member stat '(unknown ignored)) ;although ignored aren't really vis
+            (push name untracked-files)
+          (unless (eq stat 'uptodate) (push name pending-files)))))
+    ;; We really have to be careful about this -- elaborate warning message
+    (let* ((untracked-warn (git--bold-face "untracked"))
+           (pending-warn (concat "with " (git--bold-face "pending changes")))
+           (status-warning
+            (cond
+             ((eq (length files) (length untracked-files)) untracked-warn)
+             ((eq (length files) (length pending-files)) pending-warn)
+             (t (git--join
+                 (delq nil
+                       (list (when untracked-files
+                               (format "%d %s"
+                                       (length untracked-files) untracked-warn))
+                             (when pending-files
+                               (format "%d %s"
+                                       (length pending-files) pending-warn))))
+                 ", "))))
+           (status-warning-include (if (> (length status-warning) 0)
+                                      (format " (%s)" status-warning)
+                                     ""))
+           (msg (if (eq 1 (length files))
+                    (format "%s%s" (first files) status-warning-include)
+                  (format "%s files%s" (length files) status-warning-include))))
+      (unless (y-or-n-p (format "Really %s %s? "
+                                (git--bold-face "delete")
+                                msg))
+        (error "Aborted deletion"))
 
+      ;; do git rm -f on all the tracked files
+      (let ((tracked-files
+             (delq nil (mapcar #'(lambda(file)
+                                   (unless (member file untracked-files) file))
+                               files)))
+            (num-deleted 0))
+        (when tracked-files
+          (apply #'git--exec-string "rm" "-f" "--" tracked-files))
+        (incf num-deleted (length tracked-files))
+        ;; Remove other files directly
+        (unwind-protect
+            (dolist (file untracked-files)
+              (delete-file file)
+              (incf num-deleted))
+          (message "Deleted %d files" num-deleted)))))
+                                        
   (revert-buffer))
 
 (defun git--status-view-rename ()
