@@ -96,7 +96,7 @@
   "Records the starting commit (e.g. branch name) of the current log view")
 
 
-(defun git--log-view (&optional start-commit &rest files)
+(defun git--log-view (&optional files start-commit dont-pop-buffer)
   "Show a log window for the given FILES; if none, the whole
 repository. If START-COMMIT is nil, use the current branch, otherwise the
 given commit. Assumes it is being run from a buffer whose
@@ -131,14 +131,16 @@ default-directory is inside the repo."
                      rel-filenames))
       ;; vc sometimes goes to the end of the buffer, for unknown reasons
       (vc-exec-after `(goto-char (point-min))))
-    (pop-to-buffer buffer)))
+    (if dont-pop-buffer
+        buffer
+      (pop-to-buffer buffer))))
 
 ;; Entry points
 (defun git-log ()
   "Launch the git log view for the current file"
   (interactive)
   (git--require-buffer-in-git)
-  (git--log-view nil buffer-file-name))
+  (git--log-view (list buffer-file-name)))
  
 (defun git-log-all ()
   "Launch the git log view for the whole repository"
@@ -151,8 +153,38 @@ default-directory is inside the repo."
 unspecified. You can then cherrypick commits from e.g. another branch
 using the `git-log-view-cherrypick'."
   (interactive (list (git--select-revision "View log for: ")))
-  (git--log-view commit))
+  (git--log-view nil commit))
 
+;; Take advantage of the nice git-log-view from the command line.
+;; Recipes:
+;; function gl() { gnuclient --batch --eval "(git-log-from-cmdline \"$DISPLAY\" \"$(pwd)\" \"$1\")"; }
+;;
+;; If you prefer a separate emacs instance:
+;; function gl() { emacs -l ~/.emacs --eval "(git-log-from-cmdline nil nil \"$1\")"; }
+;;
+;; Then you can just run "gl" or "gl another-branch", for example.
+(defun git-log-from-cmdline (&optional display directory start-commit)
+  "Launch a git log view from emacs --eval or gnuclient --eval. If DISPLAY
+is specified, create a frame on the specified display. If DIRECTORY is
+specified, do git log for that directory (a good idea in gnuclient)
+. If START-COMMIT if specified, log starting backwards from that commit, e.g.
+a branch."
+  (let ((default-directory (or directory default-directory))
+        (frame (when display (select-frame (make-frame-on-display display)))))
+    (switch-to-buffer
+     (git--log-view nil (when (> (length start-commit) 0) start-commit) t))
+    (when display
+      ;; Delete the frame on quit if we created it and nothing else displayed
+      (add-hook 'kill-buffer-hook
+              (lexical-let ((git-log-gnuserv-frame frame))
+                #'(lambda()
+                    (dolist (window (get-buffer-window-list (current-buffer)))
+                      (when (and (eq (next-window window) window)
+                                 (eq (window-frame window)
+                                     git-log-gnuserv-frame))
+                          (delete-frame (window-frame window))))))
+              t t))                      ; hook is append, local
+  ""))
 
 ;; Actions
 (defun git-log-view-checkout ()

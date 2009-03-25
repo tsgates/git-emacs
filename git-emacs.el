@@ -99,6 +99,8 @@
   "Launch the git log view for whole repository" t)
 (autoload 'git-log-other "git-log"
   "Launch the git log view for an arbitrary branch or tag" t)
+(autoload 'git-log-from-cmdline "git-log"
+  "Launch a git log view from emacs --eval or gnuclient --eval" t)
 
 (defalias 'electric-pop-up-window 'Electric-pop-up-window)
 (defalias 'electric-command-loop  'Electric-command-loop)
