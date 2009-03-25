@@ -1774,7 +1774,7 @@ Trim the buffer log and commit"
   (let ((local-git--commit-after-hook
          (when (local-variable-p 'git--commit-after-hook)
            (cdr git--commit-after-hook)))) ; skip the "t" for local
-    (delete-window)
+    (unless (one-window-p t) (delete-window))
     (kill-buffer git--commit-log-buffer)
     
     ;; update
