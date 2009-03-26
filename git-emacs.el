@@ -1,7 +1,8 @@
-;;; git-emacs (v.1.3) : yet another git emacs mode for newbies
+;;; git-emacs (v.1.4) : yet another git emacs mode for newbies
 ;;
 ;; Copyright (C) 2008  TSKim (tsgatesv@gmail.com)
 ;;
+;; v.1.4 Modified by ovy            @ 22 March 2009
 ;; v.1.3 Modified by Con Digitalpit @ 29 March 2008
 ;; 
 ;; Authors    : TSKim : Kim Taesoo(tsgatesv@gmail.com)
@@ -79,9 +80,9 @@
 
 (require 'ewoc)                         ; view
 (require 'ediff)                        ; we use this a lot
-(require 'vc)                           
+(require 'vc)                           ; vc
 (require 'vc-git)                       ; vc-git advises
-(add-to-list 'vc-handled-backends 'git)
+(add-to-list 'vc-handled-backends 'git) ; set backend management
 (require 'electric)                     ; branch mode
 (require 'time-stamp)                   ; today
 
@@ -90,7 +91,6 @@
 ;; Autoloaded submodules
 (autoload 'git-blame-mode "git-blame"
   "Minor mode for incremental blame for Git" t)
-
 (autoload 'git--update-state-mark "git-modeline"
   "Update modeline of git buffers with a customizable state marker" t)
 (autoload 'git--update-all-state-marks "git-modeline"
@@ -107,7 +107,6 @@
 
 (defalias 'electric-pop-up-window 'Electric-pop-up-window)
 (defalias 'electric-command-loop  'Electric-command-loop)
-
 
 ;;-----------------------------------------------------------------------------
 ;; preference of ido-mode
@@ -168,7 +167,7 @@ the signature of `completing-read'.")
 (defvar git--commit-log-buffer "*git commit*")
 (defvar git--log-flyspell-mode t "enable flyspell-mode when editing log")
 (defvar git--repository-bookmarks
-  '("~/Skills/git/checkouttest"
+  '("git://github.com/tsgates/git-emacs.git"
     "git://git.kernel.org/pub/scm/git/git.git"
     "git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git"
     )
@@ -281,7 +280,6 @@ if it fails. If the command succeeds, returns the git output."
                   (apply #'git--exec-buffer cmd args))
         (error (git--trim-string (buffer-string)))))))
 
-
 ;;-----------------------------------------------------------------------------
 ;; utilities
 ;;-----------------------------------------------------------------------------
@@ -343,7 +341,7 @@ if it fails. If the command succeeds, returns the git output."
   "Select from choices. Shortcut to git--completing-read."
   (funcall git--completing-read prompt choices nil nil nil history default))
 
-(defmacro git--please-wait(msg &rest body)
+(defmacro git--please-wait (msg &rest body)
   "Macro to give feedback around actions that may take a long
 time. Prints MSG..., executes BODY, then prints MSG...done (as per the elisp
 style guidelines)."
@@ -352,7 +350,7 @@ style guidelines)."
      ,@body
      (message (concat git--please-wait-msg "done"))))
 
-(defun git--find-buffers-in-repo(repo &optional predicate)
+(defun git--find-buffers-in-repo (repo &optional predicate)
   "Finds buffers corresponding to files in the given repository,
 optionally satisfying PREDICATE (which should take a buffer object as
 argument)."
@@ -371,7 +369,7 @@ argument)."
               (add-to-list 'buffers buffer))))))
     buffers))
 
-(defun git--find-buffers-from-file-list(filelist &optional predicate)
+(defun git--find-buffers-from-file-list (filelist &optional predicate)
   "Finds buffers corresponding to files in the given list,
 optionally satisfying the predicate."
   (let (buffers)
@@ -380,7 +378,7 @@ optionally satisfying the predicate."
         (when buffer (add-to-list 'buffers buffer))))
     buffers))
 
-(defun git--find-buffers(&optional repo-or-filelist predicate)
+(defun git--find-buffers (&optional repo-or-filelist predicate)
   "Find buffers satisfying PREDICATE in the given REPO-OR-FILELIST, which
 can be a string (git repository path), a list (filelist) or nil (current git
 repository)."
@@ -392,7 +390,7 @@ repository)."
                                 repo-or-filelist predicate))
    (t (git--find-buffers-from-file-list repo-or-filelist predicate))))
 
-(defun git--maybe-ask-save(&optional repo-or-filelist)
+(defun git--maybe-ask-save (&optional repo-or-filelist)
   "If there are modified buffers which visit files in the given REPO-OR-FILELIST,
 ask to save them. If REPO-OR-FILELIST is nil, look for buffers in the current
 git repo. Returns the number of buffers saved."
@@ -403,7 +401,7 @@ git repo. Returns the number of buffers saved."
      buffers
      '("buffer" "buffers" "save"))))
 
-(defun git--maybe-ask-revert(&optional repo-or-filelist)
+(defun git--maybe-ask-revert (&optional repo-or-filelist)
   "If there are buffers visiting files in the given REPO-OR-FILELIST that
 have changed (buffer modtime != file modtime), ask the user whether to refresh
 those buffers. Returns the number of buffers refreshed. Updates the state
@@ -575,7 +573,6 @@ gives, essentially, file status."
                                 git--reg-perm    ; matched-1: HEAD perms
                                 git--reg-blank
                                 git--reg-perm    ; matched-2: index perms
-
                                 git--reg-blank
                                 git--reg-sha1    ; matched-3: HEAD sha1
                                 git--reg-blank
@@ -2855,6 +2852,7 @@ user chose so."
                                 (if default (format "(default %s) " default)
                                   ""))
                         nil 'git--grep-history default))))
+
   (require 'grep)
   (let ((default-directory (git--get-top-dir default-directory))
         (git-grep-setup-hook (lambda() (setenv "GIT_PAGER" "")))
@@ -2862,7 +2860,7 @@ user chose so."
          (lambda (&rest ignore) "*git grep*")))
     (add-hook 'grep-setup-hook git-grep-setup-hook)
     (unwind-protect
-        (grep (concat "git grep -n " args))
+         (grep (concat "git grep -n " args))
       (remove-hook 'grep-setup-hook git-grep-setup-hook))))
 ;-----------------------------------------------------------------------------
     
