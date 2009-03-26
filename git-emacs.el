@@ -96,7 +96,8 @@
 (autoload 'git--update-all-state-marks "git-modeline"
   "Update the modelines of all git buffers" t)
 
-(autoload 'git-log "git-log" "Launch the git log view for the current file" t)
+(autoload 'git-log "git-log"
+  "Launch the git log view for the current file or the selected files in git-status-mode" t)
 (autoload 'git-log-all "git-log"
   "Launch the git log view for whole repository" t)
 (autoload 'git-log-other "git-log"
@@ -1069,7 +1070,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (define-key map "p" 'git--status-view-prev-line)
   (define-key map "N" 'git--status-view-next-meaningful-line)
   (define-key map "P" 'git--status-view-prev-meaningful-line)
-  (define-key map "l" 'git--status-view-log-selected)
+  (define-key map "l" 'git-log)
   (define-key map "m" 'git--status-view-mark-and-next)
   (define-key map "u" 'git--status-view-unmark-and-next)
   (define-key map " " 'git--status-view-toggle-and-next)
@@ -1134,7 +1135,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
      ["Other..." git-diff-all-other :keys "D o" :active t])
     ["Delete File" git--status-view-rm]
     ["View Summary" git--status-view-summary t]
-    ["Log for Selected File(s)" git--status-view-log-selected t]
+    ["Log for Selected File(s)" git-log :keys "l" :active t]
     ["Mark" git--status-view-mark-and-next t]
     ["Unmark" git--status-view-unmark-and-next t]
     "----"
@@ -1561,12 +1562,6 @@ current line. You can think of this as the \"selected files\"."
 
   (revert-buffer))
 
-
-(defun git--status-view-log-selected ()
-  "Runs git--log-view on the selected file(s)"
-  (interactive)
-  (apply #'git--log-view nil (git--status-view-marked-or-file)))
-  
 
 ;;-----------------------------------------------------------------------------
 ;; git application

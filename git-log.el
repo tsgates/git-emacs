@@ -137,10 +137,13 @@ default-directory is inside the repo."
 
 ;; Entry points
 (defun git-log ()
-  "Launch the git log view for the current file"
+  "Launch the git log view for the current file, or the selected files in
+git-status-mode."
   (interactive)
   (git--require-buffer-in-git)
-  (git--log-view (list buffer-file-name)))
+  (git--log-view (if (eq major-mode 'git-status-mode)
+                     (git--status-view-marked-or-file)
+                   (list buffer-file-name))))
  
 (defun git-log-all ()
   "Launch the git log view for the whole repository"
