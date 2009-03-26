@@ -112,7 +112,7 @@ static char * data[] = {
   (push `(git--state-mark-modeline
           ,(git--state-decoration-dispatch stat))
         mode-line-format)
-  (force-mode-line-update t))
+  )
 
 (defun git--uninstall-state-mark-modeline ()
   (setq mode-line-format
@@ -121,7 +121,7 @@ static char * data[] = {
                                           'git--state-mark-modeline)
                                 mode))
                    mode-line-format)))
-  (force-mode-line-update t))
+  )
 
 (defun git--update-state-mark-tooltip (tooltip)
   (setq git--state-mark-tooltip tooltip))
@@ -131,12 +131,56 @@ static char * data[] = {
   (git--uninstall-state-mark-modeline)
   (git--install-state-mark-modeline stat))
 
-;; 
+;; autoload entry point
+(defun git--update-all-state-marks (&optional repo-or-filelist)
+  "Updates the state marks of all the buffers visiting the REPO-OR-FILELIST,
+which is a repository dir or a list of files. This is more efficient than
+doing update--state-mark for each buffer."
+  (let ((buffers (git--find-buffers repo-or-filelist)))
+    (when (and buffers git-state-modeline-decoration)
+      ;; Use a hash table to find buffers after status-index and ls-files.
+      ;; There could be many, and we're doing all these ops with no user
+      ;; intervention. The hash table is filename -> (buffer . stat).
+      (let ((file-index (make-hash-table :test #'equal :size (length buffers)))
+            (default-directory
+              (git--get-top-dir
+                (if repo-or-filelist
+                    (file-name-directory (first repo-or-filelist))
+                  default-directory)))
+            (all-relative-names nil))
+        (dolist (buffer buffers)
+          (let ((relative-name
+                 (file-relative-name (buffer-file-name buffer)
+                                     default-directory)))
+            (puthash relative-name (cons buffer nil) file-index)
+            (push relative-name all-relative-names)))
+        ;; Execute status-index to find out the changed files
+        (dolist (fi (apply #'git--status-index all-relative-names))
+          (setcdr (gethash (git--fileinfo->name fi) file-index)
+                  (git--fileinfo->stat fi)))
+        ;; The remaining files are probably unchanged, do ls-files
+        (let (remaining-files)
+          (maphash #'(lambda (filename buffer-stat)
+                       (unless (cdr buffer-stat)
+                         (push filename remaining-files)))
+                   file-index)
+          (when remaining-files
+            (dolist (fi (apply #'git--ls-files remaining-files))
+              (setcdr (gethash (git--fileinfo->name fi) file-index)
+                      (git--fileinfo->stat fi)))))
+        ;; Now set all stats
+        (maphash #'(lambda (filename buffer-stat)
+                     (when (cdr buffer-stat)
+                       (with-current-buffer (car buffer-stat)
+                         (git--update-state-mark (cdr buffer-stat)))))
+                 file-index)))))
+      
 ;; example on state-modeline-mark
 ;; 
 ;;(git--install-state-mark-modeline 'modified)
 ;; (git--uninstall-state-mark-modeline)
 ;; (setq git--state-mark-tooltip "testsetset")
+;; (git--update-all-state-marks)
 
 (provide 'git-modeline)
 

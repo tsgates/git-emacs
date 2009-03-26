@@ -93,6 +93,8 @@
 
 (autoload 'git--update-state-mark "git-modeline"
   "Update modeline of git buffers with a customizable state marker" t)
+(autoload 'git--update-all-state-marks "git-modeline"
+  "Update the modelines of all git buffers" t)
 
 (autoload 'git-log "git-log" "Launch the git log view for the current file" t)
 (autoload 'git-log-all "git-log"
@@ -403,17 +405,29 @@ git repo. Returns the number of buffers saved."
 (defun git--maybe-ask-revert(&optional repo-or-filelist)
   "If there are buffers visiting files in the given REPO-OR-FILELIST that
 have changed (buffer modtime != file modtime), ask the user whether to refresh
-those buffers. Returns the number of buffers refreshed."
-  (let ((buffers (git--find-buffers
+those buffers. Returns the number of buffers refreshed. Updates the state
+mark of all the buffers not reverted (since revert updates it anyway)."
+  (let* ((buffers (git--find-buffers
                    repo-or-filelist
                    #'(lambda(buffer)
-                       (not (verify-visited-file-modtime buffer))))))
-    (map-y-or-n-p
-     (lambda(buffer) (format "%s has changed, refresh buffer? "
-                             (buffer-name buffer)))
-     (lambda(buffer) (with-current-buffer buffer (revert-buffer t t)))
-     buffers
-     '("buffer" "buffers" "refresh"))))
+                       (not (verify-visited-file-modtime buffer)))))
+         (buffers-not-reverted buffers))
+    ;; Do the state mark update if the user quits the revert prompt series.
+    (unwind-protect
+        (map-y-or-n-p
+         (lambda(buffer) (format "%s has changed, refresh buffer? "
+                                 (buffer-name buffer)))
+         (lambda(buffer)
+           (with-current-buffer buffer (revert-buffer t t))
+           ;; A hash table is probably not worth it here.
+           (setq buffers-not-reverted (delq buffer buffers-not-reverted)))
+         buffers
+         '("buffer" "buffers" "refresh"))
+      (when buffers-not-reverted
+        (git--update-all-state-marks (mapcar #'buffer-file-name
+                                             buffers-not-reverted))
+        (dolist (buffer buffers-not-reverted)
+          (with-current-buffer buffer (set-buffer-modified-p t)))))))
 
 ;; This belongs later with all the commit functions, but the compiler complains
 ;; in git-log if we don't define it before its first use.
@@ -1769,6 +1783,10 @@ Trim the buffer log and commit"
                         (git--trim-string (buffer-substring begin end))
                         git--commit-args)))))
 
+  ;; update state marks, either for the files committed or the whole repo
+  (git--update-all-state-marks
+   (if (eq t git--commit-targets) nil git--commit-targets))
+   
   ;; close window and kill buffer. Some gymnastics are needed to preserve
   ;; the buffer-local value of the after-hook.
   (let ((local-git--commit-after-hook
@@ -1776,9 +1794,6 @@ Trim the buffer log and commit"
            (cdr git--commit-after-hook)))) ; skip the "t" for local
     (unless (one-window-p t) (delete-window))
     (kill-buffer git--commit-log-buffer)
-    
-    ;; update
-    (git--update-modeline)
   
     ;; hooks (e.g. switch branch)
     (run-hooks 'local-git--commit-after-hook 'git--commit-after-hook)))

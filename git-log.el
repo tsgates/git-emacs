@@ -221,7 +221,8 @@ branch."
                          "Reset working directory as well (reset --hard)? ")))
         (apply #'git--exec-string "reset"
                (append (when reset-hard '("--hard")) (list commit "--")))
-        (when reset-hard (git--maybe-ask-revert))
+        (if reset-hard (git--maybe-ask-revert)
+          (git--update-all-state-marks))
         ;; I nearly lost my HEAD to an accidental reset --hard
         (message "You can recover the old HEAD as %s" saved-head)))))
 
