@@ -262,7 +262,7 @@ the working dir."
 (defun git-log-view-refresh ()
   "Refresh log view"
   (interactive)
-  (unless (boundp git-log-view-start-commit) (error "Not in git log view"))
-  (apply #'git--log-view git-log-view-start-commit git-log-view-filenames))
+  (unless (boundp 'git-log-view-start-commit) (error "Not in git log view"))
+  (git--log-view git-log-view-filenames git-log-view-start-commit))
 
 (provide 'git-log)
