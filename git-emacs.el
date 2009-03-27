@@ -350,8 +350,8 @@ style guidelines)."
      ,@body
      (message (concat git--please-wait-msg "done"))))
 
-(defun git--find-buffers-in-repo (repo &optional predicate)
-  "Finds buffers corresponding to files in the given repository,
+(defun git--find-buffers-in-dir (repo &optional predicate)
+  "Finds buffers corresponding to files in the given directory,
 optionally satisfying PREDICATE (which should take a buffer object as
 argument)."
   (let* ((absolute-repo (expand-file-name (file-name-as-directory repo)))
@@ -360,13 +360,12 @@ argument)."
     (dolist (buffer (buffer-list))
       (let ((filename (buffer-file-name buffer)))
         (when filename
-          (with-current-buffer buffer
-            (when (and (eq t (compare-strings (expand-file-name filename)
-                                              0 absolute-repo-length
-                                              absolute-repo
-                                              0 absolute-repo-length))
-                       (or (not predicate) (funcall predicate buffer)))
-              (add-to-list 'buffers buffer))))))
+          (when (and (eq t (compare-strings filename
+                                            0 absolute-repo-length
+                                            absolute-repo
+                                            0 absolute-repo-length))
+                     (or (not predicate) (funcall predicate buffer)))
+              (add-to-list 'buffers buffer)))))
     buffers))
 
 (defun git--find-buffers-from-file-list (filelist &optional predicate)
@@ -379,21 +378,21 @@ optionally satisfying the predicate."
     buffers))
 
 (defun git--find-buffers (&optional repo-or-filelist predicate)
-  "Find buffers satisfying PREDICATE in the given REPO-OR-FILELIST, which
-can be a string (git repository path), a list (filelist) or nil (current git
-repository)."
+  "Find buffers satisfying PREDICATE in the given
+REPO-OR-FILELIST, which can be a string (path within a git
+repository), a list (filelist) or nil (current git repository)."
   (cond
-   ((eq nil repo-or-filelist) (git--find-buffers-in-repo
+   ((eq nil repo-or-filelist) (git--find-buffers-in-dir
                                (git--get-top-dir default-directory)
                                predicate))
-   ((stringp repo-or-filelist) (git--find-buffers-in-repo
-                                repo-or-filelist predicate))
+   ((stringp repo-or-filelist) (git--find-buffers-in-dir
+                                (git--get-top-dir repo-or-filelist) predicate))
    (t (git--find-buffers-from-file-list repo-or-filelist predicate))))
 
 (defun git--maybe-ask-save (&optional repo-or-filelist)
   "If there are modified buffers which visit files in the given REPO-OR-FILELIST,
-ask to save them. If REPO-OR-FILELIST is nil, look for buffers in the current
-git repo. Returns the number of buffers saved."
+ask to save them. If REPO-OR-FILELIST is nil, look for buffers in
+the current git repo. Returns the number of buffers saved."
   (let ((buffers (git--find-buffers repo-or-filelist  #'buffer-modified-p)))
     (map-y-or-n-p
      (lambda(buffer) (format "Save %s? " (buffer-name buffer)))
@@ -406,27 +405,42 @@ git repo. Returns the number of buffers saved."
 have changed (buffer modtime != file modtime), ask the user whether to refresh
 those buffers. Returns the number of buffers refreshed. Updates the state
 mark of all the buffers not reverted (since revert updates it anyway)."
-  (let* ((buffers (git--find-buffers
-                   repo-or-filelist
-                   #'(lambda(buffer)
-                       (not (verify-visited-file-modtime buffer)))))
-         (buffers-not-reverted buffers))
-    ;; Do the state mark update if the user quits the revert prompt series.
-    (unwind-protect
-        (map-y-or-n-p
-         (lambda(buffer) (format "%s has changed, refresh buffer? "
-                                 (buffer-name buffer)))
-         (lambda(buffer)
-           (with-current-buffer buffer (revert-buffer t t))
-           ;; A hash table is probably not worth it here.
-           (setq buffers-not-reverted (delq buffer buffers-not-reverted)))
-         buffers
-         '("buffer" "buffers" "refresh"))
-      (when buffers-not-reverted
-        (git--update-all-state-marks (mapcar #'buffer-file-name
-                                             buffers-not-reverted))
-        (dolist (buffer buffers-not-reverted)
-          (with-current-buffer buffer (set-buffer-modified-p t)))))))
+  (let ((buffers (git--find-buffers
+                  repo-or-filelist
+                  #'(lambda(buffer)
+                      (not (verify-visited-file-modtime buffer)))))
+        (buffers-that-exist nil) (buffers-that-dont-exist nil))
+    (dolist (buffer buffers)
+      (if (file-exists-p (buffer-file-name buffer))
+          (push buffer buffers-that-exist)
+        (push buffer buffers-that-dont-exist)))
+    ;; Revert buffers that exist
+    (let ((buffers-not-reverted (copy-sequence buffers-that-exist)))
+      ;; Do the state mark update if the user quits the revert prompt series.
+      (unwind-protect
+          (map-y-or-n-p
+           (lambda(buffer) (format "%s has changed, refresh buffer? "
+                                   (buffer-name buffer)))
+           (lambda(buffer)
+             (with-current-buffer buffer (revert-buffer t t))
+             ;; A hash table is probably not worth it here.
+             (setq buffers-not-reverted (delq buffer buffers-not-reverted)))
+           buffers-that-exist
+           '("buffer" "buffers" "refresh"))
+        (when buffers-not-reverted
+          (git--update-all-state-marks (mapcar #'buffer-file-name
+                                               buffers-not-reverted))
+          (dolist (buffer buffers-not-reverted)
+            (with-current-buffer buffer (set-buffer-modified-p t))))))
+    (when buffers-that-dont-exist
+      (message "Note: some open files no longer exist: %s"
+               (git--join
+                (let ((numfiles (length buffers-that-dont-exist)))
+                  (if (> numfiles 2)
+                      (list (buffer-name (first buffers-that-dont-exist))
+                            (format "%d others" (- numfiles 1)))
+                    (mapcar #'buffer-name buffers-that-dont-exist)))
+                ", ")))))
 
 ;; This belongs later with all the commit functions, but the compiler complains
 ;; in git-log if we don't define it before its first use.
@@ -662,12 +676,18 @@ gives, essentially, file status."
 (defun git--get-top-dir (&optional dir)
   "Get the top-level git directory above DIR. If nil, use default-directory."
   
-  (with-temp-buffer
-    (let ((dir (or dir default-directory)))
-      (when (stringp dir) (cd dir))
-      
-      (let ((cdup (git--rev-parse "--show-cdup")))
-        (git--concat-path dir (car (split-string cdup "\n")))))))
+  (let ((default-directory (if dir (file-name-as-directory
+                                    (expand-file-name dir))
+                             default-directory)))
+    ;; The default-directory might be gone if a branch was switched! Walk up.
+    (let (parent)
+      (while (not (or (file-exists-p default-directory)
+                      (eq (setq parent (file-name-as-directory
+                                        (expand-file-name "..")))
+                          default-directory)))
+        (setq default-directory parent)))
+    (let ((cdup (git--rev-parse "--show-cdup")))
+      (git--concat-path default-directory (car (split-string cdup "\n"))))))
 
 (defun git--get-relative-to-top(filename)
   (file-relative-name filename
@@ -2211,13 +2231,16 @@ about the nature of the checkout (full)."
     (message "%s is not a git working tree." dir)))
 
 (defun git-regression ()
-  "Regression tests on git-emacs, but have to enhance it!"
+  "Regression tests on git-emacs, to be enhanced. Must run from a git
+repository."
 
   (interactive)
 
   ;; git exec
   (assert (string= "\n" (git--exec-string "rev-parse" "--show-cdup")))
   (assert (string= (expand-file-name "./") (git--get-top-dir ".")))
+  (assert (string= (expand-file-name "./")
+                   (git--get-top-dir "./nO/sUCH/dIrectory/Exists")))
 
   ;; create status buffer
   (assert (string= (buffer-name (git--create-status-buffer "."))
@@ -2571,9 +2594,12 @@ for new files to add to git."
   (let ((selected-branch nil)
         (buffer (get-buffer-create "*git-branch*"))
         (windows (current-window-configuration))
-        (nbranchs 0))
+        (nbranchs 0)
+        ;; Subtle: a pre-existing *git-branch* buffer might have the wrong dir
+        (directory default-directory))
 
     (with-current-buffer buffer
+      (setq default-directory directory)
       ;; set branch mode 
       (git--branch-mode)
 
