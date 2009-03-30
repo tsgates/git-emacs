@@ -675,10 +675,9 @@ gives, essentially, file status."
 
 (defun git--get-top-dir (&optional dir)
   "Get the top-level git directory above DIR. If nil, use default-directory."
-  
-  (let ((default-directory (if dir (file-name-as-directory
-                                    (expand-file-name dir))
-                             default-directory)))
+  (let ((default-directory (file-name-as-directory
+                            (if dir (expand-file-name dir)
+                              default-directory))))
     ;; The default-directory might be gone if a branch was switched! Walk up.
     (let (parent)
       (while (not (or (file-exists-p default-directory)
