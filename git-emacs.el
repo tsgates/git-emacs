@@ -429,9 +429,7 @@ mark of all the buffers not reverted (since revert updates it anyway)."
            '("buffer" "buffers" "refresh"))
         (when buffers-not-reverted
           (git--update-all-state-marks (mapcar #'buffer-file-name
-                                               buffers-not-reverted))
-          (dolist (buffer buffers-not-reverted)
-            (with-current-buffer buffer (set-buffer-modified-p t))))))
+                                               buffers-not-reverted)))))
     (when buffers-that-dont-exist
       (message "Note: some open files no longer exist: %s"
                (git--join
