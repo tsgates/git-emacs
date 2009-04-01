@@ -141,7 +141,7 @@ default-directory is inside the repo."
 git-status-mode."
   (interactive)
   (git--require-buffer-in-git)
-  (git--log-view (if (eq major-mode 'git-status-mode)
+  (git--log-view (git--if-in-status-mode
                      (git--status-view-marked-or-file)
                    (list buffer-file-name))))
  
