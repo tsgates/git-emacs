@@ -177,8 +177,8 @@
 
   (run-hooks 'git-status-mode-hook))
 
-(defun git--status-mode-revert-buffer (ignore-auto noconfirm)
-  "Revert buffer to refresh!"
+(defun git-status-mode-revert-buffer (ignore-auto noconfirm)
+  "Refresh status information."
 
   ;; TODO refresh status-mode-buffer
   (git--status-new)
