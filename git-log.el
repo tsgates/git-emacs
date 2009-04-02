@@ -48,6 +48,7 @@
   (define-key map "k" 'git-log-view-checkout)
   (define-key map "r" 'git-log-view-reset)
   (define-key map "v" 'git-log-view-revert)
+  (define-key map "t" 'git-log-view-tag)
 
   (define-key map "g" 'git-log-view-refresh)
   (define-key map "q" 'git--quit-buffer))
@@ -71,6 +72,7 @@
    ["Checkout" git-log-view-checkout t]
    ["Cherry-pick" git-log-view-cherry-pick t]
    ["Revert Commit" git-log-view-revert t]
+   ["Tag this Commit..." git-log-view-tag t]
    "---"
    ["Refresh" git-log-view-refresh t]
    ["Quit" git--quit-buffer t]))
@@ -268,5 +270,11 @@ the working dir."
   (interactive)
   (unless (boundp 'git-log-view-start-commit) (error "Not in git log view"))
   (git--log-view git-log-view-filenames git-log-view-start-commit))
+
+(defun git-log-view-tag (&optional tag-name)
+  "Create a new tag for commit that the cursor is on."
+
+  (interactive)
+  (git-tag tag-name (git--abbrev-commit (log-view-current-tag))))
 
 (provide 'git-log)

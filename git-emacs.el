@@ -537,14 +537,37 @@ and finally 'git--clone-sentinal' is called"
 
   (apply #'git--exec-string "tag" args))
 
+(defsubst git--rev-parse (&rest args)
+  "Execute 'git-rev-parse' with args and return as string"
+
+  (apply #'git--exec-string "rev-parse" args))
+
+(defvar git--tag-history nil "History variable for tags entered by user.")
+
 (defalias 'git-snapshot 'git-tag)
-(defun git-tag (name)
-  "Create a new tag for the current HEAD. git-snapshot is an alias to this."
+(defun git-tag (&optional tag-name commit)
+  "Create a new tag for the current commit, or a specified one.
+git-snapshot is an alias to this. Returns the previous target of the tag,
+nil if none."
 
-  (interactive "sNew Tag Name >> ")
-
-  (git--tag name)
-  (message "Tagged current head with %s" (git--bold-face name)))
+  (interactive)
+  (let* ((friendly-commit (if commit (git--bold-face commit)
+                            "current tree"))
+        ;; Don't use ido here, since the user will often select a new one
+         (tag-name (or tag-name
+                       (completing-read (format "Tag %s as: " friendly-commit)
+                                        (git--tag-list)
+                                        nil nil nil 'git--tag-history)))
+         (old-tag-target (ignore-errors
+                           (git--trim-string
+                            (git--rev-parse "--short" tag-name)))))
+    (apply #'git--tag (delq nil (list "-f" tag-name commit)))
+    (message "Tagged %s with %s%s"
+             friendly-commit (git--bold-face tag-name)
+             (if old-tag-target (format " (previously %s)"
+                                        (git--bold-face old-tag-target))
+               ""))
+    old-tag-target))
 
 (defun git--tag-list ()
   "Get the list of known git tags, which may not always refer to commit objects"
@@ -639,11 +662,6 @@ gives, essentially, file status."
   "Get the last log as short form"
   
   (git--trim-string (git--log "--max-count=1" "--pretty=oneline")))
-
-(defsubst git--rev-parse (&rest args)
-  "Execute 'git-rev-parse' with args and return as string"
-
-  (apply #'git--exec-string "rev-parse" args))
 
 (defun git--get-top-dir (&optional dir)
   "Get the top-level git directory above DIR. If nil, use default-directory."
@@ -1447,6 +1465,14 @@ repository."
 
   ;; testing
   (assert (null (string-match "asdf/" "asdf")))
+
+  ;; tag stuff
+  (ignore-errors (git-delete-tag "git-regression-test-tag"))
+  (unwind-protect
+      (progn
+        (assert (null (git-tag "git-regression-test-tag")))
+        (assert (stringp (git-tag "git-regression-test-tag"))))
+    (assert (git-delete-tag "git-regression-test-tag")))
 
   (message "git-regression passed"))
 
