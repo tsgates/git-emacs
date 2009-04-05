@@ -16,6 +16,14 @@
        "^No_such_text_really$")
   (set (make-local-variable 'font-lock-defaults)
        (list 'git-log-view-font-lock-keywords t))
+  (set (make-local-variable 'transient-mark-mode) t)
+
+  ;; A long git log might still be running when we die. Avoid "deleted buffer".
+  (add-hook 'kill-buffer-hook
+            #'(lambda()
+                (let ((proc (get-buffer-process (current-buffer))))
+                  (when proc (delete-process proc))))
+            nil t)                      ; prepend, local
   )
 
 
