@@ -1503,16 +1503,35 @@ specified). Prompts the user whether to reset --hard."
     ;; I nearly lost my HEAD to an accidental reset --hard
     (message "You can recover the old HEAD as %s" saved-head)))
 
-;; TODO: Maybe support reverting multiple commits at once. Would need nicer
-;; commit support.
 (defun git-revert (commit)
-  "Revert a commit, prompting the user if unspecified."
+  "Revert a commit, prompting the user if unspecified. Does not commit the
+revert operation, instead popping up a commit buffer."
   (interactive
    ;; TODO: for this to really make sense we need some SHA1 completion
    (list (git--select-revision "Revert commit: ")))
-  (let ((output (git--trim-string (git--exec-string "revert" commit))))
-    (git--maybe-ask-revert)
-    (message output)))
+  ;; Save MERGE_MSG, in case the user is doing multiple reverts.
+  (let ((merge-msg-file (expand-file-name ".git/MERGE_MSG" (git--get-top-dir)))
+        (actual-revert #'(lambda()
+                           (git--trim-string
+                            (git--exec-string "revert" "-n" commit)))))
+    (let ((output 
+           (if (file-exists-p merge-msg-file)
+               (with-temp-buffer
+                 (buffer-disable-undo)
+                 (insert-file-contents-literally merge-msg-file)
+                 (delete-file merge-msg-file)
+                 ;; append the new MERGE_MSG
+                 (unwind-protect (funcall actual-revert)
+                   (when (file-exists-p merge-msg-file)
+                     (goto-char (point-max))
+                     (insert "\n")
+                     (insert-file-contents-literally merge-msg-file))
+                   (write-region (point-min) (point-max) merge-msg-file nil
+                                 'dont-notify-user)))
+             (funcall actual-revert))))    ; no existing msg, just run it
+    (unwind-protect
+        (git--maybe-ask-revert)
+      (git-commit nil output)))))
   
 (defcustom gitk-program "gitk"
   "The command used to launch gitk."
