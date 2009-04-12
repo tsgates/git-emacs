@@ -226,18 +226,12 @@ branch."
   "Reset the current branch to the commit that the cursor is currently in."
   (interactive)
   (let ((commit (substring-no-properties (log-view-current-tag)))
-        (current-branch (git--current-branch))
-        (saved-head (git--abbrev-commit "HEAD" 10)))
+        (current-branch (ignore-errors (git--current-branch))))
     (when (y-or-n-p (format "Reset %s to commit %s? "
-                            (git--bold-face current-branch) commit))
-      (let ((reset-hard (y-or-n-p
-                         "Reset working directory as well (reset --hard)? ")))
-        (apply #'git--exec-string "reset"
-               (append (when reset-hard '("--hard")) (list commit "--")))
-        (if reset-hard (git--maybe-ask-revert)
-          (git--update-all-state-marks))
-        ;; I nearly lost my HEAD to an accidental reset --hard
-        (message "You can recover the old HEAD as %s" saved-head)))))
+                            (if current-branch (git--bold-face current-branch)
+                              "current state")
+                            (git--abbrev-commit commit)))
+      (git-reset commit))))
 
 (defun git-log-view-diff-preceding ()
   "Diff the commit the cursor is currently on against the preceding commits.

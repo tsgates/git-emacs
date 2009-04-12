@@ -1479,15 +1479,28 @@ current buffer is not in git, it will get added automatically."
       (cd dir)
       (git--clone repository))))
 
-(defun git-reset-hard (&optional commit)
-  "Reset the current branch and the working directory to the given COMMIT.
-\(prompts the user if not specified)."
+(defun git-reset (commit)
+  "Reset the current branch to the given COMMIT (prompts the user if not
+specified). Prompts the user whether to reset --hard."
 
-  (interactive (list (git--select-revision
-                      "Reset branch and working directory to: ")))
-  (let ((saved-head (git--abbrev-commit "HEAD" 10)))
-    (git--reset "--hard" commit)
-    (git--maybe-ask-revert)
+  (interactive
+      ;; We might be operating with a detached HEAD.
+   (let ((current-branch (ignore-errors (git--current-branch))))
+     (list (git--select-revision
+            (format "Reset %s to: "
+                    (if current-branch
+                        (concat "branch " (git--bold-face current-branch))
+                      "current state"))
+            '("HEAD")))))               ; frequent usage
+  (let ((saved-head (git--abbrev-commit "HEAD" 10))
+        (reset-hard (y-or-n-p
+                     "Reset working directory as well (reset --hard)? ")))
+    (apply #'git--reset (delq nil
+                              (list (when reset-hard "--hard") commit "--")))
+    (if reset-hard (git--maybe-ask-revert)
+      (git--update-all-state-marks))
+    (git--if-in-status-mode (git--status-view-refresh))
+    ;; I nearly lost my HEAD to an accidental reset --hard
     (message "You can recover the old HEAD as %s" saved-head)))
 
 ;; TODO: Maybe support reverting multiple commits at once. Would need nicer

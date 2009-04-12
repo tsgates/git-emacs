@@ -382,6 +382,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (define-key map "z" 'git-branch)
 
   (define-key map "c" (copy-keymap git--commit-map))
+  (define-key map "R" 'git-reset)
 
   (define-key map "\C-m" 'git--status-view-do-propriate)
 
@@ -427,6 +428,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
      ["All Changes" git-commit-all :keys "c RET" :active t]
      ["Index" git-commit :keys "c i" :active t]
      ["Selected File(s)" git-commit-file :keys "c f" :active t])
+    ["Reset..." git-reset :keys "R" :active t]
     ["Resolve Merge" git--status-view-resolve-merge t]
     ["Merge..." git-merge t]
     ["Revert" git-revert t]

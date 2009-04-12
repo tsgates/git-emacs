@@ -44,6 +44,8 @@
 
 (define-key git-global-map "m" 'git-merge-next-action)
 
+(define-key git-global-map "R" 'git-reset)
+
 (define-key git-global-map "s" 'git-status)
 (define-key git-global-map "." 'git-cmd)
 
@@ -73,6 +75,7 @@
     ["Log for Current File" git-log-files t]
     ["Branch List" git-branch t]
     ["Merge (start or continue)..." git-merge-next-action t]
+    ["Reset..." git-reset t]
     ["Status" git-status t]
     ["Grep..." git-grep t]
     ["Git Command..." git-cmd t]))
