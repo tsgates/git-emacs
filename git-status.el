@@ -428,7 +428,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
      ["Index" git-commit :keys "c i" :active t]
      ["Selected File(s)" git-commit-file :keys "c f" :active t])
     ["Resolve Merge" git--status-view-resolve-merge t]
-    ["Merge" git-merge t]
+    ["Merge..." git-merge t]
     ["Revert" git-revert t]
     ["Log for Project" git-log t]
     "----"
@@ -705,7 +705,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
     (if (eq 'unmerged (git--status-file file))
         (progn
           (find-file (git--status-view-select-filename))
-          (git--resolve-merge-buffer (current-buffer)))
+          (git--resolve-merge-buffer))
       (error "Selected file is not unmerged state"))))
 
 (defun git--status-view-do-propriate ()

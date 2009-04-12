@@ -1064,7 +1064,7 @@ Trim the buffer log and commit"
 
 (defun git--resolve-fill-buffer (template side)
   "Make the new buffer based on the conflicted template on each
-side ('ours or 'theirs)"
+side ('local or 'remote). TEMPLATE is the original buffer. Returns the buffer."
 
   (let* ((filename (file-relative-name (buffer-file-name template)))
          (buffer-name (format "*%s*: %s"
@@ -1073,6 +1073,7 @@ side ('ours or 'theirs)"
          (msg "Malformed conflict marker"))
 
     (with-current-buffer buffer
+      (buffer-disable-undo)
       (let ((buffer-read-only nil) (erase-buffer)))
       (insert-buffer-substring template)
 
@@ -1100,7 +1101,7 @@ side ('ours or 'theirs)"
             ('local (delete-region conflict-sep conflict-end))
             ('remote (delete-region conflict-begin conflict-sep))
             (t (error "Side must be one of 'local or 'remote"))))))
-    buffer-name))
+    buffer))
 
 (defun git--resolve-fill-base()
   "Assumes that the current buffer is an unmerged file, gets its \"base\"
@@ -1140,13 +1141,14 @@ buffer revert. On conflicts, pulls up a status buffer"
   (if (git--merge-ask) (git--maybe-ask-revert)
     (git-status ".")))
 
-(defun git--resolve-merge-buffer (result-buffer &optional success-callback)
-  "Implementation of resolving conflicted buffer"
+(defun git--resolve-merge-buffer (&optional success-callback)
+  "Implementation of resolving a conflicted buffer, which must be current.
+If SUCCESS-CALLBACk is specified, it will be called if the merge is successful
+and the user accepts the result."
   (interactive)
 
-  (setq result-buffer (current-buffer))
-  
-  (let* ((filename (file-relative-name buffer-file-name))
+  (let* ((result-buffer (current-buffer))
+         (filename (file-relative-name buffer-file-name))
          (our-buffer (git--resolve-fill-buffer result-buffer 'local))
          (their-buffer (git--resolve-fill-buffer result-buffer 'remote))
          ;; there seems to be a bug with ancestor handling in emacs-snapshot
@@ -1156,8 +1158,12 @@ buffer revert. On conflicts, pulls up a status buffer"
          (ediff-default-variant 'combined)
          (ediff-combination-pattern '("<<<<<<< Local" A "=======" B
                                       ">>>>>>> Remote")))
-
-    ;; set merge buffer first
+    ;; Set the major mode of all the buffers based on the current buffer
+    (let ((default-major-mode nil))
+      (mapc #'set-buffer-major-mode
+            (delq nil (list our-buffer their-buffer base-buffer))))
+    
+    ;; set merge buffer
     (set-buffer (if base-buffer
                     (ediff-merge-buffers-with-ancestor
                      our-buffer their-buffer base-buffer)
@@ -1188,6 +1194,7 @@ buffer revert. On conflicts, pulls up a status buffer"
               (lexical-let ((saved-success-callback success-callback))
                 #'(lambda () (git--resolve-merge-after saved-success-callback)))
                 t t)
+
     (message "Please resolve conflicts now, exit ediff when done")))
 
 (defun git--resolve-has-merge-markers ()
@@ -1234,11 +1241,11 @@ the user quits or the merge is successfully committed."
                               unmerged-files)))))
              ;; find-file-noselect will nicely prompt about refreshing
              (find-file-noselect resolve-next-file)))
+          (redisplay t)                 ;force refontification, show buffer
           (if (git--resolve-has-merge-markers)
               ;; tell resolve-merge to schedule us if the resolution succeeded.
               ;; Avoid running another ediff from the ediff hook, though
               (git--resolve-merge-buffer
-               (current-buffer)
                #'(lambda()
                    (run-at-time "0 sec" nil 'git-merge-next-action)))
             (if (y-or-n-p "Conflicts seem resolved, save merge result to git? ")
@@ -1265,7 +1272,7 @@ the user quits or the merge is successfully committed."
   "Resolve merge for the current buffer"
   
   (interactive)
-  (git--resolve-merge-buffer (current-buffer)))
+  (git--resolve-merge-buffer))
 
 (defconst git--commit-status-font-lock-keywords
   '(("^#\t\\([^:]+\\): +[^ ]+$"
