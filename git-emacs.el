@@ -1410,14 +1410,18 @@ Returns the buffer."
 
 (defun git-commit-file ()
   "Runs git commit with the file in the current buffer, or with the selected
-files in git-status. Only changes to those files will be committed."
+files in git-status. Only changes to those files will be committed. If the
+current buffer is not in git, it will get added automatically."
   (interactive)
-  (git--require-buffer-in-git)
   ;; Here and in other functions below we rely on the fact that git-status has
-  ;; surely been loaded if the current major mode is git-status
-  (git-commit (git--if-in-status-mode
-                  (git--status-view-marked-or-file)
-                (list (file-relative-name buffer-file-name)))))
+  ;; surely been loaded if the current major mode is git-status.
+  (git--if-in-status-mode
+      (git-commit (git--status-view-marked-or-file))
+    (unless buffer-file-name (error "Not a file buffer"))
+    (unless (git--in-vc-mode?)
+      (git--add (file-relative-name buffer-file-name))
+      (vc-find-file-hook))
+    (git-commit (list (file-relative-name buffer-file-name)))))
 
 (defun git-init (dir)
   "Initialize the git repository"
