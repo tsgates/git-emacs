@@ -841,6 +841,34 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
 
     branchs))
 
+(defun git--cat-file (buffer-name &rest args)
+  "Execute git-cat-file and return the buffer with the file content"
+  
+  (let ((buffer (get-buffer-create buffer-name)))
+    (with-current-buffer buffer
+
+      ;; set buffer writable
+      (setq buffer-read-only nil)
+      (erase-buffer)
+
+      ;; set tricky auto mode for highlighting
+      (let ((buffer-file-name buffer-name)) (set-auto-mode))
+
+      ;; ok cat file to buffer
+      (apply #'git--exec-buffer "cat-file" args)
+
+      ;; set buffer readonly & quit
+      (setq buffer-read-only t)
+
+      ;; check see if failed
+      (goto-char (point-min))
+      (when (looking-at "^\\([Ff]atal\\|[Ff]ailed\\|[Ee]rror\\):")
+        (let ((msg (buffer-string)))
+          (kill-buffer nil)
+          (setq buffer nil)
+          (error (git--trim-tail msg)))))
+    buffer))
+
 (defsubst git--select-branch (&rest excepts)
   "Select the branch"
 
@@ -1582,33 +1610,6 @@ repository."
   (message (git--trim-tail
             (apply #'git--exec-string (split-string str)))))
 
-(defun git--cat-file (buffer-name &rest args)
-  "Execute git-cat-file and return the buffer with the file content"
-  
-  (let ((buffer (get-buffer-create buffer-name)))
-    (with-current-buffer buffer
-
-      ;; set buffer writable
-      (setq buffer-read-only nil)
-      (erase-buffer)
-
-      ;; set tricky auto mode for highlighting
-      (let ((buffer-file-name buffer-name)) (set-auto-mode))
-
-      ;; ok cat file to buffer
-      (apply #'git--exec-buffer "cat-file" args)
-
-      ;; set buffer readonly & quit
-      (setq buffer-read-only t)
-
-      ;; check see if failed
-      (goto-char (point-min))
-      (when (looking-at "^\\([Ff]atal\\|[Ff]ailed\\|[Ee]rror\\):")
-        (let ((msg (buffer-string)))
-          (kill-buffer nil)
-          (setq buffer nil)
-          (error (git--trim-tail msg)))))
-    buffer))
 
 (defun git--diff (file rev &optional before-ediff-hook after-ediff-hook)
   "Starts an ediff session between the FILE and its specified revision.
@@ -1975,7 +1976,7 @@ if 'create -> call git-checkout-to-new-branch"
 
   ;; adjust when end of the branches
   (if (> (line-number-at-pos) stat)
-      (previous-line))
+      (forward-line -1))
 
   ;; adjust column
   (beginning-of-line)

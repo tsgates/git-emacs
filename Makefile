@@ -7,7 +7,7 @@ VC_GIT_PATH=/usr/share/doc/git-core/contrib/emacs
 all: compile test
 
 compile: *.el
-	rm *.elc
+	rm -f *.elc
 	emacs --batch -L $(VC_GIT_PATH) -L . -f batch-byte-compile *.el
 
 test: *.el
