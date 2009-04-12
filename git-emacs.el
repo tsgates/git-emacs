@@ -1344,7 +1344,6 @@ Returns the buffer."
                  
       (local-set-key "\C-c\C-c" 'git--commit-buffer)
       (local-set-key "\C-c\C-q" 'git--quit-buffer)
-      (buffer-disable-undo)
       (erase-buffer)
       (flyspell-mode 0)               ; disable for the text we insert
       (cd current-dir)                ; if we reused the buffer
@@ -1404,7 +1403,6 @@ Returns the buffer."
       ;; comment hook
       (run-hooks 'git-comment-hook)
 
-      (buffer-enable-undo)
       (message "%sType 'C-c C-c' to commit, 'C-c C-q' to cancel"
                (or prepend-status-msg "")))
     (pop-to-buffer buffer)
