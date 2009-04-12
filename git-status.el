@@ -370,7 +370,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (define-key map "!" 'git--status-view-resolve-merge)
   (define-key map "." 'git--status-view-git-cmd)
   (define-key map "k" 'git--status-view-gitk)
-  (define-key map "L" 'git-log-all)
+  (define-key map "L" 'git-log-files)
   (define-key map "g" 'git--status-view-refresh)
   (define-key map "a" 'git--status-view-add)
   (define-key map "i" 'git--status-view-add-ignore)
@@ -417,7 +417,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
      ["Other..." git-diff-all-other :keys "D o" :active t])
     ["Delete File" git--status-view-rm]
     ["View Summary" git--status-view-summary t]
-    ["Log for Selected File(s)" git-log :keys "l" :active t]
+    ["Log for Selected File(s)" git-log-files :keys "L" :active t]
     ["Mark" git--status-view-mark-and-next t]
     ["Unmark" git--status-view-unmark-and-next t]
     "----"
@@ -430,7 +430,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
     ["Resolve Merge" git--status-view-resolve-merge t]
     ["Merge" git-merge t]
     ["Revert" git-revert t]
-    ["Log for Project" git-log-all t]
+    ["Log for Project" git-log t]
     "----"
     ["Git Command" git--status-view-git-cmd t]
     ["GitK" git--status-view-gitk t]

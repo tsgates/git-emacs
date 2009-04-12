@@ -99,9 +99,9 @@
 (autoload 'git--update-all-state-marks "git-modeline"
   "Update the modelines of all git buffers" t)
 
-(autoload 'git-log "git-log"
+(autoload 'git-log-files "git-log"
   "Launch the git log view for the current file or the selected files in git-status-mode" t)
-(autoload 'git-log-all "git-log"
+(autoload 'git-log "git-log"
   "Launch the git log view for whole repository" t)
 (autoload 'git-log-other "git-log"
   "Launch the git log view for an arbitrary branch or tag" t)
@@ -921,7 +921,7 @@ pending commit buffer or nil if the buffer wasn't needed."
     (git--update-state-mark
      (git--status-file (file-relative-name buffer-file-name)))))
 
-(defalias 'git-history 'git-log-all)
+(defalias 'git-history 'git-log)
 
 (defadvice vc-find-file-hook (after git--vc-git-find-file-hook activate)
   "vc-find-file-hook advice for synchronizing with vc-git interface"

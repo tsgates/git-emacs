@@ -39,7 +39,7 @@
 (define-key git-global-map "i" 'git-add-interactively)
 
 (define-key git-global-map "l" 'git-log)
-(define-key git-global-map "L" 'git-log-all)
+(define-key git-global-map "L" 'git-log-files)
 (define-key git-global-map "\C-l" 'git-log-other)
 
 (define-key git-global-map "m" 'git-merge-next-action)
@@ -69,8 +69,8 @@
      ["Index" git-diff-all-index t]
      ["Baseline" git-diff-all-baseline t]
      ["Other..." git-diff-all-other t])
-    ["Log for Current File" git-log t]
-    ["Log for Entire Project" git-log-all t]
+    ["Log for Entire Project" git-log t]
+    ["Log for Current File" git-log-files t]
     ["Branch List" git-branch t]
     ["Merge (start or continue)..." git-merge-next-action t]
     ["Status" git-status t]

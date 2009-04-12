@@ -146,7 +146,7 @@ default-directory is inside the repo."
       (pop-to-buffer buffer))))
 
 ;; Entry points
-(defun git-log ()
+(defun git-log-files ()
   "Launch the git log view for the current file, or the selected files in
 git-status-mode."
   (interactive)
@@ -155,7 +155,7 @@ git-status-mode."
                      (git--status-view-marked-or-file)
                    (list buffer-file-name))))
  
-(defun git-log-all ()
+(defun git-log ()
   "Launch the git log view for the whole repository"
   (interactive)
   ;; TODO: maybe ask user for a git repo if they're not in one
