@@ -42,6 +42,8 @@
 (define-key git-global-map "L" 'git-log-all)
 (define-key git-global-map "\C-l" 'git-log-other)
 
+(define-key git-global-map "m" 'git-merge-next-action)
+
 (define-key git-global-map "s" 'git-status)
 (define-key git-global-map "." 'git-cmd)
 
@@ -70,6 +72,7 @@
     ["Log for Current File" git-log t]
     ["Log for Entire Project" git-log-all t]
     ["Branch List" git-branch t]
+    ["Merge (start or continue)..." git-merge-next-action t]
     ["Status" git-status t]
     ["Grep..." git-grep t]
     ["Git Command..." git-cmd t]))

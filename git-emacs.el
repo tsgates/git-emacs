@@ -775,7 +775,7 @@ only checks the specified files. The list is sorted by filename."
     (sort fileinfo 'git--fileinfo-lessp)))
 
 (defun git--merge (&rest args)
-  (apply #'git--exec-string "merge" args))
+  (message (git--trim-string (apply #'git--exec-string "merge" args))))
 
 (defsubst git--branch (&rest args)
   (apply #'git--exec-string "branch" args))
@@ -878,14 +878,13 @@ dictated by REFTYPES, then alphabetical."
 
 (defvar git--revision-history nil "History for selecting revisions")
 
-(defsubst git--select-revision (prompt &optional prepend-choices)
+(defun git--select-revision (prompt &optional prepend-choices except)
   "Offer the user a list of human-readable revisions to choose from. By default,
 it shows branches, tags and remotes; additional choices can be
-specified as a list."
-  
-  (git--select-from-user prompt
-                         (append prepend-choices (git--symbolic-commits))
-                         git--revision-history))
+specified as a list. If EXCEPT is specified, don't show that choice."
+  (let* ((choices (append prepend-choices (git--symbolic-commits)))
+         (show-choices (if except (delete except choices) choices)))
+    (git--select-from-user prompt choices git--revision-history)))
                                         
 (defun git--maybe-ask-and-commit(after-func)
   "Helper for functions that switch trees. If there are pending
@@ -1070,9 +1069,9 @@ side ('ours or 'theirs)"
           (setq conflict-end (match-beginning 0))
 
           (case side
-            ('ours (delete-region conflict-sep conflict-end))
-            ('theirs (delete-region conflict-begin conflict-sep))
-            (t (error "Side must be one of 'ours or 'theirs"))))))
+            ('local (delete-region conflict-sep conflict-end))
+            ('remote (delete-region conflict-begin conflict-sep))
+            (t (error "Side must be one of 'local or 'remote"))))))
     buffer-name))
 
 (defun git--resolve-fill-base()
@@ -1088,27 +1087,47 @@ buffer. If there is no common base, returns nil."
                                        (git--fileinfo->sha1 base-fileinfo)))))
     base-buffer))
 
+(defun git--merge-ask ()
+  "Prompts the user for a branch or tag to merge. Returns t if the merge
+succeeded, nil if it had conflicts, raises an error if the merge failed for
+unknown reasons."
+  (let ((branch (git--select-revision "Merge: " nil (git--current-branch)))
+        (merge-success t))
+    (condition-case err
+        (git--merge branch)
+      (error
+       (setq merge-success nil)
+       (let ((err-msg (error-message-string err)))
+         ;; Often because of conflicts
+         (if (string-match "^CONFLICT" err-msg)
+               (message err-msg)
+           ;; otherwise, reraise
+           (signal (car err) (cdr err))))))
+    merge-success))
+
 (defun git-merge ()
-  "Git merge"
-
+  "Prompts the user for a branch or tag to merge. On success, asks for
+buffer revert. On conflicts, pulls up a status buffer"
   (interactive)
-
-  (let ((branch (git--select-branch (git--current-branch))))
-    (git--merge branch)
+  (if (git--merge-ask) (git--maybe-ask-revert)
     (git-status ".")))
 
-(defun git--resolve-merge-buffer (result-buffer)
+(defun git--resolve-merge-buffer (result-buffer &optional success-callback)
   "Implementation of resolving conflicted buffer"
   (interactive)
 
   (setq result-buffer (current-buffer))
   
   (let* ((filename (file-relative-name buffer-file-name))
-         (our-buffer (git--resolve-fill-buffer result-buffer 'ours))
-         (their-buffer (git--resolve-fill-buffer result-buffer 'theirs))
-         (base-buffer (git--resolve-fill-base))
+         (our-buffer (git--resolve-fill-buffer result-buffer 'local))
+         (their-buffer (git--resolve-fill-buffer result-buffer 'remote))
+         ;; there seems to be a bug with ancestor handling in emacs-snapshot
+         (base-buffer ;; (git--resolve-fill-base)
+                      nil)
          (config (current-window-configuration))
-         (ediff-default-variant 'default-B))
+         (ediff-default-variant 'combined)
+         (ediff-combination-pattern '("<<<<<<< Local" A "=======" B
+                                      ">>>>>>> Remote")))
 
     ;; set merge buffer first
     (set-buffer (if base-buffer
@@ -1120,7 +1139,8 @@ buffer. If there is no common base, returns nil."
      'ediff-quit-hook
      (lexical-let ((saved-config config)
                    (saved-result-buffer result-buffer)
-                   (saved-base-buffer base-buffer))
+                   (saved-base-buffer base-buffer)
+                   (saved-success-callback success-callback))
          #'(lambda ()
              (let ((buffer-A ediff-buffer-A)
                    (buffer-B ediff-buffer-B)
@@ -1133,10 +1153,85 @@ buffer. If there is no common base, returns nil."
                (kill-buffer buffer-B)
                (kill-buffer buffer-C)
                (when saved-base-buffer (kill-buffer saved-base-buffer))
-               (set-window-configuration saved-config)
-               (message "Conflict resolution finished, you may save the buffer"))))
+               (set-window-configuration saved-config))))
      nil t)                             ; hook is prepend, local
+    ;; Add the -after function after ediff does its thing.
+    (add-hook 'ediff-quit-hook
+              (lexical-let ((saved-success-callback success-callback))
+                #'(lambda () (git--resolve-merge-after saved-success-callback)))
+                t t)
     (message "Please resolve conflicts now, exit ediff when done")))
+
+(defun git--resolve-has-merge-markers ()
+  "Returns non-nil if the current buffer has any merge markers, nil otherwise."
+  (save-excursion
+    (goto-char (point-min))
+    (re-search-forward "^<<<<<<< " nil t)))
+
+(defun git--resolve-merge-after (&optional success-callback)
+  "Function called after a git-resolve-merge. Called with the
+merged buffer current. Checks for remaining merge markers, if
+none ask the user whether to accept the merge results"
+  (if (git--resolve-has-merge-markers)
+      (message "Conflicts remain; resolve manually or hit undo to restore the buffer")
+    (if (y-or-n-p "Conflicts resolved, save merge result? ")
+        (progn
+          (save-buffer)
+          (git--add (file-relative-name buffer-file-name))
+          (git--update-modeline)
+          (when success-callback (funcall success-callback)))
+      (message "You can hit undo once to restore the buffer")
+      )))
+
+(defun git-merge-next-action ()
+  "Auto-pilot function to guide the user through a git merge. If none in
+progress, prompts for a revision to merge. If there are unresolved conflicts,
+prompts for resolving the next one. If all conflicts have been resolved, pulls
+up a commit buffer. The function continues with the above logic until either
+the user quits or the merge is successfully committed."
+  (interactive)
+  ;; First, check for any unmerged files
+  (let ((unmerged-files (git--ls-unmerged)))
+    (if unmerged-files
+        (progn
+          (switch-to-buffer
+           (let ((resolve-next-file
+                  (git--select-from-user
+                   "Resolve next conflict: "
+                   (delq nil (mapcar
+                              #'(lambda (stage-and-fi)
+                                  (when (eq 2 (car stage-and-fi))
+                                    (file-relative-name (git--fileinfo->name
+                                                         (cdr stage-and-fi)))))
+                              unmerged-files)))))
+             ;; find-file-noselect will nicely prompt about refreshing
+             (find-file-noselect resolve-next-file)))
+          (if (git--resolve-has-merge-markers)
+              ;; tell resolve-merge to schedule us if the resolution succeeded.
+              ;; Avoid running another ediff from the ediff hook, though
+              (git--resolve-merge-buffer
+               (current-buffer)
+               #'(lambda()
+                   (run-at-time "0 sec" nil 'git-merge-next-action)))
+            (if (y-or-n-p "Conflicts seem resolved, save merge result to git? ")
+                (progn
+                  (save-buffer)
+                  (git--add (file-relative-name buffer-file-name))
+                  (git--update-modeline)))
+            (git-merge-next-action)))
+
+      ;; else branch, no unmerged files remaining
+      ;; Perhaps we should commit (staged files only!)
+      (if (file-exists-p (expand-file-name ".git/MERGE_HEAD"
+                                           (git--get-top-dir)))
+          (git-commit nil "Merge finished. ")    ; And we're done!
+        ;; else branch, no sign of a merge. Ask for another.
+        (if (git--merge-ask)
+            (git--maybe-ask-revert)
+          (sit-for 1.5)                 ; for the user to digest message
+          (git-merge-next-action))      ; start processing conflicts
+))))
+       
 
 (defun git-resolve-merge ()
   "Resolve merge for the current buffer"
@@ -1196,9 +1291,12 @@ button, or at the end of the file if it didn't create any."
                buffer)))
     )))
 
-(defun git-commit (&optional targets)
+(defun git-commit (&optional targets prepend-status-msg)
   "Does git commit with a temporary prompt buffer. TARGETS can be nil
-\(commit staged files), t (commit all) or a list of files. Returns the buffer."
+\(commit staged files), t (commit all) or a list of files. If PREPEND-STATUS-MSG
+is specified, adds it in front of the help message (Type C-c C-c ...).
+
+Returns the buffer."
 
   (interactive)
   ;; Don't save anything on commit-index
@@ -1279,7 +1377,8 @@ button, or at the end of the file if it didn't create any."
       (run-hooks 'git-comment-hook)
 
       (buffer-enable-undo)
-      (message "Type 'C-c C-c' to commit, 'C-c C-q' to cancel"))
+      (message "%sType 'C-c C-c' to commit, 'C-c C-q' to cancel"
+               (or prepend-status-msg "")))
     (pop-to-buffer buffer)
     buffer))
 
