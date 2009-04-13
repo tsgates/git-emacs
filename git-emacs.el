@@ -375,11 +375,15 @@ the current git repo. Returns the number of buffers saved."
      buffers
      '("buffer" "buffers" "save"))))
 
-(defun git--maybe-ask-revert (&optional repo-or-filelist)
-  "If there are buffers visiting files in the given REPO-OR-FILELIST that
+(defun git-after-working-dir-change (&optional repo-or-filelist)
+  "This function should be called after a change to the git working dir.
+If there are buffers visiting files in the given REPO-OR-FILELIST that
 have changed (buffer modtime != file modtime), ask the user whether to refresh
-those buffers. Returns the number of buffers refreshed. Updates the state
-mark of all the buffers not reverted (since revert updates it anyway)."
+those buffers. Updates the state mark of all the buffers not reverted
+\(since revert updates the ones reverted anyway). If currently in status
+buffer, refreshes the status buffer. Warns the user if there are any buffers
+visiting files that no longer exist."
+  (interactive)
   (let ((buffers (git--find-buffers
                   repo-or-filelist
                   #'(lambda(buffer)
@@ -390,30 +394,34 @@ mark of all the buffers not reverted (since revert updates it anyway)."
           (push buffer buffers-that-exist)
         (push buffer buffers-that-dont-exist)))
     ;; Revert buffers that exist
-    (let ((buffers-not-reverted (copy-sequence buffers-that-exist)))
-      ;; Do the state mark update if the user quits the revert prompt series.
-      (unwind-protect
-          (map-y-or-n-p
-           (lambda(buffer) (format "%s has changed, refresh buffer? "
-                                   (buffer-name buffer)))
-           (lambda(buffer)
-             (with-current-buffer buffer (revert-buffer t t))
-             ;; A hash table is probably not worth it here.
-             (setq buffers-not-reverted (delq buffer buffers-not-reverted)))
-           buffers-that-exist
-           '("buffer" "buffers" "refresh"))
-        (when buffers-not-reverted
-          (git--update-all-state-marks (mapcar #'buffer-file-name
-                                               buffers-not-reverted)))))
-    (when buffers-that-dont-exist
-      (message "Note: some open files no longer exist: %s"
-               (git--join
-                (let ((numfiles (length buffers-that-dont-exist)))
-                  (if (> numfiles 2)
-                      (list (buffer-name (first buffers-that-dont-exist))
-                            (format "%d others" (- numfiles 1)))
-                    (mapcar #'buffer-name buffers-that-dont-exist)))
-                ", ")))))
+    (unwind-protect
+        (let ((buffers-not-reverted (copy-sequence buffers-that-exist)))
+          ;; Do the state mark update if the user quits the revert prompts.
+          (unwind-protect
+              (map-y-or-n-p
+               (lambda(buffer) (format "%s has changed, refresh buffer? "
+                                       (buffer-name buffer)))
+               (lambda(buffer)
+                 (with-current-buffer buffer (revert-buffer t t))
+                 ;; A hash table is probably not worth it here.
+                 (setq buffers-not-reverted (delq buffer buffers-not-reverted)))
+               buffers-that-exist
+               '("buffer" "buffers" "refresh"))
+            (when buffers-not-reverted
+              (git--update-all-state-marks (mapcar #'buffer-file-name
+                                                   buffers-not-reverted))))
+          ;; Refresh status buffer
+          (git--if-in-status-mode (git--status-view-refresh)))
+      ;; But display the [important] files don't exist warning on failure / quit
+      (when buffers-that-dont-exist
+       (message "Note: some open files no longer exist: %s"
+                (git--join
+                 (let ((numfiles (length buffers-that-dont-exist)))
+                   (if (> numfiles 2)
+                       (list (buffer-name (first buffers-that-dont-exist))
+                             (format "%d others" (- numfiles 1)))
+                     (mapcar #'buffer-name buffers-that-dont-exist)))
+                 ", "))))))
 
 ;; This belongs later with all the commit functions, but the compiler complains
 ;; in git-log if we don't define it before its first use.
@@ -1138,7 +1146,7 @@ unknown reasons."
   "Prompts the user for a branch or tag to merge. On success, asks for
 buffer revert. On conflicts, pulls up a status buffer"
   (interactive)
-  (if (git--merge-ask) (git--maybe-ask-revert)
+  (if (git--merge-ask) (git-after-working-dir-change)
     (git-status ".")))
 
 (defun git--resolve-merge-buffer (&optional success-callback)
@@ -1262,7 +1270,7 @@ the user quits or the merge is successfully committed."
           (git-commit nil "Merge finished. ")    ; And we're done!
         ;; else branch, no sign of a merge. Ask for another.
         (if (git--merge-ask)
-            (git--maybe-ask-revert)
+            (git-after-working-dir-change)
           (sit-for 1.5)                 ; for the user to digest message
           (git-merge-next-action))      ; start processing conflicts
 ))))
@@ -1497,11 +1505,12 @@ specified). Prompts the user whether to reset --hard."
                      "Reset working directory as well (reset --hard)? ")))
     (apply #'git--reset (delq nil
                               (list (when reset-hard "--hard") commit "--")))
-    (if reset-hard (git--maybe-ask-revert)
-      (git--update-all-state-marks))
-    (git--if-in-status-mode (git--status-view-refresh))
-    ;; I nearly lost my HEAD to an accidental reset --hard
-    (message "You can recover the old HEAD as %s" saved-head)))
+    (unwind-protect
+        (if reset-hard (git-after-working-dir-change)
+          (git--update-all-state-marks)
+          (git--if-in-status-mode (git--status-view-refresh)))
+      ;; I nearly lost my HEAD to an accidental reset --hard
+      (message "You can recover the old HEAD as %s" saved-head))))
 
 (defun git-revert (commit)
   "Revert a commit, prompting the user if unspecified. Does not commit the
@@ -1530,7 +1539,7 @@ revert operation, instead popping up a commit buffer."
                                  'dont-notify-user)))
              (funcall actual-revert))))    ; no existing msg, just run it
     (unwind-protect
-        (git--maybe-ask-revert)
+        (git-after-working-dir-change)
       (git-commit nil output)))))
   
 (defcustom gitk-program "gitk"
@@ -1564,7 +1573,7 @@ about the nature of the checkout (full)."
        (when (or (not confirm-prompt)
                  (y-or-n-p (format confirm-prompt commit)))
          (apply #'git--checkout commit args)
-         (git--maybe-ask-revert repo-dir))))))
+         (git-after-working-dir-change repo-dir))))))
 
 
 (defalias 'git-create-branch 'git-checkout-to-new-branch)
@@ -1582,7 +1591,7 @@ about the nature of the checkout (full)."
                        (format "Create %s based on: "
                                (git--bold-face branch)))))
          (git--checkout "-b" branch commit)
-         (git--maybe-ask-revert repo-dir))))))
+         (git-after-working-dir-change repo-dir))))))
 
 (defun git-delete-branch (&optional branch)
   "Delete branch after selecting branch"
@@ -1788,7 +1797,7 @@ buffer instead of a new one."
      (lambda()
        (let ((branch (or branch (git--select-branch (git--current-branch)))))
          (git--checkout branch)
-         (git--maybe-ask-revert repo-dir))))))
+         (git-after-working-dir-change repo-dir))))))
 
 (defun git-add ()
   "Add files to index. If executed in a buffer currently under git control,

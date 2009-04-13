@@ -220,7 +220,7 @@ branch."
     (when (y-or-n-p (format "Cherry-pick commit %s on top of %s? "
                             commit (git--bold-face current-branch)))
       (git--exec-string "cherry-pick" commit "--")
-      (git--maybe-ask-revert))))
+      (git-after-working-dir-change))))
 
 (defun git-log-view-reset ()
   "Reset the current branch to the commit that the cursor is currently in."
