@@ -1807,13 +1807,21 @@ for new files to add to git."
 
 (defun git-add-new ()
   "Add new files to the index, prompting the user for filenames or globs"
+  (interactive)
   ;; TODO: ido doesn't give good feedback on globs
-  (let* ((files (git--select-from-user "Add new files (glob) >> "
-                                       (mapcar #'(lambda (fi)
-                                                   (git--fileinfo->name fi))
-                                               (git--ls-files "--others"))))
+  (let* ((choices (mapcar #'(lambda (fi)
+                              (git--fileinfo->name fi))
+                          (git--ls-files "--others" "--exclude-standard")))
+         (default-choice  ;; the current file, if it's a choice
+           (when buffer-file-name
+             (let ((current-file (file-relative-name buffer-file-name)))
+               (when (member current-file choices)
+                 (message "default: %S" current-file) current-file))))
+         (files (git--select-from-user "Add new files (glob) >> " 
+                                       choices nil default-choice))
          (matched-files (mapcar #'(lambda (fi) (git--fileinfo->name fi))
-                                    (git--ls-files "--others" "--" files))))
+                                (git--ls-files "--others" "--exclude-standard"
+                                               "--" files))))
     (if (not matched-files) (error "No files matched \"%s\"" files)
       (let ((output (replace-regexp-in-string "[\s\n]+$" ""
                                              (git--add matched-files))))

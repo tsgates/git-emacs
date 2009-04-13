@@ -73,6 +73,7 @@
      ["Other..." git-diff-all-other t])
     ["Log for Entire Project" git-log t]
     ["Log for Current File" git-log-files t]
+    ["Log for Branch or Tag..." git-log-other t]
     ["Branch List" git-branch t]
     ["Merge (start or continue)..." git-merge-next-action t]
     ["Reset..." git-reset t]
