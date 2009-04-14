@@ -1617,42 +1617,6 @@ about the nature of the checkout (full)."
     (message "%s tag '%s'; you can recover it as %s"
              (git--bold-face "Deleted") tag saved-tag-target)))
 
-(defun git-regression ()
-  "Regression tests on git-emacs, to be enhanced. Must run from a git
-repository."
-
-  (interactive)
-
-  ;; git exec
-  (assert (string= "\n" (git--exec-string "rev-parse" "--show-cdup")))
-  (assert (string= (expand-file-name "./") (git--get-top-dir ".")))
-  (assert (string= (expand-file-name "./")
-                   (git--get-top-dir "./nO/sUCH/dIrectory/Exists")))
-
-  ;; create status buffer
-  (require 'git-status)
-  (assert (string= (buffer-name (git--create-status-buffer "."))
-                   (git--status-buffer-name ".")))
-
-  ;; open status buffer
-  (assert (string= (buffer-name (git--create-status-buffer "."))
-                   (git--status-buffer-name ".")))
-
-  (git--kill-status-buffer ".")
-
-  ;; testing
-  (assert (null (string-match "asdf/" "asdf")))
-
-  ;; tag stuff
-  (ignore-errors (git-delete-tag "git-regression-test-tag"))
-  (unwind-protect
-      (progn
-        (assert (null (git-tag "git-regression-test-tag")))
-        (assert (stringp (git-tag "git-regression-test-tag"))))
-    (assert (git-delete-tag "git-regression-test-tag")))
-
-  (message "git-regression passed"))
-
 (defun git-cmd (str)
   "git-cmd for user"
 
@@ -1762,7 +1726,7 @@ buffer instead of a new one."
   (interactive)
 
   (let ((name (git--trim-string (git--config "user.name")))
-        (email (git--trim-string (git--config "uscer.email"))))
+        (email (git--trim-string (git--config "user.email"))))
 
     (when (or (null name) (string= "" name))
       (setq name (read-from-minibuffer "User Name : "
