@@ -1,6 +1,7 @@
 ;; See git-emacs.el for license and versioning.
 
 (require 'git-emacs)
+(require 'dired)
 
 (defun git--test-with-temp-repo (function)
   "Run FUNCTION inside a temporary git repository"
@@ -15,7 +16,6 @@
           (message "Created temporary test dir %s" default-directory)
           (git-init default-directory)  ; part of the suite, kind of
           (funcall function))
-      (require 'dired)
       (dired-delete-file git--test-tmp-dir-DONT-REASSIGN 'always)
       (message "Deleted temporary test dir %s"
                git--test-tmp-dir-DONT-REASSIGN))))
@@ -71,6 +71,27 @@
    (save-buffer)
    )
 
+  (assert (eq 'modified (git--status-file "f1")))
+
+  ;; Try a gui commit
+  (let ((git--commit-log-buffer "*git commit for unittest*"))
+    (unwind-protect
+        (progn
+          (condition-case err
+              (progn (git-commit) (error "Expected error not raised"))
+            (error
+             (unless (string-match "^Nothing to commit"
+                                   (error-message-string err))
+               (signal (car err) (cdr err)))))
+          (git-commit-all)
+          (assert (equal '("-a") git--commit-args))
+          (insert "another test commit")
+          (git--commit-buffer)
+          (assert (not (buffer-live-p (get-buffer git--commit-log-buffer)))))
+      (ignore-errors (kill-buffer git--commit-log-buffer))))
+  (assert (eq 'uptodate (git--status-file "f1")))
+  (assert (string-match "^[0-9a-f]* *another test commit" (git--last-log-short)))
+
   ;; Do some more fun stuff here...
   )
 
@@ -78,7 +99,8 @@
   (interactive)
 
   (message "Running unittest suite...")
-  (git--test-with-temp-repo #'git--tests-unittest-suite)
+  (save-window-excursion                ; some bufs might pop up, e.g. commit
+    (git--test-with-temp-repo #'git--tests-unittest-suite))
 
   (message "git-regression passed"))
   
