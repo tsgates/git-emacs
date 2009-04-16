@@ -73,8 +73,10 @@
 
   (assert (eq 'modified (git--status-file "f1")))
 
-  ;; Try a gui commit
-  (let ((git--commit-log-buffer "*git commit for unittest*"))
+  ;; Try some gui commits
+  (let ((git--commit-log-buffer "*git commit for unittest*")
+        (first-commit-id (git--rev-parse "at-first-commit"))
+        (second-commit-id nil))
     (unwind-protect
         (progn
           (condition-case err
@@ -87,10 +89,25 @@
           (assert (equal '("-a") git--commit-args))
           (insert "another test commit")
           (git--commit-buffer)
-          (assert (not (buffer-live-p (get-buffer git--commit-log-buffer)))))
+          (assert (not (buffer-live-p (get-buffer git--commit-log-buffer))))
+          (assert (eq 'uptodate (git--status-file "f1")))
+          (assert (string-match "^[0-9a-f]* *another test commit"
+                                (git--last-log-short)))
+          ;; Should be one above last commit
+          (setq second-commit-id (git--rev-parse "HEAD"))
+          (assert (equal first-commit-id (git--rev-parse "HEAD^1")))
+          ;; Do an amend commit
+          (git-commit t)
+          (assert (equal '("--amend") git--commit-args))
+          (insert "Now amended")
+          (git--commit-buffer)
+          (assert (eq 'uptodate (git--status-file "f1")))
+          (assert (equal "another test commit\nNow amended\n"
+                         (git--last-log-message)))
+          (assert (not (equal second-commit-id (git--rev-parse "HEAD"))))
+          ;; Should still be one commit above the first
+          (assert (equal first-commit-id (git--rev-parse "HEAD^1"))))
       (ignore-errors (kill-buffer git--commit-log-buffer))))
-  (assert (eq 'uptodate (git--status-file "f1")))
-  (assert (string-match "^[0-9a-f]* *another test commit" (git--last-log-short)))
 
   ;; Do some more fun stuff here...
   )

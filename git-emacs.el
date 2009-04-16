@@ -425,10 +425,11 @@ visiting files that no longer exist."
 
 ;; This belongs later with all the commit functions, but the compiler complains
 ;; in git-log if we don't define it before its first use.
-(defun git-commit-all ()
-  "Runs git commit -a, prompting for a commit message"
-  (interactive)
-  (git-commit t))
+(defun git-commit-all (&optional amend)
+  "Runs git commit -a, prompting for a commit message. With a prefix argument,
+runs git commit --amend -a, alowing an update of the previous commit."
+  (interactive "P")
+  (git-commit amend t))
 
 ;;-----------------------------------------------------------------------------
 ;; fileinfo structure
@@ -670,6 +671,11 @@ gives, essentially, file status."
   "Get the last log as short form"
   
   (git--trim-string (git--log "--max-count=1" "--pretty=oneline")))
+
+(defsubst git--last-log-message ()
+  "Return the last commit message, as a possibly multiline string, with an "
+  "ending newline,"
+  (git--log "--max-count=1" "--pretty=format:%s%n%b"))
 
 (defun git--get-top-dir (&optional dir)
   "Get the top-level git directory above DIR. If nil, use default-directory."
@@ -1012,24 +1018,39 @@ pending commit buffer or nil if the buffer wasn't needed."
         (and (fboundp 'user-mail-address) (user-mail-address))
         (and (boundp 'user-mail-address) user-mail-address))))
 
-(defun git--insert-log-header-info ()
-  "Insert the log header to the buffer"
+(defun git--insert-log-header-info (amend)
+  "Insert the log header to the buffer. If AMEND, grab the info from the last
+commit, like git commit --amend will do once we commit."
 
   (insert git--log-header-line  "\n"
-          "# Branch : " (git--current-branch)     "\n"
-          "# Author : " (git--config-get-author)  "\n"
-          "# Email  : " (git--config-get-email)   "\n"
-          "# Date   : " (git--today)              "\n"))
-
+          "# Branch : " (git--current-branch)     "\n")
+  (if amend
+      (insert (git--log "--max-count=1"
+                        (concat "--pretty=format:"
+                                "# Author : %an%n"
+                                "# Email  : %ae%n"
+                                "# Date   : %ci%n"
+                                "# Amend  : %h%n")))
+    (insert
+     "# Author : " (git--config-get-author)  "\n"
+     "# Email  : " (git--config-get-email)   "\n"
+     "# Date   : " (git--today)              "\n")))
+  
 ;; Internal variables for commit
 (defvar git--commit-after-hook nil
   "Hooks to run after comitting (and killing) the commit buffer.")
 (defvar git--commit-args nil
   "Args to be passed to the current git commit once done editing.")
+(make-variable-buffer-local 'git--commit-args)
 (defvar git--commit-targets nil
-  "Records the targets parameter of `git-commit'. Buffer-local.")
+  "Records the targets parameter of `git-commit' in the current commit buffer")
+(make-variable-buffer-local 'git--commit-targets)
 (defvar git--commit-last-diff-file-buffer nil
   "Stores last diff buffer launched from a commit buffer.")
+(make-variable-buffer-local 'git--commit-targets)
+(defvar git--commit-amend nil
+  "Records whether the current commit buffer is for a commit --amend")
+(make-variable-buffer-local 'git--commit-amend)
 
 (defun git--commit-buffer ()
   "When you press C-cC-c after editing log, this function is called
@@ -1267,7 +1288,7 @@ the user quits or the merge is successfully committed."
       ;; Perhaps we should commit (staged files only!)
       (if (file-exists-p (expand-file-name ".git/MERGE_HEAD"
                                            (git--get-top-dir)))
-          (git-commit nil "Merge finished. ")    ; And we're done!
+          (git-commit nil nil "Merge finished. ")    ; And we're done!
         ;; else branch, no sign of a merge. Ask for another.
         (if (git--merge-ask)
             (git-after-working-dir-change)
@@ -1285,7 +1306,7 @@ the user quits or the merge is successfully committed."
 (defconst git--commit-status-font-lock-keywords
   '(("^#\t\\([^:]+\\): +[^ ]+$"
      (1 'git--bold-face))
-    ("^# \\(Branch\\|Author\\|Email\\|Date\\) +:" (1 'git--bold-face))
+    ("^# \\(Branch\\|Author\\|Email\\|Date\\|Amend\\) +:" (1 'git--bold-face))
     ("^# \\(-----*[^-]+-----*\\).*$" (1 'git--log-line-face))))
 ;; (makunbound 'git--commit-status-font-lock-keywords)
 
@@ -1316,7 +1337,9 @@ button, or at the end of the file if it didn't create any."
 (defun git--commit-diff-file (button)
   "Click handler for filename links in the commit buffer"
   (with-current-buffer git--commit-log-buffer
-    (let ((diff-from "HEAD") (diff-to nil)) ; rev1, rev2 inputs to diff--many
+    ; Compute rev1, rev2 inputs to diff--many
+    (let ((diff-from (if git--commit-amend "HEAD^1" "HEAD"))
+          (diff-to nil))
       ;; the commit-index case is the complicated one, adjust.
       (if (eq nil git--commit-targets)
           (if (eq (button-type button) 'git--commit-diff-committed-link)
@@ -1334,14 +1357,15 @@ button, or at the end of the file if it didn't create any."
                buffer)))
     )))
 
-(defun git-commit (&optional targets prepend-status-msg)
-  "Does git commit with a temporary prompt buffer. TARGETS can be nil
-\(commit staged files), t (commit all) or a list of files. If PREPEND-STATUS-MSG
-is specified, adds it in front of the help message (Type C-c C-c ...).
+(defun git-commit (&optional amend targets prepend-status-msg)
+  "Does git commit with a temporary prompt buffer. If AMEND or a prefix argument
+is specified, does git commit --amend. TARGETS can be nil (commit staged files)
+, t (commit all) or a list of files. If PREPEND-STATUS-MSG is specified,
+adds it in front of the help message (Type C-c C-c ...).
 
 Returns the buffer."
 
-  (interactive)
+  (interactive "P")
   ;; Don't save anything on commit-index
   (when targets (git--maybe-ask-save (if (eq t targets) nil targets)))
   
@@ -1350,12 +1374,14 @@ Returns the buffer."
         (current-dir default-directory))
     (with-current-buffer buffer
       ;; Tell git--commit-buffer what to do
-      (set (make-local-variable 'git--commit-targets) targets)
-      (set (make-local-variable 'git--commit-args)
-           (cond ((eq nil targets) '())
-                 ((eq t targets) '("-a"))
-                 ((listp targets) targets)
-                 (t (error "Invalid targets: %S" targets))))
+      (setq git--commit-targets targets
+            git--commit-args (append
+                              (when amend '("--amend"))
+                              (cond ((eq nil targets) '())
+                                    ((eq t targets) '("-a"))
+                                    ((listp targets) (cons "--" targets))
+                                    (t (error "Invalid targets: %S" targets))))
+            git--commit-amend amend)
                  
       (local-set-key "\C-c\C-c" 'git--commit-buffer)
       (local-set-key "\C-c\C-q" 'git--quit-buffer)
@@ -1367,12 +1393,14 @@ Returns the buffer."
            (list 'git--commit-status-font-lock-keywords t))
       (when global-font-lock-mode (font-lock-mode t))
       ;; insert info
-      (git--insert-log-header-info)
+      (git--insert-log-header-info amend)
 
       ;; real log space
       (insert (propertize git--log-sep-line 'face 'git--log-line-face) "\n")
 
       (insert "\n")
+      ;; If amend, insert last commit msg.
+      (when amend (insert (git--last-log-message)))
       ;; Insert .git/MERGE_MSG if exists
       (let ((merge-msg-file
              (expand-file-name ".git/MERGE_MSG" (git--get-top-dir))))
@@ -1423,20 +1451,21 @@ Returns the buffer."
     (pop-to-buffer buffer)
     buffer))
 
-(defun git-commit-file ()
+(defun git-commit-file (&optional amend)
   "Runs git commit with the file in the current buffer, or with the selected
 files in git-status. Only changes to those files will be committed. If the
-current buffer is not in git, it will get added automatically."
-  (interactive)
+current buffer is not in git, it will get added automatically. If AMEND, or
+a prefix argument, is specified, does a commit --amend."
+  (interactive "P")
   ;; Here and in other functions below we rely on the fact that git-status has
   ;; surely been loaded if the current major mode is git-status.
   (git--if-in-status-mode
-      (git-commit (git--status-view-marked-or-file))
+      (git-commit amend (git--status-view-marked-or-file))
     (unless buffer-file-name (error "Not a file buffer"))
     (unless (git--in-vc-mode?)
       (git--add (file-relative-name buffer-file-name))
       (vc-find-file-hook))
-    (git-commit (list (file-relative-name buffer-file-name)))))
+    (git-commit amend (list (file-relative-name buffer-file-name)))))
 
 (defun git-init (dir)
   "Initialize the git repository"
@@ -1540,7 +1569,7 @@ revert operation, instead popping up a commit buffer."
              (funcall actual-revert))))    ; no existing msg, just run it
     (unwind-protect
         (git-after-working-dir-change)
-      (git-commit nil output)))))
+      (git-commit nil nil output)))))
   
 (defcustom gitk-program "gitk"
   "The command used to launch gitk."
