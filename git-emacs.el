@@ -1,4 +1,4 @@
-;;; git-emacs (v.1.4) : yet another git emacs mode for newbies
+;;; git-emacs (v.1.4.1) : yet another git emacs mode for newbies
 ;;
 ;; Copyright (C) 2008  TSKim (tsgatesv@gmail.com)
 ;;
@@ -2041,7 +2041,7 @@ files in git-status. Only changes to those files will be committed."
   "Initialize the git repository"
 
   (interactive "DGit Repository: ")
-  (message (git--trim-string (git--init dir)))
+  (message "%s" (git--trim-string (git--init dir)))
   (git-config-init))
 
 (defun git-init-from-archive (file)
@@ -2106,7 +2106,7 @@ files in git-status. Only changes to those files will be committed."
    (list (git--select-revision "Revert commit: ")))
   (let ((output (git--trim-string (git--exec-string "revert" commit))))
     (git--maybe-ask-revert)
-    (message output)))
+    (message "%s" output)))
   
 (defcustom gitk-program "gitk"
   "The command used to launch gitk."
@@ -2228,8 +2228,8 @@ about the nature of the checkout (full)."
   "git-cmd for user"
 
   (interactive "s>> git ")
-  (message (git--trim-tail
-            (apply #'git--exec-string (split-string str)))))
+  (message "%s" (git--trim-tail
+                 (apply #'git--exec-string (split-string str)))))
 
 (defun git--cat-file (buffer-name &rest args)
   "Execute git-cat-file and return the buffer with the file content"
