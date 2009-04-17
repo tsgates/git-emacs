@@ -240,12 +240,16 @@ If a region is active, diff the first and last commits in the region."
   (let* ((commit (git--abbrev-commit
                  (log-view-current-tag (when mark-active (region-beginning)))))
         (preceding-commit
-         (git--abbrev-commit (save-excursion
-                               (when mark-active
-                                 (goto-char (region-end))
-                                 (backward-char 1)) ; works better: [interval)
-                               (log-view-msg-next)
-                               (log-view-current-tag)))))
+         (git--abbrev-commit
+          (save-excursion
+            (when mark-active
+              (goto-char (region-end))
+              ;; Go back one to get before the lowest commit, then
+              ;; msg-next will find it properly. Unless the region is empty.
+              (unless (equal (region-beginning) (region-end))
+                (backward-char 1)))
+            (log-view-msg-next)
+            (log-view-current-tag)))))
     ;; TODO: ediff if single file, but git--ediff does not allow revisions
     ;; for both files
     (git--diff-many git-log-view-filenames preceding-commit commit t)))
