@@ -109,6 +109,46 @@
           (assert (equal first-commit-id (git--rev-parse "HEAD^1"))))
       (ignore-errors (kill-buffer git--commit-log-buffer))))
 
+  ;; Some baseline testing. The usual suspects (git-svn, origin), won't exist.
+  (let ((git-baseline-candidates '("git-svn" "origin" "at-first-commit"))
+        git--test-func-was-called git-baseline-alist)
+    (assert (equal "at-first-commit" (git-baseline)))
+    ;; Now add a couple of functions into the mix
+    (flet ((git--test-baseline-not-ok ()
+                                     (setq git--test-func-was-called t)
+                                     nil)
+           (git--test-baseline-ok () "some-commit")
+           (git--select-revision (&rest args) (error "%S" args)))
+      (add-to-list 'git-baseline-candidates 'git--test-baseline-not-ok)
+      (setcar (last git-baseline-candidates) 'git--test-baseline-ok)
+      (assert (equal "some-commit" (git-baseline)))
+      (assert git--test-func-was-called)
+      ;; Now test interactive call. Fake some interactive functions
+      (add-to-list 'git-baseline-candidates "at-first-commit" t)
+      (flet ((git--select-revision
+              (prompt prepend except)
+              (assert (equal '("(git--test-baseline-ok)" "at-first-commit")
+                             prepend))
+              (assert (equal prepend except))
+              "(git--test-baseline-ok)")
+             (y-or-n-p (prompt) t)
+             (customize-save-variable
+              (symbol value)
+              (assert (eq 'git-baseline-alist symbol))
+              (assert (equal git-baseline-alist value))))
+        (setq git--test-func-was-called nil)
+        (assert (equal "some-commit" (call-interactively 'git-baseline)))
+        (assert git--test-func-was-called)
+        (assert (equal (list (cons default-directory 'git--test-baseline-ok))
+                       git-baseline-alist))
+        ;; if we call again (non-interactively), the value should be cached
+        (setq git--test-func-was-called nil)
+        (fset 'git--select-revision 'error)
+        (assert (equal "some-commit" (git-baseline)))
+        (assert (not git--test-func-was-called))
+        ))
+    )
+
   ;; Do some more fun stuff here...
   )
 

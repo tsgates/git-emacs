@@ -696,6 +696,12 @@ gives, essentially, file status."
   (file-relative-name filename
                       (git--get-top-dir (file-name-directory filename))))
 
+(defun git--get-top-dir-or-prompt (prompt &optional dir)
+  "Returns the top-level git directory above DIR (or default-directory). Prompts
+the user with PROMPT if not a git repository."
+  (or (ignore-errors (git--get-top-dir dir))
+      (git--get-top-dir (read-directory-name prompt dir))))
+
 (defun git--ls-unmerged (&rest files)
   "Get the list of unmerged files. Returns an association list of
 \(stage . git--fileinfo), where stage is one of 1, 2, 3. If FILES is specified,
@@ -920,13 +926,20 @@ dictated by REFTYPES, then alphabetical."
 
 (defvar git--revision-history nil "History for selecting revisions")
 
-(defun git--select-revision (prompt &optional prepend-choices except)
+(defun git--select-revision (prompt &optional prepend-choices excepts)
   "Offer the user a list of human-readable revisions to choose from. By default,
 it shows branches, tags and remotes; additional choices can be
-specified as a list. If EXCEPT is specified, don't show that choice."
-  (let* ((choices (append prepend-choices (git--symbolic-commits)))
-         (show-choices (if except (delete except choices) choices)))
-    (git--select-from-user prompt choices git--revision-history)))
+specified as a list. If EXCEPTS is specified, don't show any choices `equal'
+to those in the list, unless they were specified in PREPEND-CHOICES explicitly."
+  (git--select-from-user prompt
+                         (append
+                          prepend-choices
+                          (delq nil
+                                (mapcar #'(lambda (revision)
+                                            (unless (member revision excepts)
+                                              revision))
+                                        (git--symbolic-commits)))
+                          git--revision-history)))
                                         
 (defun git--maybe-ask-and-commit(after-func)
   "Helper for functions that switch trees. If there are pending
@@ -1149,7 +1162,8 @@ buffer. If there is no common base, returns nil."
   "Prompts the user for a branch or tag to merge. Returns t if the merge
 succeeded, nil if it had conflicts, raises an error if the merge failed for
 unknown reasons."
-  (let ((branch (git--select-revision "Merge: " nil (git--current-branch)))
+  (let ((branch (git--select-revision "Merge: " nil
+                                      (list (git--current-branch))))
         (merge-success t))
     (condition-case err
         (git--merge branch)
@@ -2072,92 +2086,96 @@ in index, using ediff"
              ":"))
 
 ;; baseline stuff
-(defvar git-baseline-commit '()
+(defvar git-baseline-alist '()
   "Association list of (REPOSITORY-DIR . BASELINE-COMMIT). Both
-REPOSITORY-DIR and BASELINE-COMMIT are strings.")
+REPOSITORY-DIR and BASELINE-COMMIT are strings. The BASELINE-COMMIT determines
+what to diff against, in this repository, when git-diff-baseline is used; it
+is either a string or a function, see also `git-baseline-candidates'.")
 ;; (makunbound 'git-baseline-commit)  ;;eval to clear variable
 
-(defvar git-baseline-functions '()
-  "List of functions that should be offered as choices in git-set-baseline.
-Each function will be called with the current buffer inside of the repository
-and no parameters; it should return a sha1 string or signal a readable error.
-A function will only be offered as a choice if it completes without error
-in the repository being prompted for. Use symbols instead of lambdas so
-the functions are human-readable.")
+(defvar git-baseline-candidates '("git-svn" "origin")
+  "List of strings and functions that might be good choices for baseline commits
+in git (i.e., the state of an upstream repository). A string item is interpreted
+as a git symbolic ref, and it will be used if it exists in the current
+repository. A function item will be called with default-directory set to the
+root repository, and if it completes successfully and returns non-nil its
+string result will be used as the baseline. Normally, the first string or
+function that matches will be used, but you can select a baseline manually
+by calling `git-baseline' interactively.")
 
-(defun git-set-baseline(&optional use-previous)
-  "Set and return the baseline commit used in (`git-diff-current' 'baseline).
-If the optional parameter use-previous is true and the baseline
-commit was already set, simply returns it. The baseline commit is
-per-repository and can be optionally stored in .emacs after being set.
-The result might be a function, one of git-baseline-functions, if the
-user chose so."
-  (interactive)
+(defun git-baseline (&optional always-prompt-user)
+  "Select the baseline commit used in `git-diff-baseline' and friends, for the
+current repository. Tries to find the repo in `git-baseline-alist'; if not
+found, tries all of `git-baseline-candidates'. If the above attempts fail, or
+ALWAYS-PROMPT-USER is specified, or it was called interactively, prompts the
+user for a baseline commit, saves it to `git-baseline-alist' and offers to save
+that variable in .emacs.
+  Returns either a string (git symbolic ref) or a function that returns one."
+  (interactive '(t))
   ;; This function is a bit too long. Consider extracting parts that may
   ;; be useful elsewhere.
   (let* ((repo-dir
           ;; either the repo of the current buffer
-          (cond
-           (buffer-file-name
-            (git--get-top-dir (or (file-name-directory buffer-file-name) "")))
-           ((eq major-mode 'git-status-mode)
-            (git--get-top-dir default-directory))
-           (t
-            ;; or one prompted from the user
-            (let ((prompted-repo-dir
-                   (read-directory-name "Set baseline for repository: "
-                                        default-directory nil t)))
-              ;; verify that it's a git repo indeed
-              (if (equal
-                   (expand-file-name (file-name-as-directory prompted-repo-dir))
-                   (expand-file-name (git--get-top-dir prompted-repo-dir)))
-                  prompted-repo-dir
-                (error "Not a git repository: %s" prompted-repo-dir))))))
+          (git--get-top-dir-or-prompt "Set baseline for repository: "))
          ;; canonicalize, for storage / lookup
          (canonical-repo-dir
           (expand-file-name (file-name-as-directory repo-dir)))
          (previous-baseline-assoc
-          (assoc canonical-repo-dir git-baseline-commit)))
+          (assoc canonical-repo-dir git-baseline-alist)))
     ;; found among previous associations?
-    (if (and use-previous previous-baseline-assoc)
-        (cdr previous-baseline-assoc)
+    (if (and (not always-prompt-user) previous-baseline-assoc)
+        (if (functionp (cdr previous-baseline-assoc))
+            (funcall (cdr previous-baseline-assoc))
+          (cdr previous-baseline-assoc))
       ;; prompt for new one, possibly a function
-      (let* ((names-to-functions
-              (apply #'append
-                     (mapcar (lambda(func)
-                               (when (condition-case nil (funcall func)
-                                       (error nil))
-                                 (list (cons (format "(%S)" func) func))))
-                             git-baseline-functions)))
-             (new-baseline-str
-              (with-temp-buffer
-               (cd canonical-repo-dir)
-               (git--select-revision "Select baseline commit: "
-                                     (mapcar #'car names-to-functions))))
-             (new-baseline (or (cdr-safe
-                                (assoc new-baseline-str names-to-functions))
+      (let ((default-directory canonical-repo-dir)
+            candidate-strings candidate-function-alist)
+        (catch 'found-one
+          (dolist (candidate git-baseline-candidates)
+            (cond ((stringp candidate)
+                   (when (ignore-errors (git--rev-parse candidate))
+                     (if (not always-prompt-user)
+                         (throw 'found-one candidate)
+                       (add-to-list 'candidate-strings candidate t))))
+                  ((symbolp candidate)
+                   (let ((result (ignore-errors (funcall candidate))))
+                     (when result
+                       (if (not always-prompt-user)
+                           (throw 'found-one result)
+                         (let ((readable-form (format "(%S)" candidate)))
+                           (add-to-list 'candidate-strings readable-form t)
+                           (add-to-list 'candidate-function-alist
+                                        (cons readable-form candidate)))))))
+                  (t (error "Invalid git-baseline-candidate: %S" candidate))))
+          ;; Maybe prompt user
+          (let* ((new-baseline-str
+                  ;; Show the viable candidates first, but allow arbitrary revs
+                  (git--select-revision "Select baseline commit: "
+                                        candidate-strings candidate-strings))
+                 (new-baseline (or (cdr-safe
+                                    (assoc new-baseline-str
+                                           candidate-function-alist))
                                new-baseline-str)))
-        ;; store in variable
-        (if previous-baseline-assoc
-            (setcdr previous-baseline-assoc new-baseline)
-          (add-to-list 'git-baseline-commit
-                       (cons canonical-repo-dir new-baseline)))
-        ;; ... which we possibly save in .emacs
-        (when (y-or-n-p "Save for future sessions? ")
-          (customize-save-variable 'git-baseline-commit
-                                   git-baseline-commit))
-        new-baseline))))
+            ;; store in variable
+            (if previous-baseline-assoc
+                (setcdr previous-baseline-assoc new-baseline)
+              (add-to-list 'git-baseline-alist
+                           (cons canonical-repo-dir new-baseline))
+              ;; ... which we possibly save in .emacs
+              (when (y-or-n-p "Save for future sessions? ")
+                (customize-save-variable 'git-baseline-alist
+                                         git-baseline-alist)))
+            (if (functionp new-baseline) (funcall new-baseline)
+              new-baseline)))))))
 
 (defun git-diff-baseline()
   "Diff current buffer against a selectable \"baseline\" commit"
   (interactive)
   (git--require-buffer-in-git)
-  (let* ((baseline (git-set-baseline t))
-         (baseline-str (if (functionp baseline) (funcall baseline) baseline)))
-    (git--diff (git--if-in-status-mode
-                   (git--status-view-select-filename)
-                 buffer-file-name)
-               (concat baseline-str ":"))))
+  (git--diff (git--if-in-status-mode
+              (git--status-view-select-filename)
+              buffer-file-name)
+             (concat (git-baseline) ":")))
 
 (defun git-diff-other(commit)
   "Diff current buffer against an arbitrary commit"
@@ -2185,9 +2203,7 @@ user chose so."
 (defun git-diff-all-baseline (&optional files)
   "Diff all of the repository, or just FILES, against the \"baseline\" commit."
   (interactive)
-  (let* ((baseline (git-set-baseline t))
-         (baseline-str (if (functionp baseline) (funcall baseline) baseline)))
-    (git--diff-many files baseline-str)))
+  (git--diff-many files (git-baseline)))
 
 (defun git-diff-all-other (commit &optional files)
   (interactive
