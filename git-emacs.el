@@ -1,4 +1,4 @@
-;;; git-emacs (v.1.4.1) : yet another git emacs mode for newbies
+;;; git-emacs (v.1.4.2) : yet another git emacs mode for newbies
 ;;
 ;; Copyright (C) 2008  TSKim (tsgatesv@gmail.com)
 ;;
@@ -69,8 +69,8 @@
 ;; TODO : git set config
 ;; TODO : () -> fording/unfording for detail
 ;; TODO : show ignored files
-;; TODO : locally flyspell
 ;; 
+;; DONE : locally flyspell
 ;; DONE : turn off ido-mode globally
 ;; DONE : git-add
 ;; DONE : remote branch list
