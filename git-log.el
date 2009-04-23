@@ -207,8 +207,10 @@ a branch."
     (when (y-or-n-p (format "Checkout %s from %s? "
                             git-log-view-qualifier commit))
       (if git-log-view-filenames
-          (apply #'git--exec-string "checkout" commit "--"
-                 git-log-view-filenames)
+          (progn
+            (apply #'git--exec-string "checkout" commit "--"
+                   git-log-view-filenames)
+            (git-after-working-dir-change git-log-view-filenames))
         (git-checkout commit)))))     ;special handling for whole-tree checkout
 
 (defun git-log-view-cherry-pick ()
