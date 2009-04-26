@@ -1630,9 +1630,13 @@ about the nature of the checkout (full)."
                  (repo-dir default-directory))
      (lambda()
        (let* ((branch (or branch (read-from-minibuffer "Create new branch: ")))
+              (current-branch (ignore-errors (git--current-branch)))
+              ;; put current branch as the first option to be based on.
               (commit (git--select-revision
                        (format "Create %s based on: "
-                               (git--bold-face branch)))))
+                               (git--bold-face branch))
+                       (delq nil (list current-branch))
+                       (delq nil (list current-branch)))))
          (git--checkout "-b" branch commit)
          (git-after-working-dir-change repo-dir))))))
 
