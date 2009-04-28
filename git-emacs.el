@@ -2360,7 +2360,7 @@ buffer instead of a new one."
   (interactive)
 
   (let ((name (git--trim-string (git--config "user.name")))
-        (email (git--trim-string (git--config "uscer.email"))))
+        (email (git--trim-string (git--config "user.email"))))
 
     (when (or (null name) (string= "" name))
       (setq name (read-from-minibuffer "User Name : "
