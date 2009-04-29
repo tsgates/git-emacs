@@ -189,7 +189,7 @@
 (defun git-status (dir)
   "Launch git-status-mode on the specified directory."
 
-  (interactive "DSelect directory: ")
+  (interactive (list (git--get-top-dir-or-prompt "Select directory: ")))
 
   (setq dir (git--get-top-dir dir))
   (if (file-directory-p (git--expand-to-repository-dir dir))
