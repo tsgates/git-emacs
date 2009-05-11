@@ -2274,7 +2274,8 @@ that variable in .emacs.
   (let ((default-directory (git--get-top-dir default-directory))
         (git-grep-setup-hook (lambda() (setenv "GIT_PAGER" "")))
         (compilation-buffer-name-function
-         (lambda (&rest ignore) "*git grep*")))
+         (lambda (&rest ignore) "*git grep*"))
+        (grep-use-null-device nil))
     (add-hook 'grep-setup-hook git-grep-setup-hook)
     (unwind-protect
          (grep (concat "git grep -n " args))
