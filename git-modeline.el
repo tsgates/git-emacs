@@ -28,7 +28,7 @@ of mode-line-format."
 ;; Modeline decoration options
 (defun git-state-decoration-small-dot(stat)
   (git--state-mark-modeline-dot
-   (git--interpret-state-mode-color stat)
+   (git--interpret-state-mode-color stat) stat
 "/* XPM */
 static char * data[] = {
 \"14 7 3 1\",
@@ -45,7 +45,7 @@ static char * data[] = {
 
 (defun git-state-decoration-large-dot(stat)
   (git--state-mark-modeline-dot
-   (git--interpret-state-mode-color stat)
+   (git--interpret-state-mode-color stat) stat
 "/* XPM */
 static char * data[] = {
 \"18 13 3 1\",
@@ -97,7 +97,7 @@ static char * data[] = {
 ;; Modeline decoration implementation
 (defvar git--state-mark-modeline t)     ; marker for our entry in mode-line-fmt
 
-(defun git--state-mark-modeline-dot (color img)
+(defun git--state-mark-modeline-dot (color stat img)
   (propertize "    "
               'help-echo (git--state-mark-tooltip stat)
               'display
