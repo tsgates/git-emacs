@@ -7,8 +7,7 @@
 
 ;; Modeline decoration customization
 (defcustom git-state-modeline-decoration
-  (if window-system 'git-state-decoration-large-dot
-                    'git-state-decoration-colored-letter)
+  'git-state-decoration-letter
   "How to indicate the status of files in the modeline. The value
 must be a function that takes a single arg: a symbol denoting file status,
 e.g. 'unmerged. The return value of the function will be added at the beginning
