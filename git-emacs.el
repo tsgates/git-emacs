@@ -757,10 +757,11 @@ only checks the specified files. The list is sorted by filename."
     (sort fileinfo 'git--fileinfo-lessp)))
 
 (defsubst git--to-type-sym (type)
-  "Change string symbol type to 'blob or 'tree"
+  "Change string symbol type to 'blob, 'tree or 'commit (i.e. submodule)"
   
   (cond ((string= type "blob") 'blob)
         ((string= type "tree") 'tree)
+        ((string= type "commit") 'commit)
         (t (error "strange type : %s" type))))
 
 (defun git--ls-tree (&rest args)

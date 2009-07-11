@@ -60,6 +60,7 @@
 (git--face mark       "red"    (:bold t) "tomato"  (:bold t))
 (git--face mark-tree  "blue"   (:bold t) "yellow"  (:bold t))
 (git--face mark-blob  "black"  () "white" ())
+(git--face mark-submodule "cyan" ()      "cyan"    ())
 (git--face unknown    "black"  (:bold t) "white"   (:bold t))
 (git--face ignored    "gray"   (:bold t) "gray"    (:bold t))
 (git--face modified   "tomato" (:bold t) "tomato"  (:bold t))
@@ -140,11 +141,14 @@ to ls -sh; e.g. 29152 -> 28K."
         (type (git--fileinfo->type info)))
 
     (setq name (replace-regexp-in-string "[^/]+/" "    " name))
-    (propertize name 'face
-                (case type
-                  ('tree 'git--mark-tree-face)
-                  ('blob 'git--mark-blob-face)
-                  (t (error "Can't be!"))))))
+    (format
+     (if (eq type 'commit) "%s  [submodule>]" "%s")
+     (propertize name 'face
+                 (case type
+                   ('tree 'git--mark-tree-face)
+                   ('blob 'git--mark-blob-face)
+                   ('commit 'git--mark-submodule-face)
+                   (t (error "Can't be!")))))))
                   
 (defun git--render-file-status (info)
   "Render status view node, call in order
@@ -721,6 +725,14 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (interactive)
   (find-file (git--status-view-select-filename)))
 
+(defun git--status-view-descend-submodule ()
+  "Opens a status view on the selected submodule"
+  (let ((submodule-dir (git--fileinfo->name
+                        (ewoc-data (ewoc-locate git--status-view)))))
+    (git-status submodule-dir)
+    (message "Viewing submodule \"%s\", close buffer to return"
+             submodule-dir)))
+
 (defun git--status-view-resolve-merge ()
   "Resolve the conflict if necessary"
   
@@ -741,6 +753,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (case (git--status-view-select-type)
     ('tree (git--status-view-expand-tree-toggle))
     ('blob (git--status-view-open-file))
+    ('commit (git--status-view-descend-submodule))
     (t (error "Not supported type"))))
 
 (defun git--status-view-blame ()
