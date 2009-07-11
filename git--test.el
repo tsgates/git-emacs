@@ -149,6 +149,15 @@
         ))
     )
 
+  ;; Human-readable size
+  (assert (equal "8" (git--status-human-readable-size 8)))
+  (assert (equal "1023" (git--status-human-readable-size 1023)))
+  (assert (equal "1.0K" (git--status-human-readable-size 1024)))
+  (assert (equal "25K" (git--status-human-readable-size 25902)))
+  (assert (equal "382K" (git--status-human-readable-size 391475)))
+  (assert (equal "1.0M" (git--status-human-readable-size (* 1023 1024))))
+  (assert (equal "2.5M" (git--status-human-readable-size (* 2570 1024))))
+
   ;; Do some more fun stuff here...
   )
 

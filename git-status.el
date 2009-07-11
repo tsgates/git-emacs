@@ -15,8 +15,8 @@
   "EWOC for git-status-mode")
 
 
-(defconst git--status-header-format "     %-2s %-10s %-5s %-5s %s")
-(defconst git--status-line-column 30)
+(defconst git--status-header-format "     %-2s %-10s %-5s %4s  %s")
+(defconst git--status-line-column 32)
 
 (defsubst git--status-header ()
   ;; Put spaces above the scrollbar and the fringe
@@ -113,13 +113,25 @@
   
   (or (git--fileinfo->perm info) "------"))
 
+(defun git--status-human-readable-size (size)
+  "Given a size in bytes, returns a string size of at most four chars, similar
+to ls -sh; e.g. 29152 -> 28K."
+  (if (< size 1024)
+      (format "%d" size)
+    (let ((suffixes "KMGT") (i 0))
+      (while (and (< i (length suffixes))
+                  (>= size 1000))       ; 1023K would be 5 chars
+        (setq size (/ size 1024.0))
+        (incf i))
+      (format (if (< size 10) "%.1f%c" "%.0f%c")
+              size (elt suffixes (- i 1))))))
+
 (defsubst git--status-node-size (info)
   "Render status view node size"
 
   (let ((size (git--fileinfo->size info)))
-    (if (numberp size)
-        (number-to-string size)
-      "")))
+    (if (not size) ""
+      (git--status-human-readable-size size))))
       
 (defsubst git--status-node-name (info)
   "Render status view node name"
@@ -300,6 +312,12 @@ If predicate return nil continue to scan, otherwise stop and return the node"
     (ewoc-refresh git--status-view)
     (goto-char pos)))
 
+(defun git--status-add-size (fileinfo)
+  "Fill in the size field of a fileinfo"
+  (let ((attrs (file-attributes (git--fileinfo->name fileinfo))))
+    (when (and attrs (not (first attrs)))
+      (setf (git--fileinfo->size fileinfo) (elt attrs 7)))))
+    
 (defun git--status-new ()
   "Create new status-view buffer in current buffer"
 
@@ -307,7 +325,9 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (git--refresh-desc)
 
   ;; add new file infos
-  (dolist (info (git--status-tree)) (ewoc-enter-last git--status-view info))
+  (dolist (info (git--status-tree))
+    (git--status-add-size info)
+    (ewoc-enter-last git--status-view info))
 
   ;; add modified/renamed etc file infos
   (git--status-view-update)
@@ -318,6 +338,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
     (let ((iter (ewoc-nth git--status-view 0)))
       (dolist (fi fileinfo)
+        (git--status-add-size fi)
         (setq iter (git--status-map iter (lambda (node data)
                                            (when (git--fileinfo-lessp fi data)
                                              (ewoc-enter-before git--status-view node fi))))))))
@@ -464,6 +485,8 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
           ;; update lessp by force
           (setf (git--fileinfo->lessp fi) 2)
+
+          (git--status-add-size fi)
 
           (setq node (ewoc-enter-after git--status-view node fi))))
     
@@ -735,7 +758,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
 (defsubst git--status-view-marked-files ()
   "Return a list of the marked files. Usually,
-`git-status-view-marked-or-file' is what you want instead."
+`git--status-view-marked-or-file' is what you want instead."
 
   (let (files)
     (ewoc-collect git--status-view
