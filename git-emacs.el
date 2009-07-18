@@ -1666,13 +1666,21 @@ about the nature of the checkout (full)."
     (message "%s tag '%s'; you can recover it as %s"
              (git--bold-face "Deleted") tag saved-tag-target)))
 
+(defvar git--cmd-history nil
+  "History variable for commands ran through git-cmd")
+
 (defun git-cmd (str)
-  "git-cmd for user"
-
-  (interactive "s>> git ")
+  "Runs an arbitrary git command, prompting in interactive mode. Displays
+the result as a message."
+  (interactive (list (read-string "git >> " nil 'git--cmd-history)))
+  ;; The command may or may not affect the working dir or work with files we
+  ;; are editing.
+  (git--maybe-ask-save)
   (message (git--trim-tail
-            (apply #'git--exec-string (split-string str)))))
-
+            (apply #'git--exec-string (split-string str))))
+  ; let the user digest message, then check for modified files.
+  (sit-for 2)
+  (git-after-working-dir-change))
 
 (defun git--diff (file rev &optional before-ediff-hook after-ediff-hook)
   "Starts an ediff session between the FILE and its specified revision.
