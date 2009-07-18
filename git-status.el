@@ -148,7 +148,7 @@ to ls -sh; e.g. 29152 -> 28K."
                    ('tree 'git--mark-tree-face)
                    ('blob 'git--mark-blob-face)
                    ('commit 'git--mark-submodule-face)
-                   (t (error "Can't be!")))))))
+                   (t (error "Unknown node type: %S" type)))))))
                   
 (defun git--render-file-status (info)
   "Render status view node, call in order

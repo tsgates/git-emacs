@@ -253,7 +253,7 @@ if it fails. If the command succeeds, returns the git output."
     (with-current-buffer standard-output
       (unless (eq 0
                   (apply #'git--exec-buffer cmd args))
-        (error (git--trim-string (buffer-string)))))))
+        (error "%s" (git--trim-string (buffer-string)))))))
 
 ;;-----------------------------------------------------------------------------
 ;; utilities
@@ -796,7 +796,7 @@ only checks the specified files. The list is sorted by filename."
     (sort fileinfo 'git--fileinfo-lessp)))
 
 (defun git--merge (&rest args)
-  (message (git--trim-string (apply #'git--exec-string "merge" args))))
+  (message "%s" (git--trim-string (apply #'git--exec-string "merge" args))))
 
 (defsubst git--branch (&rest args)
   (apply #'git--exec-string "branch" args))
@@ -887,7 +887,7 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
         (let ((msg (buffer-string)))
           (kill-buffer nil)
           (setq buffer nil)
-          (error (git--trim-tail msg)))))
+          (error "%s" (git--trim-tail msg)))))
     buffer))
 
 (defsubst git--select-branch (&rest excepts)
@@ -1086,9 +1086,9 @@ Trim the buffer log and commit"
       (when (and begin end)
         (setq end (- end (length git--log-sep-line)))
         ;; TODO sophisticated message
-        (message (apply #'git--commit
-                        (git--trim-string (buffer-substring begin end))
-                        git--commit-args)))))
+        (message "%s" (apply #'git--commit
+                             (git--trim-string (buffer-substring begin end))
+                             git--commit-args)))))
 
   ;; update state marks, either for the files committed or the whole repo
   (git--update-all-state-marks
@@ -1173,7 +1173,7 @@ unknown reasons."
        (let ((err-msg (error-message-string err)))
          ;; Often because of conflicts
          (if (string-match "^CONFLICT" err-msg)
-               (message err-msg)
+               (message "%s" err-msg)
            ;; otherwise, reraise
            (signal (car err) (cdr err))))))
     merge-success))
@@ -1507,7 +1507,7 @@ a prefix argument, is specified, does a commit --amend."
           (shell-command (format "tar xf \"%s\"" (file-relative-name file))))
          ((string= ext "gz")
           (shell-command (format "tar xzf \"%s\"" (file-relative-name file))))
-         (t (error (concat ext " is not supported"))))))
+         (t (error "%s is not supported " ext)))))
 
     (let ((dir (file-name-sans-extension
                 (file-name-sans-extension file))))
@@ -1676,8 +1676,8 @@ the result as a message."
   ;; The command may or may not affect the working dir or work with files we
   ;; are editing.
   (git--maybe-ask-save)
-  (message (git--trim-tail
-            (apply #'git--exec-string (split-string str))))
+  (message "%s" (git--trim-tail
+                 (apply #'git--exec-string (split-string str))))
   ; let the user digest message, then check for modified files.
   (sit-for 2)
   (git-after-working-dir-change))
