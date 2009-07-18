@@ -1,4 +1,4 @@
-;;; git-emacs (v.1.4) : yet another git emacs mode for newbies
+;;; git-emacs (v.1.4.1) : yet another git emacs mode for newbies
 ;;
 ;; Copyright (C) 2008  TSKim (tsgatesv@gmail.com)
 ;;
@@ -1487,7 +1487,7 @@ a prefix argument, is specified, does a commit --amend."
   "Initialize the git repository"
 
   (interactive "DGit Repository: ")
-  (message (git--trim-string (git--init dir)))
+  (message "%s" (git--trim-string (git--init dir)))
   (git-config-init))
 
 (defun git-init-from-archive (file)
