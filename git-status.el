@@ -275,7 +275,8 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
     (maphash #'(lambda (k v) (git--status-view-dumb-update-element v)) hashed-info)))
 
-;; TODO : need refactoring
+;; TODO : need refactoring. Doesn't work well when merging deep unknown files
+;; into a tree.
 (defun git--status-view-update-expand-tree (fileinfo)
   "Expand the interesting tree nodes containing one of fileinfos"
 
@@ -362,7 +363,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (let ((buffer-read-only nil)) 
     (ewoc-delete git--status-view node)))
 
-(defun git--status-delete-afer-regex (node regex)
+(defun git--status-delete-after-regex (node regex)
   (while node
     (let ((next-node (ewoc-next git--status-view node))
           (node-data (ewoc-data node)))
@@ -516,8 +517,9 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   
     (when (git--fileinfo->expanded data)
       ;; make regexp "node->name/"
-      (git--status-delete-afer-regex (ewoc-next git--status-view node)
-                                     (file-name-as-directory name))
+      (git--status-delete-after-regex
+       (ewoc-next git--status-view node)
+       (concat "^" (regexp-quote (file-name-as-directory name))))
       (setf (git--fileinfo->expanded data) nil))))
 
 
