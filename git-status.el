@@ -497,9 +497,6 @@ If predicate return nil continue to scan, otherwise stop and return the node"
           (setf (git--fileinfo->name fi)
                 (git--concat-path-only name fi-name))
 
-          ;; update lessp by force
-          (setf (git--fileinfo->lessp fi) 2)
-
           (git--status-add-size fi)
 
           (setq node (ewoc-enter-after git--status-view node fi))))

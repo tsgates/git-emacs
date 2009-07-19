@@ -438,25 +438,18 @@ runs git commit --amend -a, alowing an update of the previous commit."
 ;; ewoc file info structure for each list element
 (defstruct (git--fileinfo 
             (:copier nil)
-            (:constructor git--create-fileinfo-core
-                          (name type &optional sha1 perm marked stat size refresh lessp))
+            (:constructor git--create-fileinfo
+                          (name type &optional sha1 perm marked stat size refresh))
             (:conc-name git--fileinfo->))
   marked   ;; t/nil
   expanded ;; t/nil
   refresh  ;; t/nil
-  lessp    ;; sort priority (tree=3, sub=2, blob=1)
   stat     ;; 'unknown/'modified/'uptodate/'staged  etc.
-  type     ;; 'blob/'tree
+  type     ;; 'blob/'tree/'commit (i.e. submodule)
   name     ;; filename
   size     ;; size
   perm     ;; permission
   sha1)    ;; sha1
-
-(defsubst git--create-fileinfo (name type &optional sha1 perm marked stat size refresh)
-  "Create fileinfo through this function instead using 'git--create-fileinfo-core'"
-  
-  (git--create-fileinfo-core name type sha1 perm marked stat size refresh
-                             (if (eq type 'tree) 3 (if (string-match "/" name) 2 1))))
 
 (defsubst git--fileinfo-is-dir (info)
   "Returns true if a file info is directory-like (expandable, sorted first)"
