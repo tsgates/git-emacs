@@ -20,7 +20,7 @@
       (message "Deleted temporary test dir %s"
                git--test-tmp-dir-DONT-REASSIGN))))
 
-(defun git--tests-unittest-suite ()
+(defun git--test-typical-repo-ops ()
   ;; git exec
   (assert (string= "\n" (git--exec-string "rev-parse" "--show-cdup")))
   (assert (string= (expand-file-name "./") (git--get-top-dir ".")))
@@ -149,7 +149,12 @@
         ))
     )
 
-  ;; Human-readable size
+   ;; Do some more fun stuff here...
+  )
+
+(defun git--test-standalone-functions ()
+   ;; Human-readable size
+  (require 'git-status)
   (assert (equal "8" (git--status-human-readable-size 8)))
   (assert (equal "1023" (git--status-human-readable-size 1023)))
   (assert (equal "1.0K" (git--status-human-readable-size 1024)))
@@ -158,15 +163,37 @@
   (assert (equal "1.0M" (git--status-human-readable-size (* 1023 1024))))
   (assert (equal "2.5M" (git--status-human-readable-size (* 2570 1024))))
 
-  ;; Do some more fun stuff here...
+  ;; Some tests of fileinfo-lessp
+  (let ((check-compare
+         (lambda (name1 type1 name2 type2 isless12 isless21)
+           (let ((info1 (git--create-fileinfo name1 type1))
+                 (info2 (git--create-fileinfo name2 type2)))
+             (assert (eq isless12 (git--fileinfo-lessp info1 info2)))
+             (assert (eq isless21 (git--fileinfo-lessp info2 info1)))))))
+    (funcall check-compare "abc" 'blob "def" 'blob t nil)
+    (funcall check-compare "abc" 'tree "def" 'tree t nil)
+    (funcall check-compare "abc" 'blob "abc" 'blob nil nil)
+
+    (funcall check-compare "abc" 'blob "def/foo" 'blob nil t)
+    (funcall check-compare "def/foo" 'blob "def/foo" 'blob nil nil)
+    (funcall check-compare "abc/foo" 'blob "def" 'blob t nil)
+    (funcall check-compare "abc/def" 'tree "abc/def/aaa" 'blob t nil)
+    (funcall check-compare "abc/def" 'tree "abc/def/aaa" 'tree t nil)
+    ;; This is the situation where an Unknown file comes in low in the tree
+    (funcall check-compare "abc/def" 'tree "abc/def/aaa/bbb" 'blob t nil)
+    (funcall check-compare "abc/hij" 'tree "abc/def/aaa/bbb" 'blob nil t)
+    )
+
   )
+
 
 (defun git-regression ()
   (interactive)
 
   (message "Running unittest suite...")
+  (git--test-standalone-functions)
   (save-window-excursion                ; some bufs might pop up, e.g. commit
-    (git--test-with-temp-repo #'git--tests-unittest-suite))
+    (git--test-with-temp-repo #'git--test-typical-repo-ops))
 
   (message "git-regression passed"))
   

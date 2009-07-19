@@ -458,16 +458,43 @@ runs git commit --amend -a, alowing an update of the previous commit."
   (git--create-fileinfo-core name type sha1 perm marked stat size refresh
                              (if (eq type 'tree) 3 (if (string-match "/" name) 2 1))))
 
+(defsubst git--fileinfo-is-dir (info)
+  "Returns true if a file info is directory-like (expandable, sorted first)"
+  (not (eq 'blob (git--fileinfo->type info))))
+
+(defsubst git--fileinfo-dir (info)
+  "Returns the directory component of a fileinfo's path. If the fileinfo is
+directory-like, the directory is the path itself, with a slash appended."
+  (if (git--fileinfo-is-dir info)
+      (file-name-as-directory (git--fileinfo->name info))
+    (or (file-name-directory (git--fileinfo->name info)) "")))
+
 (defun git--fileinfo-lessp (info1 info2)
-  "Sorting rules of 'git--fileinfo' ref to 'git--create-fileinfo'"
-
-  (let ((info1-level (git--fileinfo->lessp info1))
-        (info2-level (git--fileinfo->lessp info2)))
-
-    (if (eq info1-level info2-level)
-        (string-lessp (git--fileinfo->name info1)
-                      (git--fileinfo->name info2))
-      (> info1-level info2-level))))
+  "Sorting rule for git--fileinfos, such that the ordering in git-status is
+right. The rule is rather complicated, but it basically results in a
+properly expanded tree."
+  (let ((info1-dir (git--fileinfo-dir info1))
+        (info2-dir (git--fileinfo-dir info2)))
+    (let ((cmp (compare-strings info1-dir 0 nil info2-dir 0 nil)))
+      (if (not (eq t cmp))
+          ;; A file in a subdirectory should always come before a file
+          ;; in the parent directory.
+          (if (< cmp 0)
+              ;; info1-dir < info2-dir
+              (if (eq (length info1-dir) (- -1 cmp))
+                  ;; info1-dir is a subdir of info2-dir. less == false,
+                  ;; unless info1 is a directory itself.
+                  (git--fileinfo-is-dir info1)
+                t)
+            ;; info1-dir > info2-dir
+            (if (eq (length info2-dir) (- cmp 1))
+                ;; info2-dir is a subdir of info1-dir. less == true, unless
+                ;; info2 is a directory itself.
+                (not (git--fileinfo-is-dir info2))
+              nil))
+        ;; same directory, straight-up comparison
+        (string< (git--fileinfo->name info1)
+                 (git--fileinfo->name info2))))))
 
 (defmacro git--if-in-status-mode (THEN &rest ELSE)
   "Macro that evaluates THEN when in git-status-mode, ELSE otherwise. Used to

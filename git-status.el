@@ -340,12 +340,21 @@ If predicate return nil continue to scan, otherwise stop and return the node"
   (let ((fileinfo (git--ls-files "-o" "--exclude-standard")))
     (git--status-view-update-expand-tree fileinfo)
 
+    ;; Use the file sorting to merge into the list.
     (let ((iter (ewoc-nth git--status-view 0)))
       (dolist (fi fileinfo)
         (git--status-add-size fi)
-        (setq iter (git--status-map iter (lambda (node data)
-                                           (when (git--fileinfo-lessp fi data)
-                                             (ewoc-enter-before git--status-view node fi))))))))
+        ;; Find the lowest node that's larger, or enter at the end.
+        (let (enter-before)
+          (git--status-map
+           iter
+           (lambda (node data)
+             (when (git--fileinfo-lessp fi data)
+               (setq enter-before node))))
+          (if enter-before
+              (setq iter (ewoc-enter-before git--status-view enter-before fi))
+            (setq iter (ewoc-enter-last git--status-view fi)))))))
+
   (git--status-refresh))
 
 (defsubst git--status-delete (node)
