@@ -2031,7 +2031,7 @@ end mark of the buffer."
                           branch))
           (when annotations
             (insert (make-string
-                     (max 1 (- annotation-column (current-column))
+                     (max 1 (- annotation-column (current-column)))
                      ?\s))
             (insert "-")
             (dolist (annotation annotations)
