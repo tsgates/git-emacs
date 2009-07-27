@@ -1985,21 +1985,59 @@ for new files to add to git."
 
     (overlay-put git--branch-mode-overlay 'face 'highlight)))
 
+(defvar git-branch-annotator-functions nil
+  "List of functions that provide branch annotations in `git-branch-mode'.
+Each function is called with a list of branches and the git-branch-mode
+buffer current (i.e., default-directory is in git), and should return an
+association list of (branch-name . annotation) for the branches that can
+be annotated. The annotation is a string that will be displayed next
+to the branch.")
+
 (defun git--branch-mode-view ()
-  "Display the branch list to branch-mode buffer and return the end mark of the buffer"
+  "Display the branch list to branch-mode buffer and return the
+end mark of the buffer."
   
   ;; beginning of buffer name position
   (setq goal-column 3)
+  ;; annotations can be long, so request horizontal scrolling
+  (setq truncate-lines t)
 
+  ;; find annotations
   (let ((current-branch (git--current-branch))
         (branch-list (git--branch-list))
+        (branch-annotations (make-hash-table :test 'equal))
         (buffer-read-only nil))
+    (dolist (annotator git-branch-annotator-functions)
+      (dolist (branch-annotation (funcall annotator branch-list))
+        (let* ((branch (car branch-annotation))
+               (annotation (cdr branch-annotation))
+               (lookup (gethash branch branch-annotations)))
+          (if lookup
+              (add-to-list 'lookup annotation t)
+            (puthash branch (list annotation) branch-annotations)))))
 
-    (dolist (branch branch-list)
-      (insert (format "%2s %s\n"
-                      (if (string= current-branch branch)
-                          (git--bold-face "*") " ")
-                      branch)))
+    ;; Display annotations either 3 chars after the longest branch name,
+    ;; or at half window width, whichever is smaller.
+    (let ((annotation-column
+           (when (> (hash-table-count branch-annotations) 0)
+             (min (/ (window-width) 2)
+                  (+ goal-column 3
+                     (reduce #'max (mapcar #'length branch-list)))))))
+      (dolist (branch branch-list)
+        (let ((annotations (gethash branch branch-annotations)))
+          (insert (format "%2s %s"
+                          (if (string= current-branch branch)
+                              (git--bold-face "*") " ")
+                          branch))
+          (when annotations
+            (insert (make-string
+                     (max 1 (- annotation-column (current-column))
+                     ?\s))
+            (insert "-")
+            (dolist (annotation annotations)
+              (insert " ")
+              (insert annotation)))
+          (insert "\n"))))
 
     (goto-char (point-min))
     (length branch-list)))
