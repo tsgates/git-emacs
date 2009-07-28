@@ -295,6 +295,27 @@ if it fails. If the command succeeds, returns the git output."
     (unless (one-window-p t) (delete-window))
     (kill-buffer buffer)))
 
+(defmacro git-in-lowest-existing-dir (dir &rest BODY)
+  "Runs \"BODY\" with `default-directory' set to the nearest
+existing parent of DIR; useful because git directories can come
+and go when switching parents, and Emacs refuses to execute
+commands in a non-existing directory.  If DIR is nil, defaults to
+`default-directory'. Only use this for commands that don't take
+filenames, such as git branch, because relative filenames may
+become invalid when we walk up -- in that case, it's better to
+let the user see the invalid directory error."
+   `(let ((default-directory (file-name-as-directory
+                              (if ,dir (expand-file-name ,dir)
+                                default-directory))))
+      ;; The default-directory might be gone if a branch was switched! Walk up.
+      (let (parent)
+        (while (not (or (file-exists-p default-directory)
+                        (eq (setq parent (file-name-as-directory
+                                          (expand-file-name "..")))
+                            default-directory)))
+          (setq default-directory parent)))
+      ,@BODY))
+  
 (defsubst git--interpret-to-state-symbol (stat)
   "Interpret git state string to state symbol"
 
@@ -664,10 +685,10 @@ gives, essentially, file status."
 
   (car (split-string (git--exec-string "symbolic-ref" arg) "\n")))
 
-(defsubst git--current-branch ()
+(defun git--current-branch ()
   "Execute git-symbolic-ref of 'HEAD' and return branch name string"
 
-  (let ((branch (git--symbolic-ref "HEAD")))
+  (let ((branch (git-in-lowest-existing-dir nil (git--symbolic-ref "HEAD"))))
     (if (string-match "^refs/heads/" branch)
         (substring branch (match-end 0))
       branch)))
@@ -699,18 +720,9 @@ gives, essentially, file status."
 
 (defun git--get-top-dir (&optional dir)
   "Get the top-level git directory above DIR. If nil, use default-directory."
-  (let ((default-directory (file-name-as-directory
-                            (if dir (expand-file-name dir)
-                              default-directory))))
-    ;; The default-directory might be gone if a branch was switched! Walk up.
-    (let (parent)
-      (while (not (or (file-exists-p default-directory)
-                      (eq (setq parent (file-name-as-directory
-                                        (expand-file-name "..")))
-                          default-directory)))
-        (setq default-directory parent)))
-    (let ((cdup (git--rev-parse "--show-cdup")))
-      (git--concat-path default-directory (car (split-string cdup "\n"))))))
+  (git-in-lowest-existing-dir dir
+   (let ((cdup (git--rev-parse "--show-cdup")))
+     (git--concat-path default-directory (car (split-string cdup "\n"))))))
 
 (defun git--get-relative-to-top(filename)
   (file-relative-name filename
@@ -871,7 +883,7 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
         (regexp (concat "[ *]+" git--reg-branch "\n")))
     
     (with-temp-buffer
-      (git--exec-buffer "branch" "-l")
+      (git-in-lowest-existing-dir nil (git--exec-buffer "branch" "-l"))
       (goto-char (point-min))
 
       (while (re-search-forward regexp nil t)
@@ -2008,7 +2020,8 @@ end mark of the buffer."
         (branch-annotations (make-hash-table :test 'equal))
         (buffer-read-only nil))
     (dolist (annotator git-branch-annotator-functions)
-      (dolist (branch-annotation (funcall annotator branch-list))
+      (dolist (branch-annotation
+               (ignore-errors (funcall annotator branch-list)))
         (let* ((branch (car branch-annotation))
                (annotation (cdr branch-annotation))
                (lookup (gethash branch branch-annotations)))
