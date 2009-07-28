@@ -1930,39 +1930,35 @@ for new files to add to git."
     ["Quit" git--branch-mode-quit t]))
 
 
-(defun git--branch-mode-throw (data)
-  "Git branch mode template to exit buffer"
+(defun git--branch-mode-throw (command)
+  "Throw (command . selected-branch-no), when exiting the git-branch-mode
+buffer. Used in the keymap subcommands."
+  (throw 'git--branch-mode-selected (cons command (- (line-number-at-pos) 1))))
 
-  (let ((branch (buffer-substring (point) (line-end-position))))
-    (throw 'git--branch-mode-selected (cons data branch))))
 
 (defun git--branch-mode-quit ()
   "Git branch mode quit"
-
   (interactive)
   (throw 'git--branch-mode-selected nil))
 
 (defun git--branch-mode-delete ()
   "Git branch mode delete"
-
   (interactive)
   (git--branch-mode-throw 'delete))
 
 (defun git--branch-mode-switch ()
   "Git branch mode switch"
-
   (interactive)
   (git--branch-mode-throw 'switch))
 
 (defun git--branch-mode-create ()
   "Git branch mode checkout"
-
   (interactive)
   (git--branch-mode-throw 'create))
 
 (defun git--branch-mode ()
   "Set current buffer as branch-mode"
-  
+
   (kill-all-local-variables)
   (buffer-disable-undo)
 
@@ -1997,6 +1993,7 @@ for new files to add to git."
 
     (overlay-put git--branch-mode-overlay 'face 'highlight)))
 
+
 (defvar git-branch-annotator-functions nil
   "List of functions that provide branch annotations in `git-branch-mode'.
 Each function is called with a list of branches and the git-branch-mode
@@ -2006,8 +2003,8 @@ be annotated. The annotation is a string that will be displayed next
 to the branch.")
 
 (defun git--branch-mode-view ()
-  "Display the branch list to branch-mode buffer and return the
-end mark of the buffer."
+  "Display the branch list to branch-mode buffer. Returns the list of
+the branches, in the order they were inserted."
   
   ;; beginning of buffer name position
   (setq goal-column 3)
@@ -2053,71 +2050,68 @@ end mark of the buffer."
           (insert "\n"))))
 
     (goto-char (point-min))
-    (length branch-list)))
+    branch-list))
 
 (defun git-branch ()
   "Launch git-branch mode"
 
   (interactive)
 
-  (let ((selected-branch nil)
-        (buffer (get-buffer-create "*git-branch*"))
+  (let ((buffer (get-buffer-create "*git-branch*"))
         (windows (current-window-configuration))
-        (nbranchs 0)
         ;; Subtle: a pre-existing *git-branch* buffer might have the wrong dir
-        (directory default-directory))
-
+        (directory default-directory)
+        branch-list num-branches cmd-and-branch-no)
     (with-current-buffer buffer
       (setq default-directory directory)
       ;; set branch mode 
       (git--branch-mode)
 
       ;; set branch mode view
-      (setq nbranchs (git--branch-mode-view))
+      (setq branch-list (git--branch-mode-view))
+      (setq num-branches (length branch-list))
 
       ;; pop up
       (electric-pop-up-window buffer)
-      (git--branch-mode-loop nbranchs nil)
+      (git--branch-mode-loop num-branches nil)
       
-      (unwind-protect
-          (setq selected-branch
-                (catch 'git--branch-mode-selected
-                  (electric-command-loop 'git--branch-mode-selected
-                                         nil
-                                         t
-                                         'git--branch-mode-loop
-                                         nbranchs))))
-
+      (setq cmd-and-branch-no
+            (catch 'git--branch-mode-selected
+              (electric-command-loop 'git--branch-mode-selected
+                                     nil
+                                     t
+                                     'git--branch-mode-loop
+                                     num-branches)))
+    
       ;; exit buffer and restore configuration of the windows
       (set-window-configuration windows)
       (kill-buffer buffer)
 
-      ;; interpret command 
-      (git--branch-mode-interpret selected-branch))))
+      ;; interpret command, if any
+      (when cmd-and-branch-no
+        (git--branch-mode-interpret (car cmd-and-branch-no)
+                                    (nth (cdr cmd-and-branch-no)
+                                         branch-list))))))
 
-(defun git--branch-mode-interpret (selected-branch)
+(defun git--branch-mode-interpret (command branch)
   "git-branch command interpreter,
 if 'delete -> call 'git-delete-branch
 if 'switch -> call 'git-checkout with tweaked arguments
 if 'create -> call git-checkout-to-new-branch"
-
-  (when selected-branch
-    (let ((command (car selected-branch))
-          (branch (cdr selected-branch)))
-    (case command
-      ('delete
-       (when (y-or-n-p (format "Would you like to %s the branch %s ? "
-                               (git--bold-face "delete")
-                               (git--bold-face branch)))
-         (git-delete-branch branch)))
-      ('switch
-       (git-checkout branch
-                     (format "Switch from branch %s to %s? "
-                             (git--bold-face (git--current-branch))
-                             (git--bold-face "%s")) ; checkout replaces this
-                     )
-        )
-      ('create (call-interactively 'git-checkout-to-new-branch))))))
+  (case command
+    ('delete
+     (when (y-or-n-p (format "%s the branch %s? "
+                             (git--bold-face "Delete")
+                             (git--bold-face branch)))
+       (git-delete-branch branch)))
+    ('switch
+     (git-checkout branch
+                   (format "Switch from branch %s to %s? "
+                           (git--bold-face (git--current-branch))
+                           (git--bold-face "%s")) ; checkout replaces this
+                   )
+     )
+    ('create (call-interactively 'git-checkout-to-new-branch))))
 
 (defun git--branch-mode-loop (stat cond)
   "git-branch mode loop interpreter, update the highlight"
