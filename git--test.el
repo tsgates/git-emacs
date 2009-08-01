@@ -164,24 +164,23 @@
   (assert (equal "2.5M" (git--status-human-readable-size (* 2570 1024))))
 
   ;; Some tests of fileinfo-lessp
-  (let ((check-compare
-         (lambda (name1 type1 name2 type2 isless12 isless21)
+  (flet ((check-compare (name1 type1 name2 type2 isless12 isless21)
            (let ((info1 (git--create-fileinfo name1 type1))
                  (info2 (git--create-fileinfo name2 type2)))
              (assert (eq isless12 (git--fileinfo-lessp info1 info2)))
-             (assert (eq isless21 (git--fileinfo-lessp info2 info1)))))))
-    (funcall check-compare "abc" 'blob "def" 'blob t nil)
-    (funcall check-compare "abc" 'tree "def" 'tree t nil)
-    (funcall check-compare "abc" 'blob "abc" 'blob nil nil)
+             (assert (eq isless21 (git--fileinfo-lessp info2 info1))))))
+    (check-compare "abc" 'blob "def" 'blob t nil)
+    (check-compare "abc" 'tree "def" 'tree t nil)
+    (check-compare "abc" 'blob "abc" 'blob nil nil)
 
-    (funcall check-compare "abc" 'blob "def/foo" 'blob nil t)
-    (funcall check-compare "def/foo" 'blob "def/foo" 'blob nil nil)
-    (funcall check-compare "abc/foo" 'blob "def" 'blob t nil)
-    (funcall check-compare "abc/def" 'tree "abc/def/aaa" 'blob t nil)
-    (funcall check-compare "abc/def" 'tree "abc/def/aaa" 'tree t nil)
+    (check-compare "abc" 'blob "def/foo" 'blob nil t)
+    (check-compare "def/foo" 'blob "def/foo" 'blob nil nil)
+    (check-compare "abc/foo" 'blob "def" 'blob t nil)
+    (check-compare "abc/def" 'tree "abc/def/aaa" 'blob t nil)
+    (check-compare "abc/def" 'tree "abc/def/aaa" 'tree t nil)
     ;; This is the situation where an Unknown file comes in low in the tree
-    (funcall check-compare "abc/def" 'tree "abc/def/aaa/bbb" 'blob t nil)
-    (funcall check-compare "abc/hij" 'tree "abc/def/aaa/bbb" 'blob nil t)
+    (check-compare "abc/def" 'tree "abc/def/aaa/bbb" 'blob t nil)
+    (check-compare "abc/hij" 'tree "abc/def/aaa/bbb" 'blob nil t)
     )
 
   )
