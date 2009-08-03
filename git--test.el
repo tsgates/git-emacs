@@ -185,6 +185,39 @@
 
   )
 
+(defun git--test-branch-mode ()
+  ;; Virtualize git repo functions.
+  (flet ((git--branch-list () '("aa" "master" "foobar"))
+         (git--current-branch () "master"))
+    ;; Get rid of user hooks.
+    (let (git--branch-mode-hook git-branch-annotator-functions)
+      (unwind-protect
+          (save-window-excursion
+            (git-branch)
+            (assert (looking-at "master"))
+            (assert (string= (buffer-string) "   aa\n * master\n   foobar\n"))
+            (assert (equal "master" (git--branch-mode-selected)))
+            (forward-line)  ;; next-line errors out in batch for some reason
+            (assert (equal "foobar" (git--branch-mode-selected)))
+            ;; Let's try some annotations
+            (setq git-branch-annotator-functions
+                  (list (lambda (branch-list)
+                          (assert (equal branch-list '("aa" "master" "foobar")))
+                          '(("aa" . "an-aa-1")))
+                        (lambda (branch-list)
+                          (assert (equal branch-list '("aa" "master" "foobar")))
+                          '(("aa" . "an-aa-2") ("foobar" . "an-foobar-1")))))
+            (flet ((window-width () 80)) (git--branch-mode-refresh))
+            ;; Point should stay the same
+            (assert (looking-at "foobar"))
+            (assert (string= (buffer-string)
+                             (concat "   aa       - an-aa-1 an-aa-2\n"
+                                     " * master\n"
+                                     "   foobar   - an-foobar-1\n")))
+          )
+      (kill-buffer "*git-branch*"))
+    )))
+;; (git--test-branch-mode)
 
 (defun git-regression ()
   (interactive)
@@ -193,6 +226,7 @@
   (git--test-standalone-functions)
   (save-window-excursion                ; some bufs might pop up, e.g. commit
     (git--test-with-temp-repo #'git--test-typical-repo-ops))
+  (git--test-branch-mode)
 
   (message "git-regression passed"))
   
