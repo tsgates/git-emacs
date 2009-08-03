@@ -196,9 +196,9 @@
             (git-branch)
             (assert (looking-at "master"))
             (assert (string= (buffer-string) "   aa\n * master\n   foobar\n"))
-            (assert (equal "master" (git--branch-mode-selected)))
+            (assert (equal "master" (git-branch-mode-selected)))
             (forward-line)  ;; next-line errors out in batch for some reason
-            (assert (equal "foobar" (git--branch-mode-selected)))
+            (assert (equal "foobar" (git-branch-mode-selected)))
             ;; Let's try some annotations
             (setq git-branch-annotator-functions
                   (list (lambda (branch-list)

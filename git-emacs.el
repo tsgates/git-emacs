@@ -1988,7 +1988,7 @@ preserve the cursor position."
           ;; Select either the current branch or the previously selected one.
           ;; Note that the buffer-pos and even line no could change wildly.
           (+ 1 (or (position (if position-on-current current-branch
-                               (git--branch-mode-selected t))
+                               (git-branch-mode-selected t))
                              branch-list :test 'equal)
                    ;; If not found, just stay on the same line or the first.
                    (- (line-number-at-pos) 1)))))
@@ -2056,16 +2056,18 @@ preserve the cursor position."
     buffer))
 
 ;; Branch mode actions
-(defun git--branch-mode-selected (&optional noerror)
-  "Returns the branch on the current line. Depending on NOERROR, it errors
-out or returns nil if none."
+(defun git-branch-mode-selected (&optional noerror)
+  "Returns the branch on the current line in a `git-branch'
+buffer. Depending on NOERROR, it errors out or returns nil if
+none. It's safe to call this outside a `git-branch' buffer: it will
+behave as if there is no curent branch (error or nil)."
   (or (nth (- (line-number-at-pos) 1) git--branch-mode-branch-list)
       (unless noerror (error "No branch selected"))))
 
 (defun git--branch-mode-delete ()
   "Delete the branch that point is on."
   (interactive)
-  (let ((branch (git--branch-mode-selected)))
+  (let ((branch (git-branch-mode-selected)))
     (when (y-or-n-p (format "%s the branch %s? "
                             (git--bold-face "Delete")
                             (git--bold-face branch)))
@@ -2075,7 +2077,7 @@ out or returns nil if none."
 (defun git--branch-mode-switch ()
   "Switch to the branch that point is on."
   (interactive)
-  (let ((branch (git--branch-mode-selected))
+  (let ((branch (git-branch-mode-selected))
         (current-branch (git--current-branch)))
     (when (string= branch current-branch)
       (error "Already on branch %s" branch))
@@ -2088,7 +2090,7 @@ out or returns nil if none."
 (defun git--branch-mode-create ()
   "Create a branch, prompting for the name and the base branch."
   (interactive)
-  (git-checkout-to-new-branch nil (git--branch-mode-selected t)))
+  (git-checkout-to-new-branch nil (git-branch-mode-selected t)))
 
 ;;-----------------------------------------------------------------------------
 ;; Expanded diff functions
