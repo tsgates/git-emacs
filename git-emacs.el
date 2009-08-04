@@ -1331,10 +1331,12 @@ the user quits or the merge is successfully committed."
       ;; else branch, no unmerged files remaining
       ;; Perhaps we should commit (staged files only!)
       (if (file-exists-p (expand-file-name ".git/MERGE_HEAD"))
-          (git-commit nil nil "Merge finished. ")    ; And we're done!
+          (git-commit nil nil "Merge finished ")    ; And we're done!
         ;; else branch, no sign of a merge. Ask for another.
         (if (git--merge-ask)
-            (git-after-working-dir-change)
+            (progn
+              (git-after-working-dir-change)
+              (message "Merge successful"))
           (sit-for 1.5)                 ; for the user to digest message
           (git-merge-next-action))      ; start processing conflicts
 ))))
@@ -1625,40 +1627,49 @@ revert operation, instead popping up a commit buffer."
   (interactive)
   (start-process "gitk" nil gitk-program))
     
-(defun git-checkout (&optional commit confirm-prompt &rest args)
-  "Checkout a commit. When COMMIT is nil, shows tags and branches
+(defun git-checkout (&optional commit confirm-prompt after-checkout-func
+                     &rest after-checkout-func-args)
+  "Checkout a commit, fully. When COMMIT is nil, shows tags and branches
 for selection. May pop up a commit buffer to commit pending
 changes; in this case, the function is asynchronous and returns
 that commit buffer. If CONFIRM-PROMPT is non-nil, ask for
 confirmation, replacing %s in CONFIRM-PROMPT with the commit.
-Although the function allows ARGS, it is not suitable for
-checking out individual files due to the assumptions it makes
-about the nature of the checkout (full)."
+If AFTER-CHECKOUT-FUNC is specified, runs it with AFTER-CHECKOUT-FUNC-ARGS,
+once the checkout is complete."
   (interactive)
   (git--maybe-ask-save)
   (git--maybe-ask-and-commit
    (lexical-let ((commit (or commit (git--select-revision "Checkout: ")))
                  (confirm-prompt confirm-prompt)
                  (repo-dir default-directory)
-                 (args args))
+                 (after-checkout-func after-checkout-func)
+                 (after-checkout-func-args after-checkout-func-args))
      (lambda()
        (when (or (not confirm-prompt)
                  (y-or-n-p (format confirm-prompt commit)))
-         (apply #'git--checkout commit args)
+         (git--checkout commit)
+         (when after-checkout-func
+           (apply after-checkout-func after-checkout-func-args))
          (git-after-working-dir-change repo-dir))))))
 
 
 (defalias 'git-create-branch 'git-checkout-to-new-branch)
 
-(defun git-checkout-to-new-branch (&optional branch suggested-start)
+(defun git-checkout-to-new-branch (&optional branch suggested-start
+                                             after-checkout-func
+                                   &rest after-checkout-func-args)
   "Checkout new branch. Unless BRANCH is specified, prompts for the new branch
 name. Also prompts for the starting point of the new branch, with either
-SUGGESTED-START (if specified) or the current branch as the first suggestion."
+SUGGESTED-START (if specified) or the current branch as the first suggestion.
+If AFTER-CHECKOUT-FUNC is specified, runs it with AFTER-CHECKOUT-FUNC-ARGS,
+once the checkout is complete."
   (interactive)
   (git--maybe-ask-save)
   (git--maybe-ask-and-commit
    (lexical-let ((branch branch)
-                 (repo-dir default-directory))
+                 (repo-dir default-directory)
+                 (after-checkout-func after-checkout-func)
+                 (after-checkout-func-args after-checkout-func-args))
      (lambda()
        (let* ((branch (or branch (read-from-minibuffer "Create new branch: ")))
               (suggested-start (or suggested-start
@@ -1671,6 +1682,8 @@ SUGGESTED-START (if specified) or the current branch as the first suggestion."
                        (when suggested-start (list suggested-start))
                        (when suggested-start (list suggested-start)))))
          (git--checkout "-b" branch commit)
+         (when after-checkout-func
+           (apply after-checkout-func after-checkout-func-args))
          (git-after-working-dir-change repo-dir))))))
 
 (defun git-delete-branch (&optional branch)
@@ -2055,6 +2068,34 @@ preserve the cursor position."
     (run-hooks 'git--branch-mode-hook)
     buffer))
 
+(defcustom git-branch-buffer-closes-after-action 'on-branch-switch
+  "Whether to close the `git-branch' buffer after a user action. May be
+t, nil, or the symbol on-branch-switch, which causes the buffer to be closed
+only after branch switch actions."
+  :type '(choice (const :tag "Always" t)
+                 (const :tag "Never" nil)
+                 (const :tag "On branch switch" on-branch-switch))
+  :group 'git)
+
+
+(defun git--branch-mode-after-action (was-branch-switch &optional buffer)
+  "Refreshes or closes the `git-branch' buffer after a user action, depending
+on `git-branch-buffer-closes-after-action'. WAS-BRANCH-SWITCH is a boolean,
+self-explanatory. BUFFER is the git-branch buffer, which may not be current
+anymore; if unspecified, we operate on the current buffer."
+  (let ((buffer (or buffer (current-buffer))))
+    (when (buffer-live-p buffer)
+      (if (or (eq t git-branch-buffer-closes-after-action)
+              (and was-branch-switch git-branch-buffer-closes-after-action))
+          (progn
+            (delete-windows-on buffer)
+            (kill-buffer buffer))
+        ;; Just refresh. If this was a branch switch is seems OK to move
+        ;; the cursor to the new branch.
+        (with-current-buffer buffer
+          (git--branch-mode-refresh was-branch-switch))))))
+          
+                                      
 ;; Branch mode actions
 (defun git-branch-mode-selected (&optional noerror)
   "Returns the branch on the current line in a `git-branch'
@@ -2064,6 +2105,7 @@ behave as if there is no curent branch (error or nil)."
   (or (nth (- (line-number-at-pos) 1) git--branch-mode-branch-list)
       (unless noerror (error "No branch selected"))))
 
+
 (defun git--branch-mode-delete ()
   "Delete the branch that point is on."
   (interactive)
@@ -2072,7 +2114,8 @@ behave as if there is no curent branch (error or nil)."
                             (git--bold-face "Delete")
                             (git--bold-face branch)))
       (git-delete-branch branch)
-      (git--branch-mode-refresh))))
+      (git--branch-mode-after-action nil))))
+
 
 (defun git--branch-mode-switch ()
   "Switch to the branch that point is on."
@@ -2082,15 +2125,20 @@ behave as if there is no curent branch (error or nil)."
     (when (string= branch current-branch)
       (error "Already on branch %s" branch))
     (git-checkout branch
-                   (format "Switch from branch %s to %s? "
-                           (git--bold-face current-branch)
-                           (git--bold-face "%s"))) ; checkout replaces this
+                  (format "Switch from branch %s to %s? "
+                          (git--bold-face current-branch)
+                          (git--bold-face "%s")) ; checkout replaces this
+                  #'git--branch-mode-after-action
+                  t (current-buffer))
      ))
+
 
 (defun git--branch-mode-create ()
   "Create a branch, prompting for the name and the base branch."
   (interactive)
-  (git-checkout-to-new-branch nil (git-branch-mode-selected t)))
+  (git-checkout-to-new-branch nil (git-branch-mode-selected t)
+                              #'git--branch-mode-after-action
+                              t (current-buffer)))
 
 ;;-----------------------------------------------------------------------------
 ;; Expanded diff functions
