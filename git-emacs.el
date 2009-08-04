@@ -1975,13 +1975,26 @@ been displayed.")
   (when (require 'hl-line nil t) (hl-line-mode)))
 
 
-(defvar git-branch-annotator-functions nil
-  "List of functions that provide branch annotations in `git-branch-mode'.
+(defun git--branch-mode-annotate-changes-pending (branch-list)
+  "Branch annotator function: display \"changes pending\" next
+to the current branch, if applicable. Enabled by default."
+  (let ((current-branch (ignore-errors (git--current-branch))))
+    (when (and (member current-branch branch-list)
+               ;; "git-status -a" returns ok if there are pending changes.
+               (eq 0 (git--exec "status" nil nil "-a")))
+      (list (cons current-branch (git--bold-face "changes pending"))))))
+
+
+(defvar git-branch-annotator-functions
+  (list 'git--branch-mode-annotate-changes-pending)
+  "List of functions that provide branch annotations in `git-branch' buffers.
 Each function is called with a list of branches and the git-branch-mode
 buffer current (i.e., default-directory is in git), and should return an
 association list of (branch-name . annotation) for the branches that can
 be annotated. The annotation is a string that will be displayed next
-to the branch.")
+to the branch. See `git--branch-mode-annotate-changes-pending' for an
+example.")
+;; (makunbound 'git-branch-annotator-functions)   <-- C-x C-e for testing
 
 (defvar git--branch-mode-branch-list nil
   "Stores the list of branches, in the order displayed in the branch-mode
