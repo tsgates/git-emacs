@@ -109,8 +109,12 @@
 
 
 ;;-----------------------------------------------------------------------------
-;; preference of ido-mode
+;; Global preferences.
 ;;-----------------------------------------------------------------------------
+(defgroup git-emacs nil
+  "A user interface for the git versioning system."
+  :group 'tools)
+
 (defcustom git--use-ido t
   "Use ido for Git prompts. Affects the default of `git--completing-read'."
   :type '(boolean)
@@ -125,10 +129,9 @@
   "Function to use for git minibuffer prompts with choices. It should have
 the signature of `completing-read'.")
 
-
-(defgroup git nil
-  "A user interface for the git versioning system."
-  :group 'tools)
+(defgroup git-emacs-faces nil
+  "Face customizations for git-emacs."
+  :group 'git-emacs)
 
 ;; Face definition macros. Used mostly in git-status.
 (defmacro git--face (name fore1 prop1 fore2 prop2)
@@ -136,7 +139,7 @@ the signature of `completing-read'.")
      '((((class color) (background light)) (:foreground ,fore1 ,@prop1))
        (((class color) (background dark))  (:foreground ,fore2 ,@prop2)))
     ,(concat "git " (symbol-name name) " face in status buffer mode")
-    :group 'git))
+    :group 'git-emacs-faces))
 
 (git--face bold       "tomato" (:bold t) "tomato"  (:bold t))
 
@@ -2075,7 +2078,7 @@ only after branch switch actions."
   :type '(choice (const :tag "Always" t)
                  (const :tag "Never" nil)
                  (const :tag "On branch switch" on-branch-switch))
-  :group 'git)
+  :group 'git-emacs)
 
 
 (defun git--branch-mode-after-action (was-branch-switch &optional buffer)

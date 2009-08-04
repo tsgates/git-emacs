@@ -12,16 +12,16 @@
 must be a function that takes a single arg: a symbol denoting file status,
 e.g. 'unmerged. The return value of the function will be added at the beginning
 of mode-line-format."
-  :type '(radio (function-item :tag "Small colored dot"
-                               git-state-decoration-small-dot)
-                (function-item :tag "Large colored dot"
-                               git-state-decoration-large-dot)
-                (function-item :tag "Status letter"
-                               git-state-decoration-letter)
-                (function-item :tag "Colored status letter"
-                               git-state-decoration-colored-letter)
-                (const :tag "No decoration" nil)
-                (function :tag "Other"))
+  :type '(choice (function-item :tag "Small colored dot"
+                                git-state-decoration-small-dot)
+                 (function-item :tag "Large colored dot"
+                                git-state-decoration-large-dot)
+                 (function-item :tag "Status letter"
+                                git-state-decoration-letter)
+                 (function-item :tag "Colored status letter"
+                                git-state-decoration-colored-letter)
+                 (const :tag "No decoration" nil)
+                 (function :tag "Other"))
   :group 'git-emacs
 )
 
@@ -180,4 +180,3 @@ doing update--state-mark for each buffer."
 ;; (git--update-all-state-marks)
 
 (provide 'git-modeline)
-

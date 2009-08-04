@@ -55,7 +55,7 @@
      '((((class color) (background light)) (:foreground ,fore1 ,@prop1))
        (((class color) (background dark))  (:foreground ,fore2 ,@prop2)))
     ,(concat "git " (symbol-name name) " face in status buffer mode")
-    :group 'git))
+    :group 'git-emacs-faces))
 
 (git--face mark       "red"    (:bold t) "tomato"  (:bold t))
 (git--face mark-tree  "blue"   (:bold t) "yellow"  (:bold t))
