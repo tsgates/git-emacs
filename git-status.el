@@ -234,8 +234,9 @@ to ls -sh; e.g. 29152 -> 28K."
 
 (defsubst git--status-map (node pred)
   "Iterating 'git--status-view' by using 'ewoc-next and return the next node.
-The predicate function should get 'node and 'data arguments and it return 't or nil.
-If predicate return nil continue to scan, otherwise stop and return the node"
+The predicate function should get 'node and 'data arguments and
+it should return t or nil.  If predicate returned nil we continue to scan,
+otherwise stop and return the node."
   
   (let ((data nil)
         (cont t))
@@ -243,7 +244,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
     (while (and node cont)
       (setq data (ewoc-data node))
       (setq cont (not (funcall pred node data)))
-      (setq node (ewoc-next git--status-view node)))
+      (when cont (setq node (ewoc-next git--status-view node))))
 
     node))
 
@@ -277,40 +278,47 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
 ;; TODO : need refactoring. Doesn't work well when merging deep unknown files
 ;; into a tree.
-(defun git--status-view-update-expand-tree (fileinfo)
-  "Expand the interesting tree nodes containing one of fileinfos"
+(defun git--status-view-update-expand-tree (fileinfos)
+  "Expand the tree nodes containing one of FILEINFOS, which must be sorted."
 
   (let ((node (ewoc-nth git--status-view 0)))
     
-    (dolist (fi fileinfo)
-      (let* ((paths (split-string (git--fileinfo->name fi) "/"))
-             (matched-name nil))
+    (dolist (fi fileinfos)
+      (let ((paths-to-expand (split-string (git--fileinfo->name fi) "/"))
+            (matched-name nil))
 
-        (when (< 1 (length paths))
+        ;; Root paths are already expanded.
+        (when (< 1 (length paths-to-expand))
+          (setq matched-name (car paths-to-expand))
+          (setq paths-to-expand (cdr-safe (nbutlast paths-to-expand)))
 
-          (setq matched-name (car paths))
-          (setq paths (cdr paths))
-
-          (setq node (git--status-map node
-                                      (lambda (cur-node data)
-                                        (when (and (eq (git--fileinfo->type data) 'tree)
-                                                   (string= (git--fileinfo->name data) matched-name))
-
-                                          (git--expand-tree cur-node)
-                                          (if paths
-                                              (progn
-                                                (setq matched-name (concat matched-name "/" (car paths)))
-                                                (setq paths (cdr paths))
-                                                nil)
-                                            t))))))))))
+          (setq node (git--status-map
+                      node
+                      (lambda (cur-node data)
+                        (when (and (eq (git--fileinfo->type data) 'tree)
+                                   (string= (git--fileinfo->name data)
+                                            matched-name))
+                          
+                          (git--expand-tree cur-node)
+                          
+                          ;; Do we need to expand even lower?
+                          (if paths-to-expand
+                              (progn
+                                (setq matched-name
+                                      (concat matched-name "/"
+                                              (car paths-to-expand)))
+                                (setq paths-to-expand (cdr paths-to-expand))
+                                nil) ;; Yes, lower directories present
+                            t)))))   ;; No, stop here.
+          )))))
                                           
 
 (defun git--status-view-update ()
   "Friendly update view function"
   
-  (let ((fileinfo (git--status-index)))
-    (git--status-view-update-expand-tree fileinfo)
-    (git--status-view-update-state fileinfo)))
+  (let ((fileinfos (sort (git--status-index) #'git--fileinfo-lessp)))
+    (git--status-view-update-expand-tree fileinfos)
+    (git--status-view-update-state fileinfos)))
 
 (defsubst git--status-refresh ()
   (let ((pos (point)))
