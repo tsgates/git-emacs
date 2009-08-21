@@ -425,7 +425,7 @@ If predicate return nil continue to scan, otherwise stop and return the node"
 
 (easy-menu-define gitemacs-menu git-status-mode-map
   "Git"
-  `("Emacs-Git"
+  `("Git-Emacs"
     ["Refresh" git--status-view-refresh t]
     ["First Line" git--status-view-first-line t]
     ["Last Line" git--status-view-last-line t]
