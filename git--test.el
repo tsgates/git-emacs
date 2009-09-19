@@ -149,7 +149,26 @@
         ))
     )
 
-   ;; Do some more fun stuff here...
+  ;; Try a new branch.
+  (flet ((git--select-revision (ignored-prompt prepend-choices excepts)
+           (assert (equal '("master") prepend-choices))
+           (assert (equal '("master") excepts))
+          "master"))
+    (let (seen-checkout-func-args)
+      (git-checkout-to-new-branch "newbranch" "master"
+                                  (lambda (&rest args)
+                                    (setq seen-checkout-func-args args))
+                                  "arg1" nil 'arg2)
+      (assert (equal '("arg1" nil arg2) seen-checkout-func-args)))
+    (let* ((branch-list-and-current (git--branch-list))
+           (sorted-branch-list (sort (car branch-list-and-current) 'string<)))
+      (assert (equal '("master" "newbranch") sorted-branch-list))
+      (assert (equal "newbranch" (cdr branch-list-and-current))))
+    ;; git--current-branch should return the same result.
+    (assert (equal "newbranch" (git--current-branch))))
+      
+  ;; Do some more fun stuff here...
+  
   )
 
 (defun git--test-standalone-functions ()
@@ -187,8 +206,7 @@
 
 (defun git--test-branch-mode ()
   ;; Virtualize git repo functions.
-  (flet ((git--branch-list () '("aa" "master" "foobar"))
-         (git--current-branch () "master"))
+  (flet ((git--branch-list () '(("aa" "master" "foobar") . "master")))
     ;; Get rid of user hooks.
     (let (git--branch-mode-hook git-branch-annotator-functions)
       (unwind-protect

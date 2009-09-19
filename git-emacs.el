@@ -877,10 +877,11 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
       (git--fileinfo->stat (car fileinfo)))))
 
 (defun git--branch-list ()
-  "Get branch list, in the order returned by 'git branch'."
+  "Get branch list, in the order returned by 'git branch'. Returns a cons cell
+\(list-of-branches . current-branch), where current-branch may be nil."
 
-  (let ((branches)
-        (regexp (concat "[ *]+" git--reg-branch "\n")))
+  (let ((branches) (current-branch)
+        (regexp (concat " *\\([*]\\)? *" git--reg-branch "\n")))
     
     (with-temp-buffer
       (git-in-lowest-existing-dir
@@ -890,10 +891,12 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
       (goto-char (point-min))
 
       (while (re-search-forward regexp nil t)
-        (let ((branch (match-string 1)))
+        (let ((branch (match-string 2)))
           (unless (string= branch "(no branch)")
-            (push branch branches)))))
-    (nreverse branches)))
+            (push branch branches))
+          (when (and (not current-branch) (string= "*" (match-string 1)))
+            (setq current-branch branch)))))
+    (cons (nreverse branches) current-branch)))
 
 (defun git--cat-file (buffer-name &rest args)
   "Execute git-cat-file and return the buffer with the file content"
@@ -926,7 +929,7 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
 (defsubst git--select-branch (&rest excepts)
   "Select the branch"
 
-  (let ((branches (git--branch-list)))
+  (let ((branches (car (git--branch-list))))
     (git--select-from-user
      "Select Branch : "
      (delq nil (mapcar (lambda (b) (unless (member b excepts) b))
@@ -2011,8 +2014,9 @@ preserve the cursor position."
   (interactive)
   
   ;; find annotations
-  (let* ((current-branch (ignore-errors (git--current-branch)))
-         (branch-list (git--branch-list))
+  (let* ((branch-list-and-current (git--branch-list))
+         (branch-list (car branch-list-and-current))
+         (current-branch (cdr branch-list-and-current))
          (branch-annotations (make-hash-table :test 'equal))
          (buffer-read-only nil)
          ;; Complex decision on where to leave the cursor
