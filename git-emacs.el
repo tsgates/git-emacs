@@ -219,7 +219,7 @@ string. INPUT can also be a buffer."
           (delete-file tmp))))))
 
 (defsubst git--exec-buffer (cmd &rest args)
-  "Execute 'git' within the buffer"
+  "Execute 'git' within the buffer. Return the exit code."
   
   (apply #'git--exec cmd t nil args))
 
@@ -883,7 +883,10 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
         (regexp (concat "[ *]+" git--reg-branch "\n")))
     
     (with-temp-buffer
-      (git-in-lowest-existing-dir nil (git--exec-buffer "branch" "-l"))
+      (git-in-lowest-existing-dir
+       nil
+       (unless (eq 0 (git--exec-buffer "branch" "-l"))
+         (error "%s" (git--trim-string (buffer-string)))))
       (goto-char (point-min))
 
       (while (re-search-forward regexp nil t)
