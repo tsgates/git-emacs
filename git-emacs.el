@@ -2407,6 +2407,7 @@ that variable in .emacs.
 ;; (makunbound 'git--stash-list-font-lock-keywords)
 
 (defun git--prepare-stash-list-buffer (buffer)
+  "Prepares and pops the stash list buffer."
   (let ((directory default-directory))
     (with-current-buffer buffer
       (setq default-directory directory) ; in case it was different before
@@ -2420,8 +2421,14 @@ that variable in .emacs.
 
 
 (defvar git--stash-history nil "History for git-stash")
-(defun git-stash (cmd)
-  (interactive
+(defun git-stash (&optional cmd)
+  "Simple interface to \"git stash\". Without args, pops up a list of the
+available stashes and prompts for the stash command, with a reasonable
+suggestion. If CMD is specified, just runs \"git stash cmd\", with the
+usual pre / post work: ask for save, ask for refresh."
+  (interactive)
+  (git--maybe-ask-save)                 ; affects "changes pending"
+  (unless cmd
    (let ((stash-list-str (git--exec-string "stash" "list"))
          (buffer (get-buffer-create "*git-stash*"))
          (changes-pending-point))
@@ -2453,8 +2460,8 @@ that variable in .emacs.
                     ;; are no pending changes and stashes present, else nothing
                     (cond
                      (changes-pending "save") (stashes-exist "pop") (t ""))))
-               (list (read-string "git stash >> "
-                                  suggested-cmd 'git--stash-history)))))
+               (setq cmd (read-string "git stash >> "
+                                      suggested-cmd 'git--stash-history)))))
          (delete-windows-on buffer)
          (kill-buffer buffer))))
   (message "%s" (git--trim-string (git--exec-string "stash" cmd)))
