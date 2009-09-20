@@ -1232,8 +1232,7 @@ and the user accepts the result."
          (our-buffer (git--resolve-fill-buffer result-buffer 'local))
          (their-buffer (git--resolve-fill-buffer result-buffer 'remote))
          ;; there seems to be a bug with ancestor handling in emacs-snapshot
-         (base-buffer ;; (git--resolve-fill-base)
-                      nil)
+         (base-buffer (git--resolve-fill-base))
          (config (current-window-configuration))
          (ediff-default-variant 'combined)
          (ediff-combination-pattern '("<<<<<<< Local" A "=======" B
@@ -1346,8 +1345,9 @@ the user quits or the merge is successfully committed."
             (progn
               (git-after-working-dir-change)
               (message "Merge successful"))
-          (sit-for 1.5)                 ; for the user to digest message
-          (git-merge-next-action))      ; start processing conflicts
+          (sit-for 1.5)            ; for the user to digest message
+          (message "")             ; fixes odd v23 interaction with ediff's msgs
+          (git-merge-next-action)) ; start processing conflicts
 ))))
        
 
