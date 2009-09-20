@@ -2390,4 +2390,76 @@ that variable in .emacs.
          (grep (concat "git grep -n " args))
       (remove-hook 'grep-setup-hook git-grep-setup-hook))))
 
+
+;; -----------------------------------------------------------------------------
+;; stash support
+;; -----------------------------------------------------------------------------
+(defconst git--stash-list-font-lock-keywords
+  '(("^\\(stash@{\\([^}]*\\)}\\):"
+     (1 font-lock-function-name-face prepend)
+     (2 font-lock-variable-name-face prepend))
+    ("^\\(Branch\\): \\([^(\n]+\\)\\( (\\(changes pending\\))\\| ([^\n]*\\)?\n"
+     ;; Actually, too much decoration looks ugly.
+     ;;(1 'git--bold-face prepend)
+     ;;(2 font-lock-variable-name-face prepend)
+     (4 'git--bold-face prepend)
+     )))
+;; (makunbound 'git--stash-list-font-lock-keywords)
+
+(defun git--prepare-stash-list-buffer (buffer)
+  (let ((directory default-directory))
+    (with-current-buffer buffer
+      (setq default-directory directory) ; in case it was different before
+      (setq buffer-read-only t)
+      (setq cursor-type nil)
+      (buffer-disable-undo)
+      (set (make-local-variable 'font-lock-defaults)
+           (list 'git--stash-list-font-lock-keywords t))
+      (when global-font-lock-mode (font-lock-mode t)))
+    (pop-to-buffer buffer)))
+
+
+(defvar git--stash-history nil "History for git-stash")
+(defun git-stash (cmd)
+  (interactive
+   (let ((stash-list-str (git--exec-string "stash" "list"))
+         (buffer (get-buffer-create "*git-stash*"))
+         (changes-pending-point))
+     (unwind-protect
+         (let ((stashes-exist (> (length stash-list-str) 0)))
+           (git--prepare-stash-list-buffer buffer)
+           (let ((inhibit-read-only t))
+             (erase-buffer)
+             (insert "Branch: " (or (ignore-errors (git--current-branch))
+                                    "<none>"))
+             (setq changes-pending-point (point))
+             (insert "\n\n")
+             (if (not stashes-exist) (insert "(no stashes)")
+               ;; Display arrow next to first stash.
+               (set (make-local-variable 'overlay-arrow-position)
+                    (point-marker))
+               (insert stash-list-str)))
+           (fit-window-to-buffer)
+           (message "Checking tree status...")
+           (redisplay t)                ; this might take a little bit
+           (let ((changes-pending (eq 0 (git--exec "status" nil nil "-a"))))
+             (let ((inhibit-read-only t))
+               (save-excursion
+                 (goto-char changes-pending-point)
+                 (insert (if changes-pending " (changes pending)"
+                           " (no changes pending)"))))
+             (let ((suggested-cmd
+                    ;; "save" if there are pending changes, "pop" if there
+                    ;; are no pending changes and stashes present, else nothing
+                    (cond
+                     (changes-pending "save") (stashes-exist "pop") (t ""))))
+               (list (read-string "git stash >> "
+                                  suggested-cmd 'git--stash-history)))))
+         (delete-windows-on buffer)
+         (kill-buffer buffer))))
+  (message "%s" (git--trim-string (git--exec-string "stash" cmd)))
+  (redisplay t)
+  (sleep-for 1.5)                       ; let the user digest message
+  (git-after-working-dir-change))
+
 (provide 'git-emacs)
