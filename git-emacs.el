@@ -1,9 +1,10 @@
-;;; git-emacs (v.1.4.1) : yet another git emacs mode for newbies
+;;; git-emacs (v.1.4.3) : yet another git emacs mode for newbies
 ;;
 ;; Copyright (C) 2008  TSKim (tsgatesv@gmail.com)
 ;;
-;; v.1.4 Modified by ovy            @ 22 March 2009
-;; v.1.3 Modified by Con Digitalpit @ 29 March 2008
+;; v.1.4.3 Modified by ovy            @ 20 September 2009
+;; v.1.4   Modified by ovy            @ 22 March 2009
+;; v.1.3   Modified by Con Digitalpit @ 29 March 2008
 ;; 
 ;; Authors    : TSKim : Kim Taesoo(tsgatesv@gmail.com)
 ;; Created    : 24 March 2007
@@ -46,8 +47,19 @@
 ;;   
 ;;; Installation
 ;; 
+;; 1) Easy way
+;; 
 ;; (add-to-list 'load-path "~/.emacs.d/git-emacs")
 ;; (require 'git-emacs)
+;; 
+;; 2) Autoload (I prefer)
+;; 
+;; (eval-after-load 'git-modeline
+;;   (progn
+;;     '(setq git-state-modeline-decoration 
+;;            #'git-state-decoration-large-dot)))
+;;
+;; (soo-load-file "addons/git-emacs/load-git-emacs.el")
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
