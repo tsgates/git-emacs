@@ -2621,7 +2621,7 @@ if 'create -> call git-checkout-to-new-branch"
 
   ;; adjust when end of the branches
   (if (> (line-number-at-pos) stat)
-      (previous-line))
+      (call-interactively 'previous-line))
 
   ;; adjust column
   (beginning-of-line)
@@ -2854,5 +2854,4 @@ user chose so."
       (remove-hook 'grep-setup-hook git-grep-setup-hook))))
 ;-----------------------------------------------------------------------------
     
-
 (provide 'git-emacs)

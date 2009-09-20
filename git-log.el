@@ -16,6 +16,14 @@
        "^No_such_text_really$")
   (set (make-local-variable 'font-lock-defaults)
        (list 'git-log-view-font-lock-keywords t))
+  (set (make-local-variable 'transient-mark-mode) t)
+
+  ;; A long git log might still be running when we die. Avoid "deleted buffer".
+  (add-hook 'kill-buffer-hook
+            #'(lambda()
+                (let ((proc (get-buffer-process (current-buffer))))
+                  (when proc (delete-process proc))))
+            nil t)                      ; prepend, local
   )
 
 
@@ -48,6 +56,7 @@
   (define-key map "k" 'git-log-view-checkout)
   (define-key map "r" 'git-log-view-reset)
   (define-key map "v" 'git-log-view-revert)
+  (define-key map "t" 'git-log-view-tag)
 
   (define-key map "g" 'git-log-view-refresh)
   (define-key map "q" 'git--quit-buffer))
@@ -71,6 +80,7 @@
    ["Checkout" git-log-view-checkout t]
    ["Cherry-pick" git-log-view-cherry-pick t]
    ["Revert Commit" git-log-view-revert t]
+   ["Tag this Commit..." git-log-view-tag t]
    "---"
    ["Refresh" git-log-view-refresh t]
    ["Quit" git--quit-buffer t]))
@@ -136,13 +146,16 @@ default-directory is inside the repo."
       (pop-to-buffer buffer))))
 
 ;; Entry points
-(defun git-log ()
-  "Launch the git log view for the current file"
+(defun git-log-files ()
+  "Launch the git log view for the current file, or the selected files in
+git-status-mode."
   (interactive)
   (git--require-buffer-in-git)
-  (git--log-view (list buffer-file-name)))
+  (git--log-view (git--if-in-status-mode
+                     (git--status-view-marked-or-file)
+                   (list buffer-file-name))))
  
-(defun git-log-all ()
+(defun git-log ()
   "Launch the git log view for the whole repository"
   (interactive)
   ;; TODO: maybe ask user for a git repo if they're not in one
@@ -194,8 +207,10 @@ a branch."
     (when (y-or-n-p (format "Checkout %s from %s? "
                             git-log-view-qualifier commit))
       (if git-log-view-filenames
-          (apply #'git--exec-string "checkout" commit "--"
-                 git-log-view-filenames)
+          (progn
+            (apply #'git--exec-string "checkout" commit "--"
+                   git-log-view-filenames)
+            (git-after-working-dir-change git-log-view-filenames))
         (git-checkout commit)))))     ;special handling for whole-tree checkout
 
 (defun git-log-view-cherry-pick ()
@@ -207,23 +222,18 @@ branch."
     (when (y-or-n-p (format "Cherry-pick commit %s on top of %s? "
                             commit (git--bold-face current-branch)))
       (git--exec-string "cherry-pick" commit "--")
-      (git--maybe-ask-revert))))
+      (git-after-working-dir-change))))
 
 (defun git-log-view-reset ()
   "Reset the current branch to the commit that the cursor is currently in."
   (interactive)
   (let ((commit (substring-no-properties (log-view-current-tag)))
-        (current-branch (git--current-branch))
-        (saved-head (git--abbrev-commit "HEAD" 10)))
+        (current-branch (ignore-errors (git--current-branch))))
     (when (y-or-n-p (format "Reset %s to commit %s? "
-                            (git--bold-face current-branch) commit))
-      (let ((reset-hard (y-or-n-p
-                         "Reset working directory as well (reset --hard)? ")))
-        (apply #'git--exec-string "reset"
-               (append (when reset-hard '("--hard")) (list commit "--")))
-        (when reset-hard (git--maybe-ask-revert))
-        ;; I nearly lost my HEAD to an accidental reset --hard
-        (message "You can recover the old HEAD as %s" saved-head)))))
+                            (if current-branch (git--bold-face current-branch)
+                              "current state")
+                            (git--abbrev-commit commit)))
+      (git-reset commit))))
 
 (defun git-log-view-diff-preceding ()
   "Diff the commit the cursor is currently on against the preceding commits.
@@ -232,12 +242,16 @@ If a region is active, diff the first and last commits in the region."
   (let* ((commit (git--abbrev-commit
                  (log-view-current-tag (when mark-active (region-beginning)))))
         (preceding-commit
-         (git--abbrev-commit (save-excursion
-                               (when mark-active
-                                 (goto-char (region-end))
-                                 (backward-char 1)) ; works better: [interval)
-                               (log-view-msg-next)
-                               (log-view-current-tag)))))
+         (git--abbrev-commit
+          (save-excursion
+            (when mark-active
+              (goto-char (region-end))
+              ;; Go back one to get before the lowest commit, then
+              ;; msg-next will find it properly. Unless the region is empty.
+              (unless (equal (region-beginning) (region-end))
+                (backward-char 1)))
+            (log-view-msg-next)
+            (log-view-current-tag)))))
     ;; TODO: ediff if single file, but git--ediff does not allow revisions
     ;; for both files
     (git--diff-many git-log-view-filenames preceding-commit commit t)))
@@ -262,7 +276,13 @@ the working dir."
 (defun git-log-view-refresh ()
   "Refresh log view"
   (interactive)
-  (unless (boundp git-log-view-start-commit) (error "Not in git log view"))
-  (apply #'git--log-view git-log-view-start-commit git-log-view-filenames))
+  (unless (boundp 'git-log-view-start-commit) (error "Not in git log view"))
+  (git--log-view git-log-view-filenames git-log-view-start-commit))
+
+(defun git-log-view-tag (&optional tag-name)
+  "Create a new tag for commit that the cursor is on."
+
+  (interactive)
+  (git-tag tag-name (git--abbrev-commit (log-view-current-tag))))
 
 (provide 'git-log)

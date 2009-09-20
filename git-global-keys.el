@@ -36,11 +36,16 @@
 (define-key git--diff-all-map (kbd "RET") 'git-diff-all-head)
 
 (define-key git-global-map "g" 'git-grep)
+(define-key git-global-map "h" 'git-stash)
 (define-key git-global-map "i" 'git-add-interactively)
 
 (define-key git-global-map "l" 'git-log)
-(define-key git-global-map "L" 'git-log-all)
+(define-key git-global-map "L" 'git-log-files)
 (define-key git-global-map "\C-l" 'git-log-other)
+
+(define-key git-global-map "m" 'git-merge-next-action)
+
+(define-key git-global-map "R" 'git-reset)
 
 (define-key git-global-map "s" 'git-status)
 (define-key git-global-map "." 'git-cmd)
@@ -67,9 +72,13 @@
      ["Index" git-diff-all-index t]
      ["Baseline" git-diff-all-baseline t]
      ["Other..." git-diff-all-other t])
-    ["Log for Current File" git-log t]
-    ["Log for Entire Project" git-log-all t]
+    ["Log for Entire Project" git-log t]
+    ["Log for Current File" git-log-files t]
+    ["Log for Branch or Tag..." git-log-other t]
     ["Branch List" git-branch t]
+    ["Merge (start or continue)..." git-merge-next-action t]
+    ["Reset..." git-reset t]
+    ["Stash..." git-stash t]
     ["Status" git-status t]
     ["Grep..." git-grep t]
     ["Git Command..." git-cmd t]))
