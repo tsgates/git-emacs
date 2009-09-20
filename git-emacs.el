@@ -88,8 +88,7 @@
 ;; DONE : separate branch-mode & status-view-mode to other files
 
 
-(eval-when-compile (require 'cl))
-
+(require 'cl)                           ; common lisp
 (require 'ediff)                        ; we use this a lot
 (require 'vc)                           ; vc
 (require 'vc-git)                       ; vc-git advises
