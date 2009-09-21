@@ -47,19 +47,17 @@
 ;;   
 ;;; Installation
 ;; 
-;; 1) Easy way
+;; 1) Load at startup (simplest)
 ;; 
-;; (add-to-list 'load-path "~/.emacs.d/git-emacs")
+;; (add-to-list 'load-path "~/.emacs.d/git-emacs")  ; or your installation path
 ;; (require 'git-emacs)
 ;; 
-;; 2) Autoload (I prefer)
+;; 2) Autoload (slimmer statup footprint, will activate when visiting a git
+;;   file or running some top-level functions)
 ;; 
-;; (eval-after-load 'git-modeline
-;;   (progn
-;;     '(setq git-state-modeline-decoration 
-;;            #'git-state-decoration-large-dot)))
-;;
-;; (soo-load-file "addons/git-emacs/load-git-emacs.el")
+;; (add-to-list 'load-path "~/.emacs.d/git-emacs") ; or your installation path
+;; (fmakunbound 'git-status)   ; Possibly remove Debian's autoloaded version
+;; (require 'git-emacs-autoloads)
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -97,13 +95,12 @@
 (require 'time-stamp)                   ; today
 
 (require 'git-global-keys)              ; global keyboard mappings
+(require 'git-emacs-autoloads)          ; the minimal autoloads
 
-;; Autoloaded submodules
+;; Autoloaded submodules, those not declared in git-emacs autoloads
+
 (autoload 'git-blame-mode "git-blame"
   "Minor mode for incremental blame for Git" t)
-
-(autoload 'git-status "git-status"
-  "Launch git-status-mode on the specified directory.")
 
 (autoload 'git--update-state-mark "git-modeline"
   "Update modeline of git buffers with a customizable state marker" t)
@@ -116,8 +113,7 @@
   "Launch the git log view for whole repository" t)
 (autoload 'git-log-other "git-log"
   "Launch the git log view for an arbitrary branch or tag" t)
-(autoload 'git-log-from-cmdline "git-log"
-  "Launch a git log view from emacs --eval or gnuclient --eval" t)
+
 
 
 ;;-----------------------------------------------------------------------------
@@ -1012,11 +1008,6 @@ pending commit buffer or nil if the buffer wasn't needed."
 ;; vc-git integration
 ;;-----------------------------------------------------------------------------
 
-(defsubst git--in-vc-mode? ()
-  "Check see if in vc-git is under vc-git"
-  
-  (and vc-mode (string-match "^ Git" (substring-no-properties vc-mode))))
-
 (defun git--update-modeline ()
   "Update modeline state dot mark properly"
   
@@ -1026,11 +1017,6 @@ pending commit buffer or nil if the buffer wasn't needed."
      (git--status-file (file-relative-name buffer-file-name)))))
 
 (defalias 'git-history 'git-log)
-
-(defadvice vc-find-file-hook (after git--vc-git-find-file-hook activate)
-  "vc-find-file-hook advice for synchronizing with vc-git interface"
-
-  (when (git--in-vc-mode?) (git--update-modeline)))
 
 (defadvice vc-after-save (after git--vc-git-after-save activate)
   "vc-after-save advice for synchronizing when saving buffer"
@@ -1534,7 +1520,7 @@ a prefix argument, is specified, does a commit --amend."
     (git-commit amend (list (file-relative-name buffer-file-name)))))
 
 (defun git-init (dir)
-  "Initialize the git repository"
+  "Initialize a git repository."
 
   (interactive "DGit Repository: ")
   (message "%s" (git--trim-string (git--init dir)))
