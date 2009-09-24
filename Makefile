@@ -22,6 +22,10 @@ tags: *.el
 test: *.el
 	@echo; echo ">>> Running tests"
 	$(EMACS_BATCH) -l git--test.el -f git-regression
+	@echo; echo "Testing autoloads..."
+	$(EMACS_BATCH) --eval "(require 'git-emacs-autoloads)" \
+	  --visit "Makefile" \
+	  --eval "(unless (functionp 'git-diff-baseline) (error \"autoload malfunctioned\"))"
 
 clean:
 	rm -f *.elc

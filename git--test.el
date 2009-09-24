@@ -149,7 +149,62 @@
         ))
     )
 
-   ;; Do some more fun stuff here...
+  ;; Try a new branch.
+  (flet ((git--select-revision (ignored-prompt prepend-choices excepts)
+           (assert (equal '("master") prepend-choices))
+           (assert (equal '("master") excepts))
+          "master"))
+    (let (seen-checkout-func-args)
+      (git-checkout-to-new-branch "newbranch" "master"
+                                  (lambda (&rest args)
+                                    (setq seen-checkout-func-args args))
+                                  "arg1" nil 'arg2)
+      (assert (equal '("arg1" nil arg2) seen-checkout-func-args)))
+    (let* ((branch-list-and-current (git--branch-list))
+           (sorted-branch-list (sort (car branch-list-and-current) 'string<)))
+      (assert (equal '("master" "newbranch") sorted-branch-list))
+      (assert (equal "newbranch" (cdr branch-list-and-current))))
+    ;; git--current-branch should return the same result.
+    (assert (equal "newbranch" (git--current-branch))))
+
+  ;; Check git-stash.
+  (with-temp-buffer
+    (insert "contents for stash")
+    (write-file "f1"))
+  (assert (eq 'modified (git--status-file "f1")))
+  (let (saved-suggested-cmd cmd-to-return)
+    (flet ((read-string (ignored-prompt suggested &rest ignored)
+             (setq saved-suggested-cmd suggested)
+             cmd-to-return)
+           (sleep-for (&rest args) t))
+      (setq cmd-to-return "save")
+      (call-interactively 'git-stash)
+      (message "suggested: %s" saved-suggested-cmd)
+      (assert (equal "save" saved-suggested-cmd))
+      (assert (eq 'uptodate (git--status-file "f1")))
+      ;; Now it should suggest popping the stash.
+      (setq cmd-to-return "pop")
+      (call-interactively 'git-stash)
+      (assert (equal "pop" saved-suggested-cmd))
+      (assert (eq 'modified (git--status-file "f1")))
+      ;; Contents should be restored too.
+      (assert (string= "contents for stash"
+                       (git--trim-string
+                        (with-temp-buffer
+                          (insert-file-contents "f1")
+                          (buffer-string)))))
+      ))
+  ;; Check that git-stash buffer is deleted on error exit
+  (let (saved-buffer)
+    (flet ((read-string (&rest ignored)
+             (setq saved-buffer (current-buffer))
+             (error "test error")))
+      (ignore-errors (call-interactively 'git-stash)))
+    (assert saved-buffer)
+    (assert (not (buffer-live-p saved-buffer))))
+      
+  ;; Do some more fun stuff here...
+  
   )
 
 (defun git--test-standalone-functions ()
@@ -187,8 +242,7 @@
 
 (defun git--test-branch-mode ()
   ;; Virtualize git repo functions.
-  (flet ((git--branch-list () '("aa" "master" "foobar"))
-         (git--current-branch () "master"))
+  (flet ((git--branch-list () '(("aa" "master" "foobar") . "master")))
     ;; Get rid of user hooks.
     (let (git--branch-mode-hook git-branch-annotator-functions)
       (unwind-protect

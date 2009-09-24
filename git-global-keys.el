@@ -36,6 +36,7 @@
 (define-key git--diff-all-map (kbd "RET") 'git-diff-all-head)
 
 (define-key git-global-map "g" 'git-grep)
+(define-key git-global-map "h" 'git-stash)
 (define-key git-global-map "i" 'git-add-interactively)
 
 (define-key git-global-map "l" 'git-log)
@@ -77,6 +78,7 @@
     ["Branch List" git-branch t]
     ["Merge (start or continue)..." git-merge-next-action t]
     ["Reset..." git-reset t]
+    ["Stash..." git-stash t]
     ["Status" git-status t]
     ["Grep..." git-grep t]
     ["Git Command..." git-cmd t]))

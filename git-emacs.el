@@ -1,9 +1,10 @@
-;;; git-emacs (v.1.4.1) : yet another git emacs mode for newbies
+;;; git-emacs (v.1.4.3) : yet another git emacs mode for newbies
 ;;
 ;; Copyright (C) 2008  TSKim (tsgatesv@gmail.com)
 ;;
-;; v.1.4 Modified by ovy            @ 22 March 2009
-;; v.1.3 Modified by Con Digitalpit @ 29 March 2008
+;; v.1.4.3 Modified by ovy            @ 20 September 2009
+;; v.1.4   Modified by ovy            @ 22 March 2009
+;; v.1.3   Modified by Con Digitalpit @ 29 March 2008
 ;; 
 ;; Authors    : TSKim : Kim Taesoo(tsgatesv@gmail.com)
 ;; Created    : 24 March 2007
@@ -46,8 +47,17 @@
 ;;   
 ;;; Installation
 ;; 
-;; (add-to-list 'load-path "~/.emacs.d/git-emacs")
+;; 1) Load at startup (simplest)
+;; 
+;; (add-to-list 'load-path "~/.emacs.d/git-emacs")  ; or your installation path
 ;; (require 'git-emacs)
+;; 
+;; 2) Autoload (slimmer statup footprint, will activate when visiting a git
+;;   file or running some top-level functions)
+;; 
+;; (add-to-list 'load-path "~/.emacs.d/git-emacs") ; or your installation path
+;; (fmakunbound 'git-status)   ; Possibly remove Debian's autoloaded version
+;; (require 'git-emacs-autoloads)
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -76,8 +86,7 @@
 ;; DONE : separate branch-mode & status-view-mode to other files
 
 
-(eval-when-compile (require 'cl))
-
+(require 'cl)                           ; common lisp
 (require 'ediff)                        ; we use this a lot
 (require 'vc)                           ; vc
 (require 'vc-git)                       ; vc-git advises
@@ -85,13 +94,12 @@
 (require 'time-stamp)                   ; today
 
 (require 'git-global-keys)              ; global keyboard mappings
+(require 'git-emacs-autoloads)          ; the minimal autoloads
 
-;; Autoloaded submodules
+;; Autoloaded submodules, those not declared in git-emacs autoloads
+
 (autoload 'git-blame-mode "git-blame"
   "Minor mode for incremental blame for Git" t)
-
-(autoload 'git-status "git-status"
-  "Launch git-status-mode on the specified directory.")
 
 (autoload 'git--update-state-mark "git-modeline"
   "Update modeline of git buffers with a customizable state marker" t)
@@ -104,8 +112,7 @@
   "Launch the git log view for whole repository" t)
 (autoload 'git-log-other "git-log"
   "Launch the git log view for an arbitrary branch or tag" t)
-(autoload 'git-log-from-cmdline "git-log"
-  "Launch a git log view from emacs --eval or gnuclient --eval" t)
+
 
 
 ;;-----------------------------------------------------------------------------
@@ -219,7 +226,7 @@ string. INPUT can also be a buffer."
           (delete-file tmp))))))
 
 (defsubst git--exec-buffer (cmd &rest args)
-  "Execute 'git' within the buffer"
+  "Execute 'git' within the buffer. Return the exit code."
   
   (apply #'git--exec cmd t nil args))
 
@@ -877,20 +884,26 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
       (git--fileinfo->stat (car fileinfo)))))
 
 (defun git--branch-list ()
-  "Get branch list, in the order returned by 'git branch'."
+  "Get branch list, in the order returned by 'git branch'. Returns a cons cell
+\(list-of-branches . current-branch), where current-branch may be nil."
 
-  (let ((branches)
-        (regexp (concat "[ *]+" git--reg-branch "\n")))
+  (let ((branches) (current-branch)
+        (regexp (concat " *\\([*]\\)? *" git--reg-branch "\n")))
     
     (with-temp-buffer
-      (git-in-lowest-existing-dir nil (git--exec-buffer "branch" "-l"))
+      (git-in-lowest-existing-dir
+       nil
+       (unless (eq 0 (git--exec-buffer "branch" "-l"))
+         (error "%s" (git--trim-string (buffer-string)))))
       (goto-char (point-min))
 
       (while (re-search-forward regexp nil t)
-        (let ((branch (match-string 1)))
+        (let ((branch (match-string 2)))
           (unless (string= branch "(no branch)")
-            (push branch branches)))))
-    (nreverse branches)))
+            (push branch branches))
+          (when (and (not current-branch) (string= "*" (match-string 1)))
+            (setq current-branch branch)))))
+    (cons (nreverse branches) current-branch)))
 
 (defun git--cat-file (buffer-name &rest args)
   "Execute git-cat-file and return the buffer with the file content"
@@ -923,7 +936,7 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
 (defsubst git--select-branch (&rest excepts)
   "Select the branch"
 
-  (let ((branches (git--branch-list)))
+  (let ((branches (car (git--branch-list))))
     (git--select-from-user
      "Select Branch : "
      (delq nil (mapcar (lambda (b) (unless (member b excepts) b))
@@ -994,11 +1007,6 @@ pending commit buffer or nil if the buffer wasn't needed."
 ;; vc-git integration
 ;;-----------------------------------------------------------------------------
 
-(defsubst git--in-vc-mode? ()
-  "Check see if in vc-git is under vc-git"
-  
-  (and vc-mode (string-match "^ Git" (substring-no-properties vc-mode))))
-
 (defun git--update-modeline ()
   "Update modeline state dot mark properly"
   
@@ -1008,11 +1016,6 @@ pending commit buffer or nil if the buffer wasn't needed."
      (git--status-file (file-relative-name buffer-file-name)))))
 
 (defalias 'git-history 'git-log)
-
-(defadvice vc-find-file-hook (after git--vc-git-find-file-hook activate)
-  "vc-find-file-hook advice for synchronizing with vc-git interface"
-
-  (when (git--in-vc-mode?) (git--update-modeline)))
 
 (defadvice vc-after-save (after git--vc-git-after-save activate)
   "vc-after-save advice for synchronizing when saving buffer"
@@ -1226,8 +1229,7 @@ and the user accepts the result."
          (our-buffer (git--resolve-fill-buffer result-buffer 'local))
          (their-buffer (git--resolve-fill-buffer result-buffer 'remote))
          ;; there seems to be a bug with ancestor handling in emacs-snapshot
-         (base-buffer ;; (git--resolve-fill-base)
-                      nil)
+         (base-buffer (git--resolve-fill-base))
          (config (current-window-configuration))
          (ediff-default-variant 'combined)
          (ediff-combination-pattern '("<<<<<<< Local" A "=======" B
@@ -1340,8 +1342,9 @@ the user quits or the merge is successfully committed."
             (progn
               (git-after-working-dir-change)
               (message "Merge successful"))
-          (sit-for 1.5)                 ; for the user to digest message
-          (git-merge-next-action))      ; start processing conflicts
+          (sit-for 1.5)            ; for the user to digest message
+          (message "")             ; fixes odd v23 interaction with ediff's msgs
+          (git-merge-next-action)) ; start processing conflicts
 ))))
        
 
@@ -1516,7 +1519,7 @@ a prefix argument, is specified, does a commit --amend."
     (git-commit amend (list (file-relative-name buffer-file-name)))))
 
 (defun git-init (dir)
-  "Initialize the git repository"
+  "Initialize a git repository."
 
   (interactive "DGit Repository: ")
   (message "%s" (git--trim-string (git--init dir)))
@@ -2006,10 +2009,15 @@ buffer")
 If POSITION-ON-CURRENT is true, put the cursor on the current branch; otherwise
 preserve the cursor position."
   (interactive)
+
+  ;; Set the working dir to the top-level dir. Otherwise it might have gone
+  ;; away from under us.
+  (setq default-directory (git--get-top-dir))
   
   ;; find annotations
-  (let* ((current-branch (ignore-errors (git--current-branch)))
-         (branch-list (git--branch-list))
+  (let* ((branch-list-and-current (git--branch-list))
+         (branch-list (car branch-list-and-current))
+         (current-branch (cdr branch-list-and-current))
          (branch-annotations (make-hash-table :test 'equal))
          (buffer-read-only nil)
          ;; Complex decision on where to leave the cursor
@@ -2382,5 +2390,84 @@ that variable in .emacs.
     (unwind-protect
          (grep (concat "git grep -n " args))
       (remove-hook 'grep-setup-hook git-grep-setup-hook))))
+
+
+;; -----------------------------------------------------------------------------
+;; stash support
+;; -----------------------------------------------------------------------------
+(defconst git--stash-list-font-lock-keywords
+  '(("^\\(stash@{\\([^}]*\\)}\\):"
+     (1 font-lock-function-name-face prepend)
+     (2 font-lock-variable-name-face prepend))
+    ("^\\(Branch\\): \\([^(\n]+\\)\\( (\\(changes pending\\))\\| ([^\n]*\\)?\n"
+     ;; Actually, too much decoration looks ugly.
+     ;;(1 'git--bold-face prepend)
+     ;;(2 font-lock-variable-name-face prepend)
+     (4 'git--bold-face prepend)
+     )))
+;; (makunbound 'git--stash-list-font-lock-keywords)
+
+(defun git--prepare-stash-list-buffer (buffer)
+  "Prepares and pops the stash list buffer."
+  (let ((directory default-directory))
+    (with-current-buffer buffer
+      (setq default-directory directory) ; in case it was different before
+      (setq buffer-read-only t)
+      (setq cursor-type nil)
+      (buffer-disable-undo)
+      (set (make-local-variable 'font-lock-defaults)
+           (list 'git--stash-list-font-lock-keywords t))
+      (when global-font-lock-mode (font-lock-mode t)))
+    (pop-to-buffer buffer)))
+
+
+(defvar git--stash-history nil "History for git-stash")
+(defun git-stash (&optional cmd)
+  "Simple interface to \"git stash\". Without args, pops up a list of the
+available stashes and prompts for the stash command, with a reasonable
+suggestion. If CMD is specified, just runs \"git stash cmd\", with the
+usual pre / post work: ask for save, ask for refresh."
+  (interactive)
+  (git--maybe-ask-save)                 ; affects "changes pending"
+  (unless cmd
+   (let ((stash-list-str (git--exec-string "stash" "list"))
+         (buffer (get-buffer-create "*git-stash*"))
+         (changes-pending-point))
+     (unwind-protect
+         (let ((stashes-exist (> (length stash-list-str) 0)))
+           (git--prepare-stash-list-buffer buffer)
+           (let ((inhibit-read-only t))
+             (erase-buffer)
+             (insert "Branch: " (or (ignore-errors (git--current-branch))
+                                    "<none>"))
+             (setq changes-pending-point (point))
+             (insert "\n\n")
+             (if (not stashes-exist) (insert "(no stashes)")
+               ;; Display arrow next to first stash.
+               (set (make-local-variable 'overlay-arrow-position)
+                    (point-marker))
+               (insert stash-list-str)))
+           (fit-window-to-buffer)
+           (message "Checking tree status...")
+           (redisplay t)                ; this might take a little bit
+           (let ((changes-pending (eq 0 (git--exec "status" nil nil "-a"))))
+             (let ((inhibit-read-only t))
+               (save-excursion
+                 (goto-char changes-pending-point)
+                 (insert (if changes-pending " (changes pending)"
+                           " (no changes pending)"))))
+             (let ((suggested-cmd
+                    ;; "save" if there are pending changes, "pop" if there
+                    ;; are no pending changes and stashes present, else nothing
+                    (cond
+                     (changes-pending "save") (stashes-exist "pop") (t ""))))
+               (setq cmd (read-string "git stash >> "
+                                      suggested-cmd 'git--stash-history)))))
+         (delete-windows-on buffer)
+         (kill-buffer buffer))))
+  (message "%s" (git--trim-string (git--exec-string "stash" cmd)))
+  (redisplay t)
+  (sleep-for 1.5)                       ; let the user digest message
+  (git-after-working-dir-change))
 
 (provide 'git-emacs)
