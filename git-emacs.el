@@ -2110,7 +2110,9 @@ anymore; if unspecified, we operate on the current buffer."
   (let ((buffer (or buffer (current-buffer))))
     (when (buffer-live-p buffer)
       (if (or (eq t git-branch-buffer-closes-after-action)
-              (and was-branch-switch git-branch-buffer-closes-after-action))
+              (and was-branch-switch
+                   (eq 'on-branch-switch
+                       git-branch-buffer-closes-after-action)))
           (progn
             (delete-windows-on buffer)
             (kill-buffer buffer))
@@ -2251,7 +2253,7 @@ that variable in .emacs.
                      (if (not always-prompt-user)
                          (throw 'found-one candidate)
                        (add-to-list 'candidate-strings candidate t))))
-                  ((symbolp candidate)
+                  ((functionp candidate)
                    (let ((result (ignore-errors (funcall candidate))))
                      (when result
                        (if (not always-prompt-user)

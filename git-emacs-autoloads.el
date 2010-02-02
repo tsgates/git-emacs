@@ -10,6 +10,8 @@
 ;; 4) opening a git-controlled file
 
 (eval-when-compile (require 'vc))
+(eval-when-compile (require 'vc-git))
+(add-to-list 'vc-handled-backends 'git)
 
 (autoload 'git-status "git-status"
   "Launch git-emacs's status mode on the specified directory.")

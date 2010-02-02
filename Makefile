@@ -2,9 +2,12 @@
 # since compiling all files in a run is very fast anyway.
 
 # This might not be needed on newer emacs versions, but it doesn't hurt.
-VC_GIT_PATH=/usr/share/doc/git-core/contrib/emacs
+# Note: newer git doesn't ship vc-git since it's been included in emacs,
+# but that's only v23+. Oops. If that's your situation, add a path to
+# your vc-git.el here (I store mine in .emacs.d now).
+VC_GIT_PATH="-L /usr/share/doc/git-core/contrib/emacs -L ~/.emacs.d/"
 
-EMACS_BATCH=emacs -Q --batch -L $(VC_GIT_PATH) -L .
+EMACS_BATCH=emacs -Q --batch "$(VC_GIT_PATH)" -L .
 
 .PHONY: all compile tags test clean
 
