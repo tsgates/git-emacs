@@ -286,6 +286,6 @@ the working dir."
   "Create a new tag for commit that the cursor is on."
 
   (interactive)
-  (git--tag tag-name (git--abbrev-commit (log-view-current-tag))))
+  (git-tag tag-name (git--abbrev-commit (log-view-current-tag))))
 
 (provide 'git-log)
