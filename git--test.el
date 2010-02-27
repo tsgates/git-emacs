@@ -1,6 +1,7 @@
 ;; See git-emacs.el for license and versioning.
 
 (require 'git-emacs)
+(require 'git-status)
 (require 'dired)
 
 (defun git--test-with-temp-repo (function)
@@ -42,7 +43,6 @@
   (assert (eq 'uptodate (git--status-file "f1")))
 
   ;; create status buffer
-  (require 'git-status)
   (assert (string= (buffer-name (git--create-status-buffer "."))
                    (git--status-buffer-name ".")))
 
@@ -279,7 +279,7 @@
 
 (defun git-regression ()
   (interactive)
-
+  ;; (setq debug-on-error t)  ;; uncomment to debug test run from make
   (message "Running unittest suite...")
   (git--test-standalone-functions)
   (save-window-excursion                ; some bufs might pop up, e.g. commit

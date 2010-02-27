@@ -302,6 +302,11 @@ if it fails. If the command succeeds, returns the git output."
     (unless (one-window-p t) (delete-window))
     (kill-buffer buffer)))
 
+(defsubst git--rev-parse (&rest args)
+  "Execute 'git-rev-parse' with args and return as string"
+
+  (apply #'git--exec-string "rev-parse" args))
+
 (defmacro git-in-lowest-existing-dir (dir &rest BODY)
   "Runs \"BODY\" with `default-directory' set to the nearest
 existing parent of DIR; useful because git directories can come
@@ -322,7 +327,21 @@ let the user see the invalid directory error."
                             default-directory)))
           (setq default-directory parent)))
       ,@BODY))
-  
+
+(defmacro git--if-in-status-mode (THEN &rest ELSE)
+  "Macro that evaluates THEN when in git-status-mode, ELSE otherwise. Used to
+grab status-mode filelists without the compiler complaining about the
+autoloading which we know has already happened."
+  `(if (eq major-mode 'git-status-mode)
+       (progn (eval-when-compile (require 'git-status)) ,THEN)
+     ,@ELSE))
+
+(defun git--get-top-dir (&optional dir)
+  "Get the top-level git directory above DIR. If nil, use default-directory."
+  (git-in-lowest-existing-dir dir
+   (let ((cdup (git--rev-parse "--show-cdup")))
+     (git--concat-path default-directory (car (split-string cdup "\n"))))))
+
 (defsubst git--interpret-to-state-symbol (stat)
   "Interpret git state string to state symbol"
 
@@ -517,13 +536,6 @@ properly expanded tree."
         (string< (git--fileinfo->name info1)
                  (git--fileinfo->name info2))))))
 
-(defmacro git--if-in-status-mode (THEN &rest ELSE)
-  "Macro that evaluates THEN when in git-status-mode, ELSE otherwise. Used to
-grab status-mode filelists without the compiler complaining about the
-autoloading which we know has already happened."
-  `(if (eq major-mode 'git-status-mode)
-       (progn (eval-when-compile (require 'git-status)) ,THEN)
-     ,@ELSE))
 
 ;;-----------------------------------------------------------------------------
 ;; git execute command
@@ -593,11 +605,6 @@ and finally 'git--clone-sentinal' is called"
   "Execute 'git-tag' with 'args' and return the result as string"
 
   (apply #'git--exec-string "tag" args))
-
-(defsubst git--rev-parse (&rest args)
-  "Execute 'git-rev-parse' with args and return as string"
-
-  (apply #'git--exec-string "rev-parse" args))
 
 (defvar git--tag-history nil "History variable for tags entered by user.")
 
@@ -724,12 +731,6 @@ gives, essentially, file status."
   "Return the last commit message, as a possibly multiline string, with an "
   "ending newline,"
   (git--log "--max-count=1" "--pretty=format:%s%n%b"))
-
-(defun git--get-top-dir (&optional dir)
-  "Get the top-level git directory above DIR. If nil, use default-directory."
-  (git-in-lowest-existing-dir dir
-   (let ((cdup (git--rev-parse "--show-cdup")))
-     (git--concat-path default-directory (car (split-string cdup "\n"))))))
 
 (defun git--get-relative-to-top(filename)
   (file-relative-name filename
