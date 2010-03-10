@@ -131,6 +131,9 @@
   (if git--use-ido
       (progn
         (require 'ido)
+        ;; But this is not enough apparently. We need to strobe ido-mode
+        ;; for ido-completing-read to work. Ugh.
+        (unless ido-mode (ido-mode t) (ido-mode -1))
         #'ido-completing-read)
     #'completing-read)
   "Function to use for git minibuffer prompts with choices. It should have
