@@ -155,8 +155,8 @@ the signature of `completing-read'.")
 
 (defsubst git--bold-face (str) (propertize str 'face 'git--bold-face))
 
-(defconst git--msg-critical  (propertize "Critical Error" 'face 'git--bold-face))
-(defconst git--msg-failed    (propertize "Failed" 'face 'git--bold-face))
+(defconst git--msg-critical (propertize "Critical Error" 'face 'git--bold-face))
+(defconst git--msg-failed (propertize "Failed" 'face 'git--bold-face))
 
 ;;-----------------------------------------------------------------------------
 ;; internal variable
@@ -265,6 +265,28 @@ if it fails. If the command succeeds, returns the git output."
                   (apply #'git--exec-buffer cmd args))
         (error "%s" (git--trim-string (buffer-string)))))))
 
+
+;; This is nasty: the git devs changed the meaning of "git status" in git
+;; 1.7, but commit --dry-run is not available in older git. Thanks much
+;; guys -- I get to learn to learn how to do horrible hacks like this.
+;; Hopefully the messages aren't translated or something.
+(defun git--commit-dryrun-compat(outbuf &rest args)
+  "Executes commit --dryrun with the specified args, falls back to the
+older git status if that command is not present. If OUTBUF is not nil, puts
+the standard output there. Returns the git return code."
+  ;; Going forward, this will simply succeed.
+  (let ((rc (apply #'git--exec "commit" outbuf nil "--dry-run" args)))
+    (when (eq rc 129)
+      ;; gotta distinguish between bad args or no --dry-run.
+      (let ((has-dry-run
+             (string-match
+              "--dry-run"
+              (git--exec-string-no-error "commit" "--no-such-arg-show-help"))))
+        (unless has-dry-run
+          (setq rc (apply #'git--exec "status" outbuf nil args)))))
+    rc))
+
+  
 ;;-----------------------------------------------------------------------------
 ;; utilities
 ;;-----------------------------------------------------------------------------
@@ -998,7 +1020,7 @@ changes), AFTER-FUNC is called, which should do the tree
 switching along with any confirmations. The return value is either the
 pending commit buffer or nil if the buffer wasn't needed."
   ;; git status -a tells us if there's anything to commit
-  (if (and (eq 0 (git--exec "status" nil nil "-a"))
+  (if (and (eq 0 (git--commit-dryrun-compat nil "-a"))
            (y-or-n-p "Commit your pending changes first? (if not, they will be merged into the new tree) "))
       (with-current-buffer (git-commit-all)
         (add-hook 'git--commit-after-hook after-func t t) ; append, local
@@ -1467,10 +1489,10 @@ Returns the buffer."
       (setq cur-pos (point))
       (insert "\n\n")
 
-      ;;git status -- give same args as to commit
+      ;;git commit --dryrun or git status -- give same args as to commit
       (insert git--log-sep-line "\n")
       (git--please-wait "Reading git status"
-        (unless (eq 0 (apply #'git--exec-buffer "status" git--commit-args))
+        (unless (eq 0 (apply #'git--commit-dryrun-compat t git--commit-args))
           (kill-buffer nil)
           (error "Nothing to commit%s"
                  (if (eq t targets) "" ", try git-commit-all"))))
@@ -1987,8 +2009,8 @@ been displayed.")
 to the current branch, if applicable. Enabled by default."
   (let ((current-branch (ignore-errors (git--current-branch))))
     (when (and (member current-branch branch-list)
-               ;; "git-status -a" returns ok if there are pending changes.
-               (eq 0 (git--exec "status" nil nil "-a")))
+               ;; "git commit --dryrun -a" returns ok if pending changes.
+               (eq 0 (git--commit-dryrun-compat nil "-a")))
       (list (cons current-branch (git--bold-face "changes pending"))))))
 
 
@@ -2456,7 +2478,7 @@ usual pre / post work: ask for save, ask for refresh."
            (fit-window-to-buffer)
            (message "Checking tree status...")
            (redisplay t)                ; this might take a little bit
-           (let ((changes-pending (eq 0 (git--exec "status" nil nil "-a"))))
+           (let ((changes-pending (eq 0 (git--commit-dryrun-compat nil "-a"))))
              (let ((inhibit-read-only t))
                (save-excursion
                  (goto-char changes-pending-point)
