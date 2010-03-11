@@ -763,9 +763,9 @@ gives, essentially, file status."
 
 (defun git--get-top-dir-or-prompt (prompt &optional dir)
   "Returns the top-level git directory above DIR (or default-directory). Prompts
-the user with PROMPT if not a git repository."
-  (or (ignore-errors (git--get-top-dir dir))
-      (git--get-top-dir (read-directory-name prompt dir))))
+the user with PROMPT if not a git repository, or if DIR is t."
+  (or (unless (eq dir t) (ignore-errors (git--get-top-dir dir)))
+      (git--get-top-dir (read-directory-name prompt (unless (eq dir t) dir)))))
 
 (defun git--ls-unmerged (&rest files)
   "Get the list of unmerged files. Returns an association list of

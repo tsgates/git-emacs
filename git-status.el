@@ -203,9 +203,11 @@ to ls -sh; e.g. 29152 -> 28K."
 
 ;; autoloaded entry point
 (defun git-status (dir)
-  "Launch git-status-mode on the specified directory."
+  "Launch git-status-mode on the specified directory. With a prefix
+argument (C-u), always prompts."
 
-  (interactive (list (git--get-top-dir-or-prompt "Select directory: ")))
+  (interactive (list (git--get-top-dir-or-prompt
+                      "Select directory: " (when current-prefix-arg t))))
 
   (setq dir (git--get-top-dir dir))
   (if (file-directory-p (git--expand-to-repository-dir dir))
