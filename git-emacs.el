@@ -275,7 +275,8 @@ if it fails. If the command succeeds, returns the git output."
 older git status if that command is not present. If OUTBUF is not nil, puts
 the standard output there. Returns the git return code."
   ;; Going forward, this will simply succeed.
-  (let ((rc (apply #'git--exec "commit" outbuf nil "--dry-run" args)))
+  (let ((rc (apply #'git--exec "commit" (list outbuf nil) nil
+                   "--dry-run" args)))
     (when (eq rc 129)
       ;; gotta distinguish between bad args or no --dry-run.
       (let ((has-dry-run
