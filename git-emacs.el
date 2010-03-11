@@ -720,18 +720,21 @@ gives, essentially, file status."
 
     fileinfo))
 
-(defsubst git--symbolic-ref (arg)
-  "Execute git-symbolic-ref with 'arg' and return sha1 string"
-
-  (car (split-string (git--exec-string "symbolic-ref" arg) "\n")))
+(defun git--symbolic-ref (arg)
+  "Execute git-symbolic-ref with 'arg' and return sha1 string, or nil if the
+arg is not a symbolic ref."
+  (let ((commit (git--exec-string-no-error "symbolic-ref" "-q" arg)))
+    (when  (> (length commit) 0)
+      (car (split-string commit"\n")))))
 
 (defun git--current-branch ()
-  "Execute git-symbolic-ref of 'HEAD' and return branch name string"
-
+  "Execute git-symbolic-ref of 'HEAD' and return branch name string. Returns
+nil if there is no current branch."
   (let ((branch (git-in-lowest-existing-dir nil (git--symbolic-ref "HEAD"))))
-    (if (string-match "^refs/heads/" branch)
-        (substring branch (match-end 0))
-      branch)))
+    (when branch
+      (if (string-match "^refs/heads/" branch)
+          (substring branch (match-end 0))
+        branch))))
 
 (defsubst git--rev-list (&rest args)
   "Execute git-rev-list with 'arg' and print the result to the current buffer"
@@ -1097,7 +1100,7 @@ pending commit buffer or nil if the buffer wasn't needed."
 commit, like git commit --amend will do once we commit."
 
   (insert git--log-header-line  "\n"
-          "# Branch : " (git--current-branch)     "\n")
+          "# Branch : " (or (git--current-branch) "<none>")     "\n")
   (if amend
       (insert (git--log "--max-count=1"
                         (concat "--pretty=format:"
@@ -1600,7 +1603,7 @@ specified). Prompts the user whether to reset --hard."
 
   (interactive
       ;; We might be operating with a detached HEAD.
-   (let ((current-branch (ignore-errors (git--current-branch))))
+   (let ((current-branch (git--current-branch)))
      (list (git--select-revision
             (format "Reset %s to: "
                     (if current-branch
@@ -1706,7 +1709,7 @@ once the checkout is complete."
      (lambda()
        (let* ((branch (or branch (read-from-minibuffer "Create new branch: ")))
               (suggested-start (or suggested-start
-                                   (ignore-errors (git--current-branch))))
+                                   (git--current-branch)))
               ;; put current branch as the first option to be based on.
               (commit (git--select-revision
                        (format "Create %s based on: "
@@ -2008,7 +2011,7 @@ been displayed.")
 (defun git--branch-mode-annotate-changes-pending (branch-list)
   "Branch annotator function: display \"changes pending\" next
 to the current branch, if applicable. Enabled by default."
-  (let ((current-branch (ignore-errors (git--current-branch))))
+  (let ((current-branch (git--current-branch)))
     (when (and (member current-branch branch-list)
                ;; "git commit --dryrun -a" returns ok if pending changes.
                (eq 0 (git--commit-dryrun-compat nil "-a")))
@@ -2467,8 +2470,7 @@ usual pre / post work: ask for save, ask for refresh."
            (git--prepare-stash-list-buffer buffer)
            (let ((inhibit-read-only t))
              (erase-buffer)
-             (insert "Branch: " (or (ignore-errors (git--current-branch))
-                                    "<none>"))
+             (insert "Branch: " (or (git--current-branch) "<none>"))
              (setq changes-pending-point (point))
              (insert "\n\n")
              (if (not stashes-exist) (insert "(no stashes)")

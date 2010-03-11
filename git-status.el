@@ -29,11 +29,13 @@
 (defun git--refresh-desc ()
   "Refresh the git-status-mode header description"
   
-  (ewoc-set-hf git--status-view
-               (concat (git--bold-face "Directory") " : " default-directory     "\n"
-                       (git--bold-face "Branch   ") " : " (git--current-branch) "\n"
-                       (git--bold-face "Last Log ") " : " (git--last-log-short) "\n")
-               ""))
+  (ewoc-set-hf
+   git--status-view
+   (concat (git--bold-face "Directory") " : " default-directory     "\n"
+           (git--bold-face "Branch   ") " : "
+           (or (git--current-branch) "<none>") "\n"
+           (git--bold-face "Last Log ") " : " (git--last-log-short) "\n")
+   ""))
 
 (defsubst git--status-buffer-name (dir)
   (format "*git-status on %s*" (abbreviate-file-name (expand-file-name dir))))
