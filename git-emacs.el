@@ -448,6 +448,18 @@ the current git repo. Returns the number of buffers saved."
      buffers
      '("buffer" "buffers" "save"))))
 
+(defcustom git-working-dir-change-behaviour
+  'git-ask-for-all-saved
+  "Controls the buffer-refreshing behaviour after a git working dir change
+ (e.g. branch switch), when there are buffers visiting files that
+ have been modified by the change."
+  :type '(radio (const :tag "Ask about refreshing all saved buffers"
+                       git-ask-for-all-saved)
+                (const :tag "Refresh all saved buffers"
+                       git-refresh-all-saved)
+                (const :tag "Don't refresh" nil))
+  :group 'git-emacs)
+
 (defun git-after-working-dir-change (&optional repo-or-filelist)
   "This function should be called after a change to the git working dir.
 If there are buffers visiting files in the given REPO-OR-FILELIST that
@@ -461,40 +473,63 @@ visiting files that no longer exist."
                   repo-or-filelist
                   #'(lambda(buffer)
                       (not (verify-visited-file-modtime buffer)))))
-        (buffers-that-exist nil) (buffers-that-dont-exist nil))
+        (buffers-that-exist nil) (buffers-that-dont-exist nil)
+        (num-buffers-refreshed 0))
     (dolist (buffer buffers)
       (if (file-exists-p (buffer-file-name buffer))
           (push buffer buffers-that-exist)
         (push buffer buffers-that-dont-exist)))
     ;; Revert buffers that exist
     (unwind-protect
-        (let ((buffers-not-reverted (copy-sequence buffers-that-exist)))
-          ;; Do the state mark update if the user quits the revert prompts.
-          (unwind-protect
-              (map-y-or-n-p
-               (lambda(buffer) (format "%s has changed, refresh buffer? "
-                                       (buffer-name buffer)))
-               (lambda(buffer)
-                 (with-current-buffer buffer (revert-buffer t t))
-                 ;; A hash table is probably not worth it here.
-                 (setq buffers-not-reverted (delq buffer buffers-not-reverted)))
-               buffers-that-exist
-               '("buffer" "buffers" "refresh"))
-            (when buffers-not-reverted
-              (git--update-all-state-marks (mapcar #'buffer-file-name
-                                                   buffers-not-reverted))))
+        (let ((buffers-not-reverted (copy-sequence buffers-that-exist))
+              buffers-that-exist-unsaved buffers-that-exist-saved)
+          (flet ((buffer-refresh-func (buffer)
+                  (with-current-buffer buffer (revert-buffer t t))
+                  ;; A hash table is probably not worth it here.
+                  (setq buffers-not-reverted
+                        (delq buffer buffers-not-reverted))
+                  (incf num-buffers-refreshed)))
+            ;; Filter buffers by their saved status.
+            (dolist (buffer buffers-that-exist)
+              (if (buffer-modified-p buffer)
+                  (push buffer buffers-that-exist-unsaved)
+                (push buffer buffers-that-exist-saved)))
+            ;; Do the state mark update if the user quits the revert prompts.
+            ;; Or, on all unsaved buffers.
+            (unwind-protect
+                (case git-working-dir-change-behaviour
+                  ('git-ask-for-all-saved
+                   (map-y-or-n-p
+                    (lambda(buffer) (format "%s has changed, refresh buffer? "
+                                            (buffer-name buffer)))
+                    #'buffer-refresh-func
+                    buffers-that-exist-saved
+                    '("buffer" "buffers" "refresh")))
+                  ('git-refresh-all-saved
+                   (mapc #'buffer-refresh-func buffers-that-exist-saved)))
+              (when buffers-not-reverted
+                (git--update-all-state-marks (mapcar #'buffer-file-name
+                                                   buffers-not-reverted)))))
           ;; Refresh status buffer
           (git--if-in-status-mode (git--status-view-refresh)))
-      ;; But display the [important] files don't exist warning on failure / quit
-      (when buffers-that-dont-exist
-       (message "Note: some open files no longer exist: %s"
-                (git--join
-                 (let ((numfiles (length buffers-that-dont-exist)))
-                   (if (> numfiles 2)
+      ;; But display the [important] files don't exist / buffers refreshed
+      ;; warnings on failure / quit
+      (let ((submessages
+             (append
+              (when (> num-buffers-refreshed 0)
+                (list (format "%d buffers refreshed" num-buffers-refreshed)))
+              (when buffers-that-dont-exist
+                (list
+                 (format "some open files no longer exist: %s"
+                   (git--join
+                    (let ((numfiles (length buffers-that-dont-exist)))
+                      (if (> numfiles 2)
                        (list (buffer-name (first buffers-that-dont-exist))
                              (format "%d others" (- numfiles 1)))
-                     (mapcar #'buffer-name buffers-that-dont-exist)))
-                 ", "))))))
+                       (mapcar #'buffer-name buffers-that-dont-exist)))
+                    ", ")))))))
+        (when submessages
+          (message "Note: %s" (git--join submessages "; ")))))))
 
 ;; This belongs later with all the commit functions, but the compiler complains
 ;; in git-log if we don't define it before its first use.
