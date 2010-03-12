@@ -198,10 +198,23 @@ to ls -sh; e.g. 29152 -> 28K."
 (defun git-status-mode-revert-buffer (ignore-auto noconfirm)
   "Refresh status information."
 
-  ;; TODO refresh status-mode-buffer
-  (git--status-new)
-  (git--status-view-first-line))
-
+  (let* ((current-node (ewoc-locate git--status-view))
+         (current-fi (when current-node (ewoc-data current-node)))
+         new-current)
+    (git--please-wait "Reading git status" (git--status-new))
+    (when current-fi
+      (git--status-view-update-expand-tree (list current-fi) t)
+      (setq new-current
+            (git--status-map (ewoc-nth git--status-view 0)
+                             (lambda (node data)
+                               (or (string= (git--fileinfo->name data)
+                                            (git--fileinfo->name current-fi))
+                                   (git--fileinfo-lessp current-fi data))))))
+    (if (not new-current)
+        (git--status-view-first-line)
+      (ewoc-goto-node git--status-view new-current)
+      (move-to-column git--status-line-column))))
+      
 
 ;; autoloaded entry point
 (defun git-status (dir)
@@ -280,10 +293,13 @@ otherwise stop and return the node."
 
     (maphash #'(lambda (k v) (git--status-view-dumb-update-element v)) hashed-info)))
 
-(defun git--status-view-update-expand-tree (fileinfos)
+(defun git--status-view-update-expand-tree (fileinfos
+                                            &optional dont-add-unknown-dirs)
   "Expand the tree nodes containing one of FILEINFOS, which must be sorted.
-Does not add unknown files within the expanded dirs, that must be an additional
-merge step."
+Does not add unknown files within the expanded dirs, that must be
+an additional merge step. If DONT-ADD-UNKNOWN-DIRS is specified,
+does not add additional directories to accommodate fileinfos that
+are very deep (used when repositioning mark on refresh)."
   (let ((node (ewoc-nth git--status-view 0))
         (last-path-expanded '()))
     (dolist (fi fileinfos)
@@ -318,14 +334,16 @@ merge step."
                 ;; Have we passed our insertion point? This can happen when
                 ;; merging unknown files in unknown subdirs.
                 (when (git--fileinfo-lessp fi data)
-                  ;; Add the subdir we were looking for here. Don't advance.
-                  (setq node (ewoc-enter-before
-                              git--status-view node
-                              (git--create-fileinfo
-                               matched-name 'tree nil nil nil 'unknown)))
-                  ;; This new node is being expanded as we speak.
-                  (setf (git--fileinfo->expanded (ewoc-data node)) t)
-                  (setq found-it t)))
+                  (if dont-add-unknown-dirs
+                      (setq cont-iteration nil)
+                    ;; Add the subdir we were looking for here. Don't advance.
+                    (setq node (ewoc-enter-before
+                                git--status-view node
+                                (git--create-fileinfo
+                                 matched-name 'tree nil nil nil 'unknown)))
+                    ;; This new node is being expanded as we speak.
+                    (setf (git--fileinfo->expanded (ewoc-data node)) t)
+                    (setq found-it t))))
               (if found-it
                   ;; Do we need to expand even lower?
                   (if paths-to-expand
