@@ -852,10 +852,14 @@ only checks the specified files. The list is sorted by filename."
                                     git--reg-file))) ; matched-2
 
         (while (re-search-forward regexp nil t)
-          (let ((stat (match-string 1))
-                (file (match-string 2)))
-
-            (push (git--create-fileinfo file 'blob nil nil nil
+          (let* ((stat (match-string 1))
+                 (name (match-string 2))
+                 (file-name (directory-file-name name)))
+            ;; Files listed with e.g "-o" might be directories
+            (push (git--create-fileinfo file-name
+                                        (if (equal name file-name) 'blob
+                                          'tree)
+                                        nil nil nil
                                         (git--interpret-to-state-symbol stat))
                   fileinfo)))))
     (sort fileinfo 'git--fileinfo-lessp)))
