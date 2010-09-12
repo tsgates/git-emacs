@@ -1004,52 +1004,52 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
 
 (defsubst git--select-branch (&rest excepts)
   "Select the branch"
-
   (let ((branches (car (git--branch-list))))
     (git--select-from-user
      "Select Branch : "
      (delq nil (mapcar (lambda (b) (unless (member b excepts) b))
                        branches)))))
 
-(defsubst git--select-remote (&rest excepts)
-  "Select remote"
+(defun git-pull-ff-only ()
+  "Interactive git pull. Prompts user for a remote branch, and pulls from it.
+  This command will fail if we can not do a ff-only pull from the remote branch.
+  "
+  (interactive)
+  (let ((remote (git--select-remote (concat
+				     "Select remote for pull (local branch is " (git--current-branch) "): "
+				     ))))
+    (message (git--pull-ff-only remote))
+    )
+  )
+
+(defsubst git--select-remote (prompt &rest excepts)
+  "Select remote branch interactively."
   (let ((remotes (git--symbolic-commits '("remotes"))))
     (git--select-from-user
-     "Select Remote: "
+     prompt
      (delq nil (mapcar (lambda (b) (unless (member b excepts) b))
                        remotes))
      )))
 
-(defun git--chomp (str)
-  "Chomp leading and tailing whitespace from STR."
-  (let ((s (if (symbolp str) (symbol-name str) str)))
-    (replace-regexp-in-string "\\(^[[:space:]\n]*\\|[[:space:]\n]*$\\)" "\n" s)))
-
-(defun git--parse-pull-ff-only-success-string (resultstring)
-  "Parses (partially) the output of git pull."
-  (let ((lines (split-string resultstring "\n")))
-    (if (string-equal (nth 2 lines) "Already up-to-date.")
-	"Already up-to-date."
-      (let ((revision-change (split-string (cadr (split-string (nth 2 lines) )) "\\.\\.")))
-	(concat "Pulled revisions from " (car revision-change) " to " (cadr revision-change) "."
-		(nth (- (length lines) 2) lines)
-		)))))
-
 (defun git--pull-ff-only (remote)
-  "Pull from remote into localbranch. This will work ONLY if the pull can be done as a fast-forward."
-  (let ((split-remote (split-string remote "/")))
+  "Pull from remote into current branch, but only on a fast-forward pull."
+  (let ((split-remote (split-string remote "/"))
+	(parse-success-string (lambda (resultstring) ;; Parses success string
+				(let ((lines (split-string resultstring "\n")))
+				  (if (string-equal (nth 2 lines) "Already up-to-date.")
+				      "Already up-to-date."
+				    (let ((revision-change (split-string (cadr (split-string (nth 2 lines) )) "\\.\\.")))
+				      (concat "Pulled revisions from " (car revision-change) " to " (cadr revision-change) "." (nth (- (length lines) 2) lines)))))))
+	)
     (let ((remote-name (car split-remote))
 	  (remote-branch (car (cdr split-remote)))
 	  )
       (condition-case err
 	  (progn
-	    (git--parse-pull-ff-only-success-string
-	     (git--exec-string "pull" "--ff-only" remote-name (concat remote-branch))
-	     )
+	    (funcall parse-success-string (git--exec-string "pull" "--ff-only" remote-name (concat remote-branch)))
 	    )
-	(error (message (error-message-string err)))
+	(error (error-message-string err))
 	))))
-
 
 (defun git--symbolic-commits (&optional reftypes)
   "Find symbolic names referring to commits, using git-for-each-ref.
