@@ -1051,6 +1051,38 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
 	(error (error-message-string err))
 	))))
 
+(defun git--split-porcelain (resultstring)
+  (mapcar (lambda (s) (split-string s "\t")) (split-string resultstring "\n"))
+  )
+
+(defun git--n-n-th (i j arr)
+  "Given a 2-d list, access the i,j 'th element"
+  (nth j (nth i arr))
+  )
+
+(defun git--actual-push (remote-name remote-branch)
+  (let (( actual-run-output (git--split-porcelain (git--exec-string "push" "--porcelain" remote-name (concat (git--current-branch) ":" remote-branch)))))
+    (message (concat "Pushed changes " (git--n-n-th 1 2 dry-run-output) " to remote " remote-name "/" remote-branch)))
+  )
+
+(defun git--push-ff-only (remote)
+  "Pushes from current branch into remote, fast-forward only."
+  (let ((split-remote (split-string remote "/")))
+    (let ((dry-run-output (git--split-porcelain (git--exec-string "push" "--dry-run" "--porcelain" (car split-remote) (concat (git--current-branch) ":" (cadr split-remote))))))
+      (let ((newbranch (string-equal (git--n-n-th 1 2 dry-run-output) "[new branch]"))
+	    (change-diff (git--n-n-th 1 2 dry-run-output))
+	    (up-to-date (string-equal (git--n-n-th 1 0 dry-run-output) "Everything up-to-date"))
+	    )
+	(cond (newbranch (if (y-or-n-p (concat "Pushing will create branch " (cadr split-remote) " in remote. Continue? "))
+			     (git--actual-push (car split-remote) (cadr split-remote))
+			   (message "Did not push.")))
+	      (up-to-date (message "Remote branch is up to date."))
+	      ((not newbranch) (git--actual-push (car split-remote) (cadr split-remote)))
+	      (t (message "Did not push."))
+	      )
+	)
+      )))
+
 (defun git--symbolic-commits (&optional reftypes)
   "Find symbolic names referring to commits, using git-for-each-ref.
 REFTYPES is a list of types of refs under .git/refs ; by default,
