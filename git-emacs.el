@@ -1060,12 +1060,22 @@ SIZE is 5, but it will be longer if needed (due to conflicts)."
   (nth j (nth i arr))
   )
 
+(defun git-push-ff-only ()
+  "Interactive git-push command."
+  (interactive)
+  (let ((remote (git--select-remote (concat
+				     "Select remote for push (local branch is " (git--current-branch) "): "
+				     ))))
+    (condition-case err
+	(git--push-ff-only-handle-success remote)
+      (error (error-message-string err))
+     )))
+
 (defun git--actual-push (remote-name remote-branch)
   (let (( actual-run-output (git--split-porcelain (git--exec-string "push" "--porcelain" remote-name (concat (git--current-branch) ":" remote-branch)))))
-    (message (concat "Pushed changes " (git--n-n-th 1 2 dry-run-output) " to remote " remote-name "/" remote-branch)))
-  )
+    (message (concat "Pushed changes " (git--n-n-th 1 2 dry-run-output) " to remote " remote-name "/" remote-branch))))
 
-(defun git--push-ff-only (remote)
+(defun git--push-ff-only-handle-success (remote)
   "Pushes from current branch into remote, fast-forward only."
   (let ((split-remote (split-string remote "/")))
     (let ((dry-run-output (git--split-porcelain (git--exec-string "push" "--dry-run" "--porcelain" (car split-remote) (concat (git--current-branch) ":" (cadr split-remote))))))
