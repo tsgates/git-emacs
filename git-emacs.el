@@ -589,8 +589,6 @@ properly expanded tree."
 
 (defun git--init (dir)
   "Execute 'git init' in DIR (current dir, if unspecified)."
-  
->>>>>>> 49e3a7a92922ea231b62bd01166ca2e6ab55810f
   (with-temp-buffer
     (when dir (cd dir))
     (git--exec-string "init")))
@@ -756,6 +754,7 @@ nil if there is no current branch."
 (defsubst git--last-log-short ()
   "Get the last log, as one line: <short_commit> <short_msg>"
   (git--trim-string (git--log "--max-count=1" "--pretty=oneline"
+                              "--abbrev-commit")))
 
 (defsubst git--last-log-message ()
   "Return the last commit message, as a possibly multiline string, with an "
@@ -957,78 +956,89 @@ except EXCEPTS. Returns the user's selection."
      (delq nil (mapcar (lambda (b) (unless (member b excepts) b))
                        branches)))))
 
+;; ================================================================================
+;; I will revise this code laster this week
+;; ================================================================================
 (defun git-pull-ff-only ()
   "Interactive git pull. Prompts user for a remote branch, and pulls from it.
-  This command will fail if we can not do a ff-only pull from the remote branch.
-  "
+  This command will fail if we can not do a ff-only pull from the remote branch."
   (interactive)
-  (let ((remote (git--select-remote (concat
-				     "Select remote for pull (local branch is " (git--current-branch) "): "
-				     ))))
-    (message (git--pull-ff-only remote))
-    )
-  )
+  (let ((remote (git--select-remote 
+                 (concat "Select remote for pull (local branch:" 
+                         (git--current-branch) 
+                         "): "))))
+    (message (git--pull-ff-only remote))))
 
+;; XXX. should this be implemented list this way? umm..
 (defsubst git--select-remote (prompt &rest excepts)
   "Select remote branch interactively."
   (let ((remotes (git--symbolic-commits '("remotes"))))
-    (git--select-from-user
-     prompt
-     (delq nil (mapcar (lambda (b) (unless (member b excepts) b))
-                       remotes))
-     )))
+    (git--select-from-user prompt
+                           (delq nil (mapcar (lambda (b) (unless (member b excepts) b))
+                                             remotes)))))
 
 (defun git--pull-ff-only (remote)
   "Pull from remote into current branch, but only on a fast-forward pull."
   (let ((split-remote (split-string remote "/"))
-	(parse-success-string (lambda (resultstring) ;; Parses success string
-				(let ((lines (split-string resultstring "\n")))
-				  (if (string-equal (nth 2 lines) "Already up-to-date.")
-				      "Already up-to-date."
-				    (let ((revision-change (split-string (cadr (split-string (nth 2 lines) )) "\\.\\.")))
-				      (concat "Pulled revisions from " (car revision-change) " to " (cadr revision-change) "." (nth (- (length lines) 2) lines)))))))
-	)
+        (parse-success-string (lambda (resultstring) ;; Parses success string
+                                (let ((lines (split-string resultstring "\n")))
+                                  (if (string-equal (nth 2 lines) "Already up-to-date.")
+                                      "Already up-to-date."
+                                    (let ((revision-change 
+                                           (split-string (cadr (split-string (nth 2 lines) )) 
+                                                         "\\.\\.")))
+                                      (concat "Pulled revisions from " 
+                                              (car revision-change) 
+                                              " to " 
+                                              (cadr revision-change) 
+                                              "." (nth (- (length lines) 2) lines))))))))
     (let ((remote-name (car split-remote))
-	  (remote-branch (car (cdr split-remote)))
-	  )
+          (remote-branch (car (cdr split-remote))))
       (condition-case err
-	  (progn
-	    (funcall parse-success-string (git--exec-string "pull" "--ff-only" remote-name (concat remote-branch)))
-	    )
-	(error (error-message-string err))
-	))))
+          (progn
+            (funcall parse-success-string 
+                     (git--exec-string "pull" "--ff-only" remote-name (concat remote-branch))))
+        (error (error-message-string err))))))
 
 (defun git--split-porcelain (resultstring)
-  (mapcar (lambda (s) (split-string s "\t")) (split-string resultstring "\n"))
-  )
+  (mapcar (lambda (s) (split-string s "\t")) (split-string resultstring "\n")))
 
 (defun git--n-n-th (i j arr)
   "Given a 2-d list, access the i,j 'th element"
-  (nth j (nth i arr))
-  )
+  (nth j (nth i arr)))
 
 (defun git--actual-push (remote-name remote-branch)
-  (let (( actual-run-output (git--split-porcelain (git--exec-string "push" "--porcelain" remote-name (concat (git--current-branch) ":" remote-branch)))))
-    (message (concat "Pushed changes " (git--n-n-th 1 2 dry-run-output) " to remote " remote-name "/" remote-branch)))
-  )
+  (let ((actual-run-output 
+         (git--split-porcelain 
+          (git--exec-string "push" "--porcelain" 
+                            remote-name 
+                            (concat (git--current-branch) ":" remote-branch)))))
+    (message (concat "Pushed changes " 
+                     (git--n-n-th 1 2 dry-run-output) 
+                     " to remote " 
+                     remote-name 
+                     "/" 
+                     remote-branch))))
 
 (defun git--push-ff-only (remote)
   "Pushes from current branch into remote, fast-forward only."
   (let ((split-remote (split-string remote "/")))
-    (let ((dry-run-output (git--split-porcelain (git--exec-string "push" "--dry-run" "--porcelain" (car split-remote) (concat (git--current-branch) ":" (cadr split-remote))))))
+    (let ((dry-run-output (git--split-porcelain 
+                           (git--exec-string "push" "--dry-run" "--porcelain" 
+                                             (car split-remote) 
+                                             (concat (git--current-branch) ":" (cadr split-remote))))))
       (let ((newbranch (string-equal (git--n-n-th 1 2 dry-run-output) "[new branch]"))
-	    (change-diff (git--n-n-th 1 2 dry-run-output))
-	    (up-to-date (string-equal (git--n-n-th 1 0 dry-run-output) "Everything up-to-date"))
-	    )
-	(cond (newbranch (if (y-or-n-p (concat "Pushing will create branch " (cadr split-remote) " in remote. Continue? "))
-			     (git--actual-push (car split-remote) (cadr split-remote))
-			   (message "Did not push.")))
-	      (up-to-date (message "Remote branch is up to date."))
-	      ((not newbranch) (git--actual-push (car split-remote) (cadr split-remote)))
-	      (t (message "Did not push."))
-	      )
-	)
-      )))
+            (change-diff (git--n-n-th 1 2 dry-run-output))
+            (up-to-date (string-equal (git--n-n-th 1 0 dry-run-output) "Everything up-to-date")))
+        (cond (newbranch (if (y-or-n-p (concat "Pushing will create branch " 
+                                               (cadr split-remote) 
+                                               " in remote. Continue? "))
+                             (git--actual-push (car split-remote) (cadr split-remote))
+                           (message "Did not push.")))
+              (up-to-date (message "Remote branch is up to date."))
+              ((not newbranch) (git--actual-push (car split-remote) (cadr split-remote)))
+              (t (message "Did not push.")))))))
+;; --------------------------------------------------------------------------------
 
 (defun git--symbolic-commits (&optional reftypes)
   "Find symbolic names referring to commits, using 'git for-each-ref'.
