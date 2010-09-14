@@ -1,3 +1,5 @@
+;; Git log mode support, part of git-emacs
+;;
 ;; See git-emacs.el for license information
 
 (require 'log-view)

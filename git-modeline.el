@@ -1,7 +1,9 @@
+;; Mode line decoration support, part of git-emacs.
+;;
+;; See git-emacs.el for license and versioning.
 ;; 
 ;; ref. "test-runner-image.el" posted at
 ;; "http://nschum.de/src/emacs/test-runner/"
-;;
 
 (require 'git-emacs)
 
@@ -24,6 +26,19 @@ of mode-line-format."
                  (function :tag "Other"))
   :group 'git-emacs
 )
+
+(defun git--interpret-state-mode-color (stat)
+  "Return a mode line status color appropriate for STAT (a state symbol)."
+  (case stat
+    ('modified "tomato"      )
+    ('unknown  "gray"        )
+    ('added    "blue"        )
+    ('deleted  "red"         )
+    ('unmerged "purple"      )
+    ('uptodate "GreenYellow" )
+    ('staged   "yellow"      )
+    (t "red")))
+
 
 ;; Modeline decoration options
 (defun git-state-decoration-small-dot(stat)
@@ -66,7 +81,7 @@ static char * data[] = {
 \"       +++++      \",
 \"                  \"};"))
 
-(defsubst git--interpret-state-mode-letter(stat)
+(defun git--interpret-state-mode-letter(stat)
    (case stat
      ('modified "M")
      ('unknown  "?")

@@ -91,7 +91,7 @@
           (git--commit-buffer)
           (assert (not (buffer-live-p (get-buffer git--commit-log-buffer))))
           (assert (eq 'uptodate (git--status-file "f1")))
-          (assert (string-match "^[0-9a-f]* *another test commit"
+          (assert (string-match "^[0-9a-f.]* *another test commit"
                                 (git--last-log-short)))
           ;; Should be one above last commit
           (setq second-commit-id (git--rev-parse "HEAD"))

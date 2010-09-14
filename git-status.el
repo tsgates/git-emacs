@@ -1,4 +1,6 @@
-;; See git-emacs.el for license and versioning
+;; Git status buffer support, part of git-emacs.
+;;
+;; See git-emacs.el for license and versioning.
 
 (require 'git-emacs)                    ; main module
 (require 'ewoc)                         ; view
@@ -28,7 +30,6 @@
 
 (defun git--refresh-desc ()
   "Refresh the git-status-mode header description"
-  
   (ewoc-set-hf
    git--status-view
    (concat (git--bold-face "Directory") " : " default-directory     "\n"
@@ -90,14 +91,12 @@
 
 (defsubst git--status-node-mark (info)
   "Render status view node mark"
-
   (propertize (if (git--fileinfo->marked info) "*" " ")
               'face
               'git--mark-face))
 
 (defsubst git--status-node-stat (info)
   "Render status view node state"
-  
   (let ((stat (git--fileinfo->stat info)))
     (propertize (capitalize (symbol-name stat))
                 'face
@@ -113,7 +112,6 @@
 
 (defsubst git--status-node-perm (info)
   "Render status view node permission"
-  
   (or (git--fileinfo->perm info) "------"))
 
 (defun git--status-human-readable-size (size)
@@ -131,14 +129,12 @@ to ls -sh; e.g. 29152 -> 28K."
 
 (defsubst git--status-node-size (info)
   "Render status view node size"
-
   (let ((size (git--fileinfo->size info)))
     (if (not size) ""
       (git--status-human-readable-size size))))
       
 (defsubst git--status-node-name (info)
   "Render status view node name"
-  
   (let ((name (git--fileinfo->name info))
         (type (git--fileinfo->type info)))
 
@@ -220,7 +216,6 @@ to ls -sh; e.g. 29152 -> 28K."
 (defun git-status (dir)
   "Launch git-status-mode on the specified directory. With a prefix
 argument (C-u), always prompts."
-
   (interactive (list (git--get-top-dir-or-prompt
                       "Select directory: " (when current-prefix-arg t))))
 
@@ -242,7 +237,6 @@ argument (C-u), always prompts."
 
 (defsubst git--clear-status ()
   "Clear the git-status-view"
-
   (ewoc-filter git--status-view #'(lambda (info) nil))
   (ewoc-refresh git--status-view)
   (let ((buffer-read-only nil)) (erase-buffer)))
@@ -250,11 +244,11 @@ argument (C-u), always prompts."
 (defsubst git--status-tree () (git--ls-tree "HEAD"))
 
 (defsubst git--status-map (node pred)
-  "Iterating 'git--status-view' by using 'ewoc-next and return the next node.
-The predicate function should get 'node and 'data arguments and
-it should return t or nil.  If predicate returned nil we continue to scan,
-otherwise stop and return the node."
-  
+  "Iterate over git--status-view nodes by using 'ewoc-next. Stops
+when PRED returns t and returns that node. The predicate function
+should get 'node and 'data arguments and it should return t or
+nil.  If predicate returned nil we continue to scan, otherwise
+stop and return the node."
   (let ((data nil)
         (cont t))
 
@@ -265,9 +259,8 @@ otherwise stop and return the node."
 
     node))
 
-;; TODO -> binary search
 (defun git--status-view-dumb-update-element (fi)
-  "Add update 'fi' to 'git--status-view' thoughtlessly!"
+  "Add updated fileinfo FI to `git--status-view'. Slow, right now."
   
   (unless (git--status-map (ewoc-nth git--status-view 0)
                            #'(lambda (node data)
@@ -275,11 +268,11 @@ otherwise stop and return the node."
                                  (ewoc-enter-before git--status-view node fi))))
     (ewoc-enter-last git--status-view fi)))
 
-(defun git--status-view-update-state (fileinfo)
-  "Update the state-view elements in fileinfo"
+(defun git--status-view-update-state (fileinfos)
+  "Update the state of the status view nodes corresponding to  FILEINFOS."
 
-  (let ((hashed-info (make-hash-table :test 'equal :size (length fileinfo))))
-    (dolist (fi fileinfo)
+  (let ((hashed-info (make-hash-table :test 'equal :size (length fileinfos))))
+    (dolist (fi fileinfos)
       (puthash (git--fileinfo->name fi) fi hashed-info))
 
     (ewoc-collect git--status-view
@@ -363,7 +356,7 @@ are very deep (used when repositioning mark on refresh)."
                                           
 
 (defun git--status-view-update ()
-  "Friendly update view function"
+  "Update the state of all changed files."
   
   (let ((fileinfos (sort (git--status-index) #'git--fileinfo-lessp)))
     (git--status-view-update-expand-tree fileinfos)
@@ -458,10 +451,10 @@ are very deep (used when repositioning mark on refresh)."
   ;; Use the sub-maps from git-global-keys for diffs.
   (define-key map "d" (copy-keymap git--diff-buffer-map))
   (define-key map "D" (copy-keymap git--diff-all-map))
-  (define-key map "b" 'git--status-view-switch-branch)
+  (define-key map "b" 'git-switch-branch)
   (define-key map "!" 'git--status-view-resolve-merge)
-  (define-key map "." 'git--status-view-git-cmd)
-  (define-key map "k" 'git--status-view-gitk)
+  (define-key map "." 'git-cmd)
+  (define-key map "k" 'gitk)
   (define-key map "L" 'git-log-files)
   (define-key map "g" 'git--status-view-refresh)
   (define-key map "a" 'git--status-view-add)
@@ -476,7 +469,7 @@ are very deep (used when repositioning mark on refresh)."
   (define-key map "c" (copy-keymap git--commit-map))
   (define-key map "R" 'git-reset)
 
-  (define-key map "\C-m" 'git--status-view-do-propriate)
+  (define-key map "\C-m" 'git--status-view-open-or-expand)
 
   (setq git-status-mode-map map))
 
@@ -515,7 +508,7 @@ are very deep (used when repositioning mark on refresh)."
     ["Unmark" git--status-view-unmark-and-next t]
     "----"
     ["Branch Mode" git-branch t]
-    ["Switch to Branch..." git--status-view-switch-branch t]      
+    ["Switch to Branch..." git-switch-branch t]      
     ("Commit"
      ["All Changes" git-commit-all :keys "c RET" :active t]
      ["Index" git-commit :keys "c i" :active t]
@@ -526,8 +519,8 @@ are very deep (used when repositioning mark on refresh)."
     ["Revert" git-revert t]
     ["Log for Project" git-log t]
     "----"
-    ["Git Command" git--status-view-git-cmd t]
-    ["GitK" git--status-view-gitk t]
+    ["Git Command" git-cmd t]
+    ["GitK" gitk t]
     "----"
     ["Quit" git--status-view-quit t]))
 
@@ -599,13 +592,10 @@ them)."
       (setf (git--fileinfo->expanded data) t))))
 
 (defun git--shrink-tree (node)
-  "Shrink 'node' in 'git--status-view', but node->type should be 'tree"
-  
+  "Shrink 'node' in 'git--status-view'. node->type should be 'tree"
   (let* ((data (ewoc-data node))
          (name (git--fileinfo->name data)))
-
     (unless (git--fileinfo-is-dir data) (error "type should be 'tree"))
-  
     (when (git--fileinfo->expanded data)
       ;; make regexp "node->name/"
       (git--status-delete-after-regex
@@ -616,9 +606,7 @@ them)."
 
 (defun git--status-view-expand-tree-toggle ()
   "Expand if tree is not expanded otherwise close the tree"
-
   (interactive)
-
   (let* ((node (ewoc-locate git--status-view))
          (node-info (ewoc-data node)))
     (when (and node node-info
@@ -632,7 +620,7 @@ them)."
 ;;-----------------------------------------------------------------------------
 
 (defun git--status-view-forward-line (n)
-  "Move to forward on the status view item"
+  "Move forward by N lines in the status view."
 
   (interactive "p")
   
@@ -646,21 +634,21 @@ them)."
   (move-to-column git--status-line-column))
 
 (defun git--status-view-first-line ()
-  "Move to the first item"
+  "Move to the first item in the status view."
   
   (interactive)
   (goto-char (point-min))
   (git--status-view-forward-line 1))
 
 (defun git--status-view-last-line ()
-  "Move to the last item"
+  "Move to the last item in the status view."
   
   (interactive)
   (goto-char (point-max))
   (git--status-view-forward-line -1))
 
 (defun git--forward-meaningful-line (move)
-  "Implementation of forward meaningful line"
+  "Call MOVE until we end up on a meaningful line (i.e. one with updates)."
 
   (let ((start-node (ewoc-locate git--status-view)))
     (funcall move 1)
@@ -671,65 +659,56 @@ them)."
       (funcall move 1))))
 
 (defun git--status-view-next-line (&optional n)
-  "Move to the next line"
-
+  "Move to the next line in the status view."
   (interactive "p")
-
   (if (eql (ewoc-locate git--status-view)
            (ewoc-nth git--status-view -1))
       (git--status-view-first-line)
     (git--status-view-forward-line 1)))
 
 (defun git--status-view-next-meaningful-line ()
-  "Move to the meaningful next line"
-
+  "Move to the next meaningful line in the status view."
   (interactive)
   (git--forward-meaningful-line 'git--status-view-next-line))
 
 (defun git--status-view-prev-line (&optional n)
-  "Move to the previous line"
-  
+  "Move to the previous line in the status view."
   (interactive "p")
-
   (if (eql (ewoc-locate git--status-view)
            (ewoc-nth git--status-view 0))
       (git--status-view-last-line)
     (git--status-view-forward-line -1)))
 
 (defun git--status-view-prev-meaningful-line ()
-  "Move the the meaningful previous line"
-  
+  "Move to the previous meaningful line in the status view."
   (interactive)
   (git--forward-meaningful-line 'git--status-view-prev-line))
 
 ;;-----------------------------------------------------------------------------
-;; status view marking
+;; Marking.
 ;;-----------------------------------------------------------------------------
 
 (defun git--mark-line (marked)
-  "Implementation of marking"
+  "Sets the mark flag of the current line to MARK. Updates the view."
 
   (let ((node (ewoc-locate git--status-view)))
     (setf (git--fileinfo->marked (ewoc-data node)) marked)
     (ewoc-invalidate git--status-view node)))
 
 (defun git--status-view-mark-and-next ()
-  "Mark and go to the next line"
-
+  "Mark and go to the next line."
   (interactive)
   (git--mark-line t)
   (git--status-view-next-line))
 
 (defun git--status-view-unmark-and-next ()
-  "Unmark and go to the next line"
-  
+  "Unmark and go to the next line."
   (interactive)
   (git--mark-line nil)
   (git--status-view-next-line))
 
 (defun git--toggle-line ()
-  "Implementation of toggle line"
-  
+  "Toggles the marked state of the current line."
   (let* ((node (ewoc-locate git--status-view))
          (data (ewoc-data node))
          (mark (git--fileinfo->marked data)))
@@ -737,48 +716,27 @@ them)."
     (ewoc-invalidate git--status-view node)))
 
 (defun git--status-view-toggle-and-next ()
-  "Toggle the mark and go to next line"
-
+  "Toggle the marked state of the current line and move to the next."
   (interactive)
   (git--toggle-line)
   (git--status-view-next-line))
 
 ;;-----------------------------------------------------------------------------
-;; status view independent command
+;; Commands
 ;;-----------------------------------------------------------------------------
 
 (defun git--status-view-quit ()
-  "Quit"
-
+  "Quit the git status buffer."
   (interactive)
   (kill-buffer (current-buffer)))
 
-(defun git--status-view-switch-branch ()
-  "Switch branch"
-
-  (interactive)
-  (call-interactively 'git-switch-branch))
-
-(defun git--status-view-git-cmd ()
-  "Direct git command"
-
-  (interactive)
-  (call-interactively 'git-cmd))
-
-(defun git--status-view-gitk ()
-  "Launch gitk"
-
-  (interactive)
-  (call-interactively 'gitk))
-
 (defun git--status-view-refresh ()
-  "Refresh view"
-
+  "Refresh git status buffer."
   (interactive)
   (git--please-wait "Reading git status" (revert-buffer)))
 
 (defun git--status-view-mark-reg (reg)
-  "Mark with regular expression"
+  "Prompt for a regular expression, mark the files that match."
 
   (interactive "sRegexp >> ")
   (ewoc-collect git--status-view
@@ -791,44 +749,38 @@ them)."
   (git--status-view-next-meaningful-line))
 
 (defun git--status-view-summary ()
-  "To the summary mode with occur"
-  
+  "Pops up an 'occur' summary of the changed files."
   (interactive)
   (occur "[\t* ]+\\(Deleted\\|Modified\\|Unknown\\|Added\\|Staged\\)")
-  
   (message "Move with 'next-error and 'previous-error"))
 
 ;;-----------------------------------------------------------------------------
-;; status view for one selected file
+;; Operations on single files.
 ;;-----------------------------------------------------------------------------
 
 (defsubst git--status-view-select-filename ()
-  "Return current filename of view item"
-
+  "Return the filename of the current status view item."
   (let ((filename (git--fileinfo->name (ewoc-data (ewoc-locate git--status-view)))))
     (when (file-directory-p filename)
-      (error "Execute on file"))
+      (error "Not a file"))
     filename))
 
 (defsubst git--status-view-select-type ()
-  "Return current type of view item"
-
+  "Return the type of the current view item."
   (git--fileinfo->type (ewoc-data (ewoc-locate git--status-view))))
 
 (defun git--status-view-view-file ()
-  "View the selected file"
-
+  "View the selected file."
   (interactive)
   (view-file (git--status-view-select-filename)))
 
 (defun git--status-view-open-file ()
-  "Open the selected file"
-
+  "Open the selected file."
   (interactive)
   (find-file (git--status-view-select-filename)))
 
 (defun git--status-view-descend-submodule ()
-  "Opens a status view on the selected submodule"
+  "Opens a status view on the selected submodule."
   (let ((submodule-dir (git--fileinfo->name
                         (ewoc-data (ewoc-locate git--status-view)))))
     (git-status submodule-dir)
@@ -836,22 +788,18 @@ them)."
              submodule-dir)))
 
 (defun git--status-view-resolve-merge ()
-  "Resolve the conflict if necessary"
-  
+  "Resolve merge conflicts in the currently selected file (must be unmerged)."
   (interactive)
-
   (let ((file (git--status-view-select-filename)))
     (if (eq 'unmerged (git--status-file file))
         (progn
           (find-file (git--status-view-select-filename))
           (git--resolve-merge-buffer))
-      (error "Selected file is not unmerged state"))))
+      (error "File is not unmerged"))))
 
-(defun git--status-view-do-propriate ()
-  "If 'tree selected -> expand or un-expand otherwise open it"
-
+(defun git--status-view-open-or-expand ()
+  "Open or expands the current file / directory / submodule."
   (interactive)
-
   (case (git--status-view-select-type)
     ('tree (git--status-view-expand-tree-toggle))
     ('blob (git--status-view-open-file))
@@ -859,10 +807,8 @@ them)."
     (t (error "Not supported type"))))
 
 (defun git--status-view-blame ()
-  "Open the file as blame-mode"
-
+  "Open the current file and enable blame mode."
   (interactive)
-
   (when (eq (git--status-view-select-type) 'blob)
     (find-file (git--status-view-select-filename))
     (git-blame-mode t)))
@@ -874,7 +820,6 @@ them)."
 (defsubst git--status-view-marked-files ()
   "Return a list of the marked files. Usually,
 `git--status-view-marked-or-file' is what you want instead."
-
   (let (files)
     (ewoc-collect git--status-view
                   #'(lambda (node)
@@ -885,7 +830,6 @@ them)."
 (defsubst git--status-view-marked-or-file ()
   "Return a list of the marked files, or if none, the file on the
 current line. You can think of this as the \"selected files\"."
-
   (let ((files (git--status-view-marked-files)))
     (when (null files)
       (setq files (list (git--status-view-select-filename))))
@@ -893,9 +837,7 @@ current line. You can think of this as the \"selected files\"."
 
 (defun git--status-view-rm ()
   "Delete the selected files."
-
   (interactive)
-
   (let* ((files (git--status-view-marked-or-file))
          ;; We can't afford to use stale fileinfos here, the warnings
          ;; are crucial.
@@ -953,35 +895,26 @@ current line. You can think of this as the \"selected files\"."
   (revert-buffer))
 
 (defun git--status-view-rename ()
-  "Rename the selected files."
-
+  "Rename the selected file(s)."
   (interactive)
-
   (let ((files (git--status-view-marked-or-file)))
     (dolist (src files)
       (let ((msg (format "%s '%s' to >> " (git--bold-face "Rename") src)))
         (git--mv src (file-relative-name (read-from-minibuffer msg src))))))
-
   (revert-buffer))
   
 (defun git--status-view-add ()
-  "Add the selected files."
-
+  "Add the selected file(s) to the index."
   (interactive)
   (git--add (git--status-view-marked-or-file))
   (revert-buffer))
 
 (defun git--status-view-add-ignore ()
-  "Add the selected file to .gitignore"
-
+  "Add the selected file(s) to .gitignore"
   (interactive)
-
   (let ((files (git--status-view-marked-or-file)))
-    (unless files (list (read-from-minibuffer "Add Ignore >> ")))
-
     (dolist (file files)
       (git-ignore file)))
-
   (revert-buffer))
 
 ;;-----------------------------------------------------------------------------
