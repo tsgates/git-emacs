@@ -371,7 +371,7 @@ See also function `git-blame-mode'."
 (defun git-describe-commit (hash)
   (with-temp-buffer
     (call-process "git" nil t nil
-                  "log" "-1" "--pretty=oneline"
+                  "log" "-1" "--pretty=format:\"%H %an -- %s\""
                   hash)
     (buffer-substring (point-min) (1- (point-max)))))
 
