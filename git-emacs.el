@@ -2518,7 +2518,7 @@ that variable in .emacs.
         (grep-use-null-device nil))
     (add-hook 'grep-setup-hook git-grep-setup-hook)
     (unwind-protect
-         (grep (concat "git grep -n " args))
+         (grep (concat "git grep --no-color -n " args))
       (remove-hook 'grep-setup-hook git-grep-setup-hook))))
 
 
