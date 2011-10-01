@@ -89,7 +89,6 @@
 (require 'ediff)                        ; we use this a lot
 (require 'vc)                           ; vc
 (require 'vc-git)                       ; vc-git advises
-(add-to-list 'vc-handled-backends 'git) ; set backend management
 (require 'time-stamp)                   ; today
 
 (require 'git-global-keys)              ; global keyboard mappings
