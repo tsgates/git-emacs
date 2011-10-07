@@ -14,7 +14,7 @@
 (add-to-list 'vc-handled-backends 'git)
 
 (autoload 'git-status "git-status"
-  "Launch git-emacs's status mode on the specified directory.")
+  "Launch git-emacs's status mode on the specified directory." t)
 (autoload 'git-init             "git-emacs"
   "Initialize a git repository." t)
 (autoload 'git-log-from-cmdline "git-log"
