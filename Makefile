@@ -9,9 +9,11 @@ VC_GIT_PATH="-L /usr/share/doc/git-core/contrib/emacs -L ~/.emacs.d/"
 
 EMACS_BATCH=emacs -Q --batch "$(VC_GIT_PATH)" -L .
 
-.PHONY: all compile tags test clean
+.PHONY: all compile dev tags test clean
 
-all: compile tags test
+all: compile
+
+dev: tags test
 
 compile: *.el
 	@echo; echo ">>> Compiling"
