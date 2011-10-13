@@ -2612,15 +2612,12 @@ usual pre / post work: ask for save, ask for refresh."
   (run-with-timer
    0 secs
    (lambda (p)
-     (let ((visited nil))
-       (loop for buffer in (buffer-list) do
-             (with-current-buffer buffer
-               (when (and buffer-file-name (git--in-vc-mode?))
-                 (let ((top (expand-file-name ".git/index" (git--get-top-dir))))
-                   (if (and (null (find top visited :test 'string-equal))
-                            (> p (second (time-since (elt (file-attributes top) 4)))))
-                       (git--update-modeline)))
-                 (push top visited))))))
+     (loop for buffer in (buffer-list) do
+           (with-current-buffer buffer
+             (when (and buffer-file-name (git--in-vc-mode?))
+               (let ((top (expand-file-name ".git/index" (git--get-top-dir))))
+                 (when (> p (second (time-since (elt (file-attributes top) 4))))
+                   (git--update-modeline)))))))
    secs))
 
 (provide 'git-emacs)
