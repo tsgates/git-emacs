@@ -111,8 +111,6 @@
 (autoload 'git-log-other "git-log"
   "Launch the git log view for an arbitrary branch or tag" t)
 
-
-
 ;;-----------------------------------------------------------------------------
 ;; Global preferences.
 ;;-----------------------------------------------------------------------------
@@ -123,6 +121,11 @@
 (defcustom git--use-ido t
   "Whether to use ido completion for git-emacs prompts."
   :type '(boolean)
+  :group 'git-emacs)
+
+(defcustom git--timer-sec 1.0
+  "Timer to monitor .git repo to update modeline"
+  :type '(number)
   :group 'git-emacs)
 
 (defvar git--completing-read
@@ -159,7 +162,6 @@ the signature of `completing-read'.")
 ;;-----------------------------------------------------------------------------
 ;; Internal variables.
 ;;-----------------------------------------------------------------------------
-
 
 (defvar git--executable "git" "Main git executable")
 (defvar git--commit-log-buffer "*git commit*")
@@ -1120,6 +1122,9 @@ pending commit buffer or nil if the buffer wasn't needed."
 
 (defun git--update-modeline ()
   "Update the current's buffer modeline state display."
+  ;; install global timer
+  (when (and git--timer-sec (null git-emacs-dot-timer))
+    (setq git-emacs-dot-timer (git-install-monitor git--timer-sec)))
   ;; mark depending on the fileinfo state
   (when (and buffer-file-name (git--in-vc-mode?))
     (git--update-state-mark
@@ -2597,5 +2602,25 @@ usual pre / post work: ask for save, ask for refresh."
   (sleep-for 1.5)                       ; let the user digest message
   (git-after-working-dir-change))
 
+
+;;-----------------------------------------------------------------------------
+;; interaction with command lines
+;;-----------------------------------------------------------------------------
+(defvar git-emacs-dot-timer nil)
+
+(defun git-install-monitor (secs)
+  (run-with-timer
+   0 secs
+   (lambda (p)
+     (let ((visited nil))
+       (loop for buffer in (buffer-list) do
+             (with-current-buffer buffer
+               (when (and buffer-file-name (git--in-vc-mode?))
+                 (let ((top (expand-file-name ".git/index" (git--get-top-dir))))
+                   (if (and (null (find top visited :test 'string-equal))
+                            (> p (second (time-since (elt (file-attributes top) 4)))))
+                       (git--update-modeline)))
+                 (push top visited))))))
+   secs))
 
 (provide 'git-emacs)
