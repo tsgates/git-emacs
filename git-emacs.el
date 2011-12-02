@@ -1124,7 +1124,6 @@ pending commit buffer or nil if the buffer wasn't needed."
   "Update the current's buffer modeline state display."
   ;; install global timer
   (when (and git--timer-sec (null git-emacs-dot-timer))
-    (message "creating timer")
     (setq git-emacs-dot-timer (git-install-monitor git--timer-sec)))
   ;; mark depending on the fileinfo state
   (when (and buffer-file-name (git--in-vc-mode?))
