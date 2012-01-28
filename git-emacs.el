@@ -1,4 +1,4 @@
-;;; git-emacs (v.1.4.3) : yet another git emacs mode for newbies
+;;; git-emacs.el --- yet another git emacs mode for newbies
 ;;
 ;; Copyright (C) 2008  TSKim (tsgatesv@gmail.com)
 ;;
@@ -6,10 +6,10 @@
 ;; v.1.4   Modified by ovy            @ 22 March 2009
 ;; v.1.3   Modified by Con Digitalpit @ 29 March 2008
 ;;
-;; Authors    : TSKim : Kim Taesoo(tsgatesv@gmail.com)
-;; Created    : 24 March 2007
-;; License    : GPL
-;; Keywords   : git, version control, release management
+;; Authors:  Kim (TSKim) Taesoo <tsgatesv@gmail.com>
+;; Created:  24 March 2007
+;; License:  GPL
+;; Keywords: git, version control, release management
 ;;
 ;; Compatibility: Emacs22 and EmacsCVS (developed on 23.0.60.2)
 ;;                Git 1.5 and up
