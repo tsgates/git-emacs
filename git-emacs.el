@@ -1,12 +1,12 @@
 ;;; git-emacs.el --- yet another git emacs mode for newbies
 ;;
-;; Copyright (C) 2008  TSKim (tsgatesv@gmail.com)
+;; Copyright (C) 2008  Taesoo Kim (tsgatesv@gmail.com)
 ;;
 ;; v.1.4.3 Modified by ovy            @ 20 September 2009
 ;; v.1.4   Modified by ovy            @ 22 March 2009
 ;; v.1.3   Modified by Con Digitalpit @ 29 March 2008
 ;;
-;; Authors:  Kim (TSKim) Taesoo <tsgatesv@gmail.com>
+;; Authors:  Taesoo Kim <tsgatesv@gmail.com>
 ;; Created:  24 March 2007
 ;; License:  GPL
 ;; Keywords: git, version control, release management
