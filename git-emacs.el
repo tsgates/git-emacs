@@ -2620,7 +2620,9 @@ usual pre / post work: ask for save, ask for refresh."
              (with-current-buffer buffer
                (when (and buffer-file-name (git--in-vc-mode?))
                  (let ((top (expand-file-name ".git/index" (git--get-top-dir))))
-                   (when (> p (second (time-since (elt (file-attributes top) 4))))
+                   (when
+		       (and (file-exists-p top)
+			    (> p (second (time-since (elt (file-attributes top) 4)))))
                      (git--update-modeline))))))))
    secs))
 
