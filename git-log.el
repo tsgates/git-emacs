@@ -108,7 +108,7 @@
   "Records the starting commit (e.g. branch name) of the current log view")
 
 
-(defun git--log-view (&optional files start-commit dont-pop-buffer)
+(defun git--log-view (&optional files start-commit dont-pop-buffer logs-count)
   "Show a log window for the given FILES; if none, the whole
 repository. If START-COMMIT is nil, use the current branch, otherwise the
 given commit. Assumes it is being run from a buffer whose
@@ -138,9 +138,12 @@ default-directory is inside the repo."
       (set (make-local-variable 'git-log-view-filenames) rel-filenames)
       ;; Subtle: the buffer may already exist and have the wrong directory
       (cd saved-default-directory)
+	  ;; Set the logs-count while it's omitted
+	  (if (equal "" logs-count)
+		  (setq logs-count "10"))
       ;; vc-do-command does almost everything right. Beware, it misbehaves
       ;; if not called with current buffer (undoes our setup)
-      (apply #'vc-do-command buffer 'async "git" nil "log"
+      (apply #'vc-do-command buffer 'async "git" nil "log" (format "-%s" logs-count)
              (append (when start-commit (list start-commit))
                      (list "--")
                      rel-filenames))
@@ -160,11 +163,11 @@ git-status-mode."
                      (git--status-view-marked-or-file)
                    (list buffer-file-name))))
  
-(defun git-log ()
+(defun git-log (&optional logs-count)
   "Launch the git log view for the whole repository"
-  (interactive)
+  (interactive "slogs count: ")
   ;; TODO: maybe ask user for a git repo if they're not in one
-  (git--log-view))
+  (git--log-view nil nil nil logs-count))
 
 (defun git-log-other (&optional commit)
   "Launch the git log view for another COMMIT, which is prompted for if
