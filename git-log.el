@@ -139,8 +139,8 @@ default-directory is inside the repo."
       ;; Subtle: the buffer may already exist and have the wrong directory
       (cd saved-default-directory)
 	  ;; Set the logs-count while it's omitted
-	  (if (equal "" logs-count)
-		  (setq logs-count "10"))
+	  (if (or (equal "" logs-count) (equal nil logs-count))
+		  (setq logs-count "50"))
       ;; vc-do-command does almost everything right. Beware, it misbehaves
       ;; if not called with current buffer (undoes our setup)
       (apply #'vc-do-command buffer 'async "git" nil "log" (format "-%s" logs-count)
