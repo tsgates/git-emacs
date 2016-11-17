@@ -1200,6 +1200,8 @@ commit, like git commit --amend will do once we commit."
      "# Date   : " (git--today)              "\n")))
 
 ;; Internal variables for commit
+(defvar git--commit-before-hook nil
+  "Hooks to run before comitting the commit buffer.")
 (defvar git--commit-after-hook nil
   "Hooks to run after comitting (and killing) the commit buffer.")
 (defvar git--commit-args nil
@@ -1224,6 +1226,9 @@ Trim the buffer log, commit runs any after-commit functions."
   (unless (string= (buffer-name (current-buffer))
                    git--commit-log-buffer)
     (error "Execute git commit on %s buffer" git--commit-log-buffer))
+
+  ;; hooks (e.g. code check)
+  (run-hooks 'git--commit-before-hook)
 
   ;; trail and commit
   (save-excursion
