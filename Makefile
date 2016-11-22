@@ -7,7 +7,8 @@
 # your vc-git.el here (I store mine in .emacs.d now).
 VC_GIT_PATH="-L /usr/share/doc/git-core/contrib/emacs -L ~/.emacs.d/"
 
-EMACS_BATCH=emacs -Q --batch "$(VC_GIT_PATH)" -L .
+EMACS?=emacs
+EMACS_BATCH=$(EMACS) -Q --batch "$(VC_GIT_PATH)" -L .
 
 .PHONY: all compile dev tags test clean
 
